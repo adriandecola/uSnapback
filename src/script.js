@@ -10,6 +10,11 @@ Relative Path:  uSnapback/src/script.js
 /****************************************************************/
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
+//The number of matched bases required on either end of a mismatched SNV for snapback primers
+const SNV_BASE_BUFFER = 3; 
+const MINIMUM_SNAPBACK_LOOP_LENGTH = 6;
+const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
+const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
 // Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
 
 /**
@@ -112,7 +117,7 @@ function createStem() {}
  * Things to consider/add/make better:
  *
  *
- * @param {string} targetSeq - The full DNA sequence to design the snapback primer for.
+ * @param {string} targetSeqStrand - A strand of the full DNA sequence to design the snapback primer for.
  * @param {number} primerLen - The length of the primer on the strand denoted by the target sequence
  * @param {number} compPrimerLen - The length of the complementary primer on the opposite strand.
  * @param {Object} snvSite - An object representing the single neucleotide variant site with:
@@ -132,7 +137,7 @@ function createStem() {}
  *
  */
 function createSnapback(
-	targetSeq,
+	targetSeqStrand,
 	primerLen,
 	compPrimerLen,
 	snvSite,
@@ -140,9 +145,9 @@ function createSnapback(
 	desiredSnapbackMeltTemp
 ) {
     // Makes sure stem does not match with anywhere a primer would go
-	const allowedStemSeq = targetSeq.slice(
+	const allowedStemSeq = targetSeqStrand.slice(
 		primerLen,
-		targetSeq.length - compPrimerLen
+		targetSeqStrand.length - compPrimerLen
 	);
 
     // Adds 3 matching neucleotides on each end of SNV so that mismatch is definitely included in stem
@@ -167,14 +172,14 @@ function createSnapback(
     /******** Doing the same for the complement strand ********/
 
     // We must reverse the complement strand so that it starts with the 5' end 
-    compTargetSeq = reverseComplement(targetSeq);
+    compTargetSeqStrand = reverseComplement(targetSeqStrand);
     
     // Mismatch Site 
 
     // Makes sure stem does not match with anywhere a primer would go
-    compAllowedStemSeq = targetSeq.slice(
+    compAllowedStemSeq = targetSeqStrand.slice(
         compPrimerLen,
-        compTargetSeq.length - primerLen
+        compTargetSeqStrand.length - primerLen
     )
 
     compCurrStemLoc = {
@@ -209,15 +214,15 @@ function createSnapback(
  * Checks if a given DNA sequence is valid. i.e. it is a string that only contains
  * the characters A, T, C, or G (case-insensitive).
  *
- * @param {string} seq - The DNA sequence to validate.
+ * @param {string} seqStrand - The DNA sequence to validate.
  * @returns {boolean} - True passed in string is a valid DNA sequence
  */
-function isValidDNASequence(seq) {
+function isValidDNASequence(seqStrand) {
 	/* 
     'const' is used as 'base' should not change within an iteration. It still changes
     every successive iterations though. 
     */
-	for (const base of seq.toUpperCase()) {
+	for (const base of seqStrand.toUpperCase()) {
 		if (!VALID_BASES.has(base)) {
 			return false;
 		}
@@ -230,15 +235,15 @@ function isValidDNASequence(seq) {
  * Returns the DNA complement of a given nucleotide sequence.
  * If the sequence passed in is not a valid sequence it throws an error.
  *
- * @param {string} seq - A string representing the DNA sequence (e.g., "ATCG").
+ * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
  * @returns {string} - The complementary DNA sequence (e.g., "TAGC").
  */
-function complementSequence(seq) {
-	if (!isValidDNASequence(seq)) {
-		throw new Error(`Invalid DNA sequence: ${seq}`);
+function complementSequence(seqStrand) {
+	if (!isValidDNASequence(seqStrand)) {
+		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
 	}
 
-	return seq
+	return seqStrand
 		.toUpperCase()
 		.split('') // Splits into an array of single character strings
 		.map((base) => NUCLEOTIDE_COMPLEMENT[base])
@@ -249,18 +254,21 @@ function complementSequence(seq) {
  * Returns the reverse complement of a DNA sequence.
  * Throws an error if the sequence is invalid.
  *
- * @param {string} seq - A DNA sequence (e.g., "ATCG").
+ * @param {string} seqStrand - A DNA sequence (e.g., "ATCG").
  * @returns {string} - The reverse complement (e.g., "CGAT").
  */
-function reverseComplement(seq) {
-	const complement = complementSequence(seq);
-	return complement.split('').reverse().join(''); 
+function reverseComplement(seqStrand) {
+	const complementStrand = complementSequence(seqStrand);
+	return complementStrand.split('').reverse().join(''); 
 }
 
 /**
  * Returns the reverse compelment for a mismatch site. 
  * That is it returns the complement bases and correct for the sequence's
  * complement assuming that the new sequence starts with the 5' end
+ * 
+ * Assumptions:
+ * - Assumes the variant bases are all valid (element of {"C", "G", "A", "T"})
  * 
  * 
  * @param {Object} snvSite - An object representing the single neucleotide variant site with:
@@ -283,4 +291,29 @@ function revCompSNV(snvSite, seqLen) {
         index:revCompIndex,
         variantBases: revCompVariantBases
     }
+}
+
+
+/**
+ * Checks if the SNV is too close to the ends of the primers to form 3 base buffer on either end.
+ *
+ * Assumptions:
+ * - The target sequence strand starts at the 5' end
+ * - Primer corresponds to primer that binds to the target sequence strand given 
+ * - Complementary primer corresponds to the complement of target sequence strand given
+ *
+ * @param {number} snvIndex - Index of the SNV in the target sequence strand(starting at 0).
+ * @param {number} primerLen - Length of the primer on the same strand as the target sequence.
+ * @param {number} compPrimerLen - Length of the complementary primer on the opposite strand.
+ * @param {number} seqLen - The total length of the target sequence.
+ *
+ * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
+ */
+function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
+
+	// Must be at least {buffer} bases away from either primer
+	const lowerBoundIndex = primerLen + buffer;
+	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
+
+	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
 }
