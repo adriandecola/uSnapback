@@ -5,9 +5,12 @@ Author:         Adrian deCola
 Relative Path:  uSnapback/src/script.js
 */
 
-/********* Constants **********/
+/****************************************************************/
+/************************** Constants ***************************/
+/****************************************************************/
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
+// Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
 
 /**
  * This function creates a snapback primer given an input sequence that includes both the 5' end and 3' end
@@ -91,6 +94,7 @@ const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
  * ** should also return the  matched temperature?? and the mismatched temperature
  ***dont need 2 base pair mismatch every time
  */
+function createStem() {}
 
 /**
  * Creates a snapback primer sequence by identifying suitable stem regions
@@ -101,6 +105,8 @@ const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
  *
  * Assumptions:
  * - Assumes passed in values are correct
+ *     - Passed in target sequence is valid and uppercase
+ * - Assumes that the target sequence begins with the 5' end 
  *
  *
  * Things to consider/add/make better:
@@ -109,9 +115,11 @@ const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
  * @param {string} targetSeq - The full DNA sequence to design the snapback primer for.
  * @param {number} primerLen - The length of the primer on the strand denoted by the target sequence
  * @param {number} compPrimerLen - The length of the complementary primer on the opposite strand.
- * @param {Object} mismatchSite - An object representing a single mismatch site with:
- *     @property {number} position - The index in the sequence where the mismatch occurs (0-based).
- *     @property {Array<string>} mismatchBases - An array of one or more alternate bases to try at the mismatch site.
+ * @param {Object} snvSite - An object representing the single neucleotide variant site with:
+ *     @property {number} index - The index in the sequence where the variant occurs (0-based).
+ *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
+ * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
+ * @param {number} desiredSnapbackMeltTemp = The desired snapback melting temperature for the matched snapback (no mismatches)
  *
  * @returns {Object} - An object representing the formed snapback primer
  *     @property {string} snapbackSeq - The final snapback primer sequence (5'-tail + primer-3').
@@ -119,15 +127,69 @@ const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
  *                                            by the target sequence (True) or by its complement (False)
  *     @property {Array<Object>} snapbackMeltingTemps - Melting temperature info for match and mismatch variants.
  *         @property {string} snapbackMeltingTemps[].base - The base used at the mismatch site (A, T, C, or G).
- *         @property {boolean} snapbackMeltingTemps[].isMatch - True if this base is the correct one (no mismatch).
+ *         @property {boolean} snapbackMeltingTemps[].isMatch - True if this base is the correct one (no mismatch in snapback).
  *         @property {number} snapbackMeltingTemps[].meltingTemp - The melting temperature for this base configuration.
  *
  */
-
-function createSnapback(targetSeq, primerLen, compPrimerLen, mismatchSite) {
+function createSnapback(
+	targetSeq,
+	primerLen,
+	compPrimerLen,
+	snvSite,
+	minSnapbackMeltTemp,
+	desiredSnapbackMeltTemp
+) {
+    // Makes sure stem does not match with anywhere a primer would go
 	const allowedStemSeq = targetSeq.slice(
 		primerLen,
 		targetSeq.length - compPrimerLen
+	);
+
+    // Adds 3 matching neucleotides on each end of SNV so that mismatch is definitely included in stem
+	currStemLoc = {
+		start: snvSite.index - 3,
+		end: snvSite.index + 3,
+	};
+
+	// +2 for the two base mismatches in the loop to avoid loop closing
+	// (assumes the tail with the 2 base pairs added is part of the loop)
+	// more loop can be added after the fact
+	const minLoopLen = currentStemLoc.start + 2;
+
+	snapbackPrimerTargetStrand = calculateStem(
+		allowedStemSeq,
+		currStemLoc,
+		minLoopLen,
+		minSnapbackMeltTemp,
+		desiredSnapbackMeltTemp
+	);
+
+    /******** Doing the same for the complement strand ********/
+
+    // We must reverse the complement strand so that it starts with the 5' end 
+    compTargetSeq = reverseComplement(targetSeq);
+    
+    // Mismatch Site 
+
+    // Makes sure stem does not match with anywhere a primer would go
+    compAllowedStemSeq = targetSeq.slice(
+        compPrimerLen,
+        compTargetSeq.length - primerLen
+    )
+
+    compCurrStemLoc = {
+        start: 
+    }
+
+
+
+
+
+
+
+	snapbackPrimerCompStrand = calculateStem(
+		,
+
 	);
 
 	// First build up the 3 padding on each end for the stem
@@ -135,7 +197,13 @@ function createSnapback(targetSeq, primerLen, compPrimerLen, mismatchSite) {
 	//
 }
 
+
+
+
+
+/****************************************************************/
 /*********************** Helper Functions ***********************/
+/****************************************************************/
 
 /**
  * Checks if a given DNA sequence is valid. i.e. it is a string that only contains
@@ -175,4 +243,46 @@ function complementSequence(seq) {
 		.split('') // Splits into an array of single character strings
 		.map((base) => COMPLEMENT_MAP[base])
 		.join(''); // rejoins array into a string of the complement bases
+}
+
+/**
+ * Returns the reverse complement of a DNA sequence.
+ * Throws an error if the sequence is invalid.
+ *
+ * @param {string} seq - A DNA sequence (e.g., "ATCG").
+ * @returns {string} - The reverse complement (e.g., "CGAT").
+ */
+function reverseComplement(seq) {
+	const complement = complementSequence(seq);
+	return complement.split('').reverse().join(''); 
+}
+
+/**
+ * Returns the reverse compelment for a mismatch site. 
+ * That is it returns the complement bases and correct for the sequence's
+ * complement assuming that the new sequence starts with the 5' end
+ * 
+ * 
+ * @param {Object} snvSite - An object representing the single neucleotide variant site with:
+ *     @property {number} index - The index in the sequence where the variant occurs.
+ *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
+ * @param {number} seqLen - The length of the target sequence
+ * 
+ * @returns {Object} - An object representing the single neucleotide variant site for the reverse complement sequence with:
+ *     @property {number} index - The index in the sequence where the variant occurs.
+ *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
+ */
+function revCompSNV(snvSite) {
+    // Since revComplement sequence starts with 5' end and both are indexed starting at 0
+    revCompIndex = seqLen - snvSite.index - 1;
+
+
+    revCompVariantBases = snvSite.variantBases.map(base => {
+        return NUCLEOTIDE_COMPLEMENT[base]
+    })
+
+    return {
+        index:revCompIndex,
+        variantBases: revCompVariantBases
+    }
 }
