@@ -11,10 +11,12 @@ Relative Path:  uSnapback/src/script.js
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
 //The number of matched bases required on either end of a mismatched SNV for snapback primers
-const SNV_BASE_BUFFER = 3; 
-const MINIMUM_SNAPBACK_LOOP_LENGTH = 6;
+const SNV_BASE_BUFFER = 3;
+const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
+const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
+
 // Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
 
 /**
@@ -111,7 +113,8 @@ function createStem() {}
  * Assumptions:
  * - Assumes passed in values are correct
  *     - Passed in target sequence is valid and uppercase
- * - Assumes that the target sequence begins with the 5' end 
+ * - Assumes that the target sequence begins with the 5' end
+ * - we want to minimize loop length
  *
  *
  * Things to consider/add/make better:
@@ -141,70 +144,76 @@ function createSnapback(
 	primerLen,
 	compPrimerLen,
 	snvSite,
-	minSnapbackMeltTemp,
 	desiredSnapbackMeltTemp
 ) {
-    // Makes sure stem does not match with anywhere a primer would go
+	// Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
+	if (
+		snvTooCloseToPrimer(
+			snvSite.index,
+			primerLen,
+			compPrimerLen,
+			targetSeqStrand.length
+		)
+	) {
+		throw new Error(
+			`SNV at index ${snvSite.index} is too close to one of the primers. ` +
+				`There must be at least 3 bases on each side of the SNV that do not ` +
+				`over lap with either primer location to form a valid stem.`
+		);
+	}
+
+	/******************** Creating complementary strand's variables and initial, could-be snapback primer stems *********************/
+
+	/*** Getting complementary strand variable ***/
+	// We must reverse the complement strand so that it starts with the 5' end
+	compTargetSeqStrand = reverseComplement(targetSeqStrand);
+	compSnvSite = revCompSNV(snvSite, targetSeqStrand.length);
+
+	// Adds {SNV base buffer} matching neucleotides on each end of SNV so that mismatch is definitely included in stem
+	initStemLoc = {
+		start: snvSite.index - SNV_BASE_BUFFER,
+		end: snvSite.index + SNV_BASE_BUFFER,
+	};
+	// Doing the same for the complementary strand
+	compInitStemLoc = {
+		start: compSnvSite.index - SNV_BASE_BUFFER,
+		end: compSnvSite.index + SNV_BASE_BUFFER,
+	};
+	// Creates the initial would be stems to test the melting temperatre difference to choose a primer to use as the snapback
+	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
+	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
+	initStem = targetSeqStrand.slice(initStemLoc.start, initStemLoc.end);
+	compInitStem = compTargetSeqStrand.slice(
+		compInitStemLoc.start,
+		compInitStemLoc.end
+	);
+
+	/* Calculate the initial melting temperature differences for variants and choose the primer with the largest differnce as snapback */
+	if (useTargetStrandsPrimerForComplement(initStem, compInitStem)) {
+	} else {
+	}
+
+	// Future stem cannot not overlap with anywhere a primer would go
+	/*****************only going to use one of these aassign to new variables */
 	const allowedStemSeq = targetSeqStrand.slice(
 		primerLen,
 		targetSeqStrand.length - compPrimerLen
 	);
+	// Makes sure stem does not match with anywhere a primer would go
+	compAllowedStemSeq = targetSeqStrand.slice(
+		compPrimerLen,
+		compTargetSeqStrand.length - primerLen
+	);
 
-    // Adds 3 matching neucleotides on each end of SNV so that mismatch is definitely included in stem
-	currStemLoc = {
-		start: snvSite.index - 3,
-		end: snvSite.index + 3,
-	};
-
-	// +2 for the two base mismatches in the loop to avoid loop closing
-	// (assumes the tail with the 2 base pairs added is part of the loop)
-	// more loop can be added after the fact
-	const minLoopLen = currStemLoc.start + 2;
+	// As we do not want the loop length to go larger than
+	const loopLen = initStemLoc.start + 2;
 
 	snapbackPrimerTargetStrand = calculateStem(
 		allowedStemSeq,
-		currStemLoc,
-		minLoopLen,
-		minSnapbackMeltTemp,
+		initStemLoc,
 		desiredSnapbackMeltTemp
 	);
-
-    /******** Doing the same for the complement strand ********/
-
-    // We must reverse the complement strand so that it starts with the 5' end 
-    compTargetSeqStrand = reverseComplement(targetSeqStrand);
-    
-    // Mismatch Site 
-
-    // Makes sure stem does not match with anywhere a primer would go
-    compAllowedStemSeq = targetSeqStrand.slice(
-        compPrimerLen,
-        compTargetSeqStrand.length - primerLen
-    )
-
-    compCurrStemLoc = {
-        start: 
-    }
-
-
-
-
-
-
-
-	snapbackPrimerCompStrand = calculateStem(
-		,
-
-	);
-
-	// First build up the 3 padding on each end for the stem
-
-	//
 }
-
-
-
-
 
 /****************************************************************/
 /*********************** Helper Functions ***********************/
@@ -259,47 +268,47 @@ function complementSequence(seqStrand) {
  */
 function reverseComplement(seqStrand) {
 	const complementStrand = complementSequence(seqStrand);
-	return complementStrand.split('').reverse().join(''); 
+	return complementStrand.split('').reverse().join('');
 }
 
 /**
- * Returns the reverse compelment for a mismatch site. 
+ * Returns the reverse compelment for a mismatch site.
  * That is it returns the complement bases and correct for the sequence's
  * complement assuming that the new sequence starts with the 5' end
- * 
+ *
  * Assumptions:
  * - Assumes the variant bases are all valid (element of {"C", "G", "A", "T"})
- * 
- * 
+ *
+ *
  * @param {Object} snvSite - An object representing the single neucleotide variant site with:
  *     @property {number} index - The index in the sequence where the variant occurs.
  *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
  * @param {number} seqLen - The length of the target sequence
- * 
+ *
  * @returns {Object} - An object representing the single neucleotide variant site for the reverse complement sequence with:
  *     @property {number} index - The index in the sequence where the variant occurs.
  *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
  */
 function revCompSNV(snvSite, seqLen) {
-    // Since revComplement sequence starts with 5' end and both are indexed starting at 0
-    revCompIndex = seqLen - snvSite.index - 1;
+	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
+	revCompIndex = seqLen - snvSite.index - 1;
 
+	revCompVariantBases = snvSite.variantBases.map(
+		(base) => NUCLEOTIDE_COMPLEMENT[base]
+	);
 
-    revCompVariantBases = snvSite.variantBases.map(base => NUCLEOTIDE_COMPLEMENT[base]);
-
-    return {
-        index:revCompIndex,
-        variantBases: revCompVariantBases
-    }
+	return {
+		index: revCompIndex,
+		variantBases: revCompVariantBases,
+	};
 }
-
 
 /**
  * Checks if the SNV is too close to the ends of the primers to form 3 base buffer on either end.
  *
  * Assumptions:
  * - The target sequence strand starts at the 5' end
- * - Primer corresponds to primer that binds to the target sequence strand given 
+ * - Primer corresponds to primer that binds to the target sequence strand given
  * - Complementary primer corresponds to the complement of target sequence strand given
  *
  * @param {number} snvIndex - Index of the SNV in the target sequence strand(starting at 0).
@@ -310,7 +319,6 @@ function revCompSNV(snvSite, seqLen) {
  * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
  */
 function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
-
 	// Must be at least {buffer} bases away from either primer
 	const lowerBoundIndex = primerLen + buffer;
 	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
