@@ -154,7 +154,7 @@ function createSnapback(
 	// +2 for the two base mismatches in the loop to avoid loop closing
 	// (assumes the tail with the 2 base pairs added is part of the loop)
 	// more loop can be added after the fact
-	const minLoopLen = currentStemLoc.start + 2;
+	const minLoopLen = currStemLoc.start + 2;
 
 	snapbackPrimerTargetStrand = calculateStem(
 		allowedStemSeq,
@@ -241,7 +241,7 @@ function complementSequence(seq) {
 	return seq
 		.toUpperCase()
 		.split('') // Splits into an array of single character strings
-		.map((base) => COMPLEMENT_MAP[base])
+		.map((base) => NUCLEOTIDE_COMPLEMENT[base])
 		.join(''); // rejoins array into a string of the complement bases
 }
 
@@ -272,14 +272,12 @@ function reverseComplement(seq) {
  *     @property {number} index - The index in the sequence where the variant occurs.
  *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
  */
-function revCompSNV(snvSite) {
+function revCompSNV(snvSite, seqLen) {
     // Since revComplement sequence starts with 5' end and both are indexed starting at 0
     revCompIndex = seqLen - snvSite.index - 1;
 
 
-    revCompVariantBases = snvSite.variantBases.map(base => {
-        return NUCLEOTIDE_COMPLEMENT[base]
-    })
+    revCompVariantBases = snvSite.variantBases.map(base => NUCLEOTIDE_COMPLEMENT[base]);
 
     return {
         index:revCompIndex,
