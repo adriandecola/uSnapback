@@ -26,20 +26,21 @@ const O_TYPE = 'oligo';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 
-// Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
-
 /**
  * Creates a snapback primer sequence by identifying suitable stem regions
  * in the target DNA sequence, accounting for primer lengths and a single
- * mismatch site. This function initializes the process by preparing the
- * allowed stem sequence and then calls a recursive helper function to find
- * the best snapback configuration.
+ * mismatch site. The function then chooses which primer to add the snapback
+ * tail to and whether it should match with the wild type of one of the
+ * variants, if there are multiple. It then creates the rest of the stem
+ * so that it gets as close as it can to the desired snapback melting temperature
+ * and returns an error if it cannot have the snapback melting temperatures
+ * (match or mismatch) all be aboge the minimum snapback melting temperature.
  *
  * Assumptions:
  * - Assumes passed in values are correct
  *     - Passed in target sequence is valid and uppercase
  * - Assumes that the target sequence begins with the 5' end
- * - we want to minimize loop length
+ * - we want to minimize loop length for whatever reason??
  *
  *
  * Things to consider/add/make better:
@@ -50,7 +51,7 @@ const LIMITING_CONC = 0.5;
  * @param {number} compPrimerLen - The length of the complementary primer on the opposite strand.
  * @param {Object} snvSite - An object representing the single neucleotide variant site with:
  *     @property {number} index - The index in the sequence where the variant occurs (0-based).
- *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
+ *     @property {string} variantBases - An array of one or more of the possible variant bases
  * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
  * @param {number} desiredSnapbackMeltTemp = The desired snapback melting temperature for the matched snapback (no mismatches)
  *
@@ -103,17 +104,20 @@ function createSnapback(
 		start: compSnvSite.index - SNV_BASE_BUFFER,
 		end: compSnvSite.index + SNV_BASE_BUFFER,
 	};
-	// Creates the initial would be stems to test the melting temperatre difference to choose a primer to use as the snapback
-	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
-	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
-	initStem = targetSeqStrand.slice(initStemLoc.start, initStemLoc.end);
-	compInitStem = compTargetSeqStrand.slice(
-		compInitStemLoc.start,
-		compInitStemLoc.end
-	);
 
 	/* Calculate the initial melting temperature differences for variants and choose the primer with the largest differnce as snapback */
-	if (useTargetStrandsPrimerForComplement(initStem, compInitStem)) {
+	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
+	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
+	if (
+		useTargetStrandsPrimerForComplement(
+			targetSeqStrand,
+			compTargetSeqStrand,
+			initStemLoc,
+			compInitStemLoc,
+			snvSite,
+			compSnvSite
+		)
+	) {
 		//NOW WE ARE FLIPPING TO ORIENT OURSELVES SO THAT THE 5' END OF THE STRAND FOR WHICH THE SNAPBACK PRIMER IS BEING DESIGNED
 		// FOR IS INDEX 0 AND ITS PREIMER IS CALLED.... AND ....
 		//
@@ -141,6 +145,139 @@ function createSnapback(
 		initStemLoc,
 		desiredSnapbackMeltTemp
 	);
+}
+
+/**
+ * Decides which strand (target vs. complementary) should get the snapback primer,
+ * and whether the snapback should match the wild-type base or a variant base at the SNV.
+ *
+ * Returns an object:
+ *   {
+ *     useTargetStrand: boolean,   // True => use target strand for snapback
+ *     snapbackBaseAtSNV: string,  // e.g. 'A' or 'G', whichever base is best to match
+ *   }
+ *
+ * @param {string} targetSeqStrand     - Full target strand (5'→3')
+ * @param {string} compTargetSeqStrand - Full complementary strand (5'→3') [reverse complement of the target]
+ * @param {Object} initStemLoc         - { start: number, end: number } for the target’s initial stem
+ * @param {Object} compInitStemLoc     - { start: number, end: number } for the complementary’s initial stem
+ * @param {Object} snvSite             - { index: number, variantBases: string[] }
+ * @param {Object} compSnvSite         - { index: number, variantBases: string[] }
+ *
+ * @returns {Promise<{ useTargetStrand: boolean, snapbackBaseAtSNV: string }>}
+ */
+async function useTargetStrandsPrimerForComplement(
+	targetSeqStrand,
+	compTargetSeqStrand,
+	initStemLoc,
+	compInitStemLoc,
+	snvSite,
+	compSnvSite
+) {
+	// 1) Slice out the "init stem" region from each strand
+	const targetInitStem = targetSeqStrand.slice(
+		initStemLoc.start,
+		initStemLoc.end
+	);
+	const compInitStem = compTargetSeqStrand.slice(
+		compInitStemLoc.start,
+		compInitStemLoc.end
+	);
+
+	// 2) Identify the wild-type base on each strand
+	//    (The user’s code ensures they should be the same base, but we’ll fetch each explicitly.)
+	const targetWildBase = targetSeqStrand[snvSite.index];
+	const compWildBase = compTargetSeqStrand[compSnvSite.index];
+
+	// 3) Because SNV_BASE_BUFFER = 3, the SNV is at index 3 in these sliced stems
+	const mismatchPos = 3;
+
+	// 4) Evaluate Tm differences for the target side
+	const targetScenario = await evaluateSnapbackOptions(
+		targetInitStem, // sub-sequence
+		mismatchPos, // always 3 in this setup
+		targetWildBase, // base in the target
+		snvSite.variantBases // possible variants
+	);
+
+	// 5) Evaluate Tm differences for the complementary side
+	const compScenario = await evaluateSnapbackOptions(
+		compInitStem,
+		mismatchPos,
+		compWildBase,
+		compSnvSite.variantBases
+	);
+
+	// 6) Compare which scenario yields the bigger Tm difference
+	if (targetScenario.bestDifference > compScenario.bestDifference) {
+		return {
+			useTargetStrand: true,
+			snapbackBaseAtSNV: targetScenario.bestBase,
+		};
+	} else {
+		return {
+			useTargetStrand: false,
+			snapbackBaseAtSNV: compScenario.bestBase,
+		};
+	}
+}
+
+/**
+ * Evaluates the potential snapback Tm differences for a given stem slice.
+ * We consider two main scenarios:
+ *  1) The snapback *matches* the wild base => the variant(s) become mismatch(es).
+ *  2) The snapback *matches* one of the variant bases => the wild base becomes the mismatch.
+ *
+ * Returns whichever scenario yields the largest absolute difference from the “matched wild” Tm.
+ *
+ * @param {string} initStem       - The sub-sequence that includes the SNV at position `mismatchPos`
+ * @param {number} mismatchPos    - Usually 3, because the SNV is centered in the slice
+ * @param {string} wildBase       - The wild-type base at the SNV (e.g., 'A')
+ * @param {string[]} variantBases - Possible variant base(s) (e.g. ['G'] or ['G','T'])
+ *
+ * @returns {Promise<{ bestBase: string, bestDifference: number }>}
+ *   bestBase => the base to use in the snapback tail (wild or one of the variants)
+ *   bestDifference => the numeric Tm difference from wild scenario
+ */
+async function evaluateSnapbackOptions(
+	initStem,
+	mismatchPos,
+	wildBase,
+	variantBases
+) {
+	// 1) Get the "matched wild" Tm (i.e., no mismatch in initStem)
+	const wildTm = await getStemTm(initStem);
+
+	let bestBase = wildBase;
+	let bestDifference = 0;
+
+	// 2) Scenario A: Snapback matches the wild base => each variant is a mismatch
+	for (const variantBase of variantBases) {
+		const mismatchObj = { position: mismatchPos, type: variantBase };
+		const mismatchTm = await getStemTm(initStem, mismatchObj);
+		const diff = Math.abs(wildTm - mismatchTm);
+
+		if (diff > bestDifference) {
+			bestDifference = diff;
+			bestBase = wildBase; // We’re matching wild, variant is the mismatch
+		}
+	}
+
+	// 3) Scenario B: Snapback matches a variant base => the wild base is the mismatch
+	//    For each variant, see if matching *that* variant yields a bigger difference
+	for (const variantBase of variantBases) {
+		// If we match 'variantBase', the mismatch is the wild base
+		const mismatchObj = { position: mismatchPos, type: wildBase };
+		const variantMatchTm = await getStemTm(initStem, mismatchObj);
+		const diff = Math.abs(variantMatchTm - wildTm);
+
+		if (diff > bestDifference) {
+			bestDifference = diff;
+			bestBase = variantBase; // Snapback is matching this variant
+		}
+	}
+
+	return { bestBase, bestDifference };
 }
 
 /**
@@ -504,18 +641,3 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 
 	return arr.join('');
 }
-
-/**
- * Decides if the target strand's primer (or the complement primer) should be used to make the snapback
- * primer. It also decides if the the wild type or one of the variants should have a match with the
- * snapback tail. both of these are done by choosing the option with the highest melting temperature
- * difference between the wild and variant made snapbacks. If there are multiple variants, the
- * snapback is chosen by maximizing the minimum melting temperature difference between any two
- * variant or wild snapback melting temperatures. This way all melting curves can be easily
- * distinguised and identified.
- * @param {string} initStem - A string of nucleotides representing the initial stem on the user provided strand
- *                            of the target sequence.
- * @param {string} compInitStem - A string of nucleotides representing the initial stem on the complementary strand
- *                                of the target sequence
- */
-function whichPrimertoUseAndWildOrVariantMatch(initStem, compInitStem) {}
