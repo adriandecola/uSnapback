@@ -9,16 +9,15 @@ Relative Path:  uSnapback/src/script.js
 /************************** Constants ***************************/
 /****************************************************************/
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
-const WORST_NUCLEOTIDE_MATCH = { A: 'G', G: 'A', C: 'C', T: 'T' };
+const STRONG_NUCLEOTIDE_MISMATCH = { A: 'G', G: 'A', C: 'C', T: 'T' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
-// The number of matched bases required on either end of a mismatched SNV for snapback primers
-const SNV_BASE_BUFFER = 3;
+const SNV_BASE_BUFFER = 3; // The number of matched bases required on either end of a mismatched SNV
 const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
 const SNAP_DECIMAL_PLACES = 2;
-// Chemisty parameters ************** name these************
+// Chemisty parameters ************** name these better ************
 const MG = 2.2;
 const MONO = 20.0;
 const T_PARAM = 'UnifiedSantaLucia';
@@ -28,90 +27,6 @@ const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 
 // Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
-
-/**
- * This function creates a snapback primer given an input sequence that includes both the 5' end and 3' end
- * primers and the location and type of the single base variant of interest. The 'scorpion tail' of the snapback
- * primer is added to the 5' end. It includes a loop and then a tail that contains a bases complimentary to the
- * input sequence, allowing it to fold on itself (once duplicated) creating a hairpin structure.
- * The hybridized part includes a single base variant of interest. Snapback primers
- * are helpful because the melting temperature of the hairpin structure can vary more greatly for a single base
- * mismatch than it can for regular PCR product.
- *
- * This recursive function finds a snapback primer such that difference in melting temperatures for the wild
- * and variant type single base variant is maximized. For cases where the variant can be more than one base,
- * the mimimum temperature difference between any trait is maximized.
- *
- * Assumptions:
- * - There is only one mismatch site
- * - The stem (either end) should not be complementary to primer end
- *      - This means that the
- * - The hairpin loop must be at least 6 bases long; however this is satisfied as the primer should
- *      -> If the loop of the hairpin is too short, the model for melting temperatures is not accurate and it is hard
- *         for the hairpin structure to form
- *      -> however this assumption is satifies as the primer is always 15 base pairs long and the
- * - The stem's melting temperatuere is calcualted using the Santa Lucia method.
- * - Extension can occur on the hairpin's complement, on its 5' end. A 2 base pair mismatch after the stem can
- *   help avoid this
- * - The acceptable snapback melting temperature range is 50-75 degrees Celcius
- *
- * Process:
- * - The function starts by checking the termination conditions. It checks if the built up sequence
- *   we are testing for goes past the viable stem area  what if it goes over limiting primer end?????
- *   or if the stem is longer than **** base pairs. If this is the case the function returns the
- *   sequence with the largest temperature difference after adding a 2 base pair mismatch after the stem on the 5'
- *   end to avoid the snapbacks compliment from extending.
- * - If the function has no built up sequence yet, the function initiallizes with adding 3 complimentary
- *   neucleotices on each end of the varying neucleotide. This is only done if it has not been done before.
- *      ***is it done for both sides?
- * - The function then calculates the melting temperatures of the matched and mismatched sequence(s).
- * - If the melting temperatures of the matched and mismatched sequence(s) are inside greater than the mimimum
- *   snapback temperature of 50 degrees Celsius, then the function calculates the temperature difference
- *   (for snapbacks that are only testing for one possible base change) or the minimmum temperature
- *   difference between all different bases (for snapbacks that are testing for multiple possible
- *   base changes)
- * - If not then the snapback calls itself on the build-up sequence with added neucleotides on either end (as long as
- *   they do not intrude on either primer ends (don't wasn self annealing at those locations) to make the stem longer,
- *   so that the melting temperatures are in an acceptable range
- * - If this melting temperture difference is greater than any previously saved melting temperature
- *   difference, or if one has not been saved yet, the melting temperature difference is saved.
- * - The function calls its self of the builtup sequence with all the possible addition types of
- *
- *
- *
- *
- * Notes to make this equation more effecient:
- * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory
- * - I could hash and cache melting temperatures of stems? ACTUALLY they shouldnt repeat much unless theres convenient patterns in the sequence so nevermind? or try it and see how many times a cached item is used
- * - I could save the melting temperatur so far and implement santa lucia method here and simply add entropys
- *   and enthalpies of added neucleotides.
- * - have a clean function to call a more simple recursive function to take out some cleaning each call
- * - make my own data type to represent dna sequences with their own methods/properties like .complement or .complement()
- *
- *
- * ** it doesnt check if it overlaps with primers or anything, but seems very rare, can force it not to if loop should be extended (add 2 pair mismatch?)
- *
- *
- *
- * @param {string} targetSeq - The DNA sequence to design the primer (snapback) for. Assume limiting
- *                             primer is on complementary sequence.
- *
- * @param {number} primerLen - The length of the primer (excluding snapback). Assume limiting
- *                             primer is on complementary sequence.
- * @param {number} compPrimerLen - The length of the complementary primer.
- * @param {number} minLoopLen - The minimum loop length so far, assuming that the entire tail is part
- *                              of the stem. Includes a 2 base mismatch at start of loop towars 5' end
- *                              to make sure loop is not self complimentary and closes itself
- * @param {string} builtUpSeq - The DNA sequence that has been built up for testing.
- * @param {string} allowedStemSeq - The section of the DNA sequence that can be used as part of the stem
- * @param {number} minimumLoopLen -> this is the primer length on that end and some extra
- * @returns {string} - The full snapback primer sequence (5'-tail+primer-3').
- * @property {}
- * shoult return the loop size, and entire sequence, and stem size?
- * ** should also return the  matched temperature?? and the mismatched temperature
- ***dont need 2 base pair mismatch every time
- */
-function createStem() {}
 
 /**
  * Creates a snapback primer sequence by identifying suitable stem regions
@@ -228,6 +143,90 @@ function createSnapback(
 	);
 }
 
+/**
+ * This function creates a snapback primer given an input sequence that includes both the 5' end and 3' end
+ * primers and the location and type of the single base variant of interest. The 'scorpion tail' of the snapback
+ * primer is added to the 5' end. It includes a loop and then a tail that contains a bases complimentary to the
+ * input sequence, allowing it to fold on itself (once duplicated) creating a hairpin structure.
+ * The hybridized part includes a single base variant of interest. Snapback primers
+ * are helpful because the melting temperature of the hairpin structure can vary more greatly for a single base
+ * mismatch than it can for regular PCR product.
+ *
+ * This recursive function finds a snapback primer such that difference in melting temperatures for the wild
+ * and variant type single base variant is maximized. For cases where the variant can be more than one base,
+ * the mimimum temperature difference between any trait is maximized.
+ *
+ * Assumptions:
+ * - There is only one mismatch site
+ * - The stem (either end) should not be complementary to primer end
+ *      - This means that the
+ * - The hairpin loop must be at least 6 bases long; however this is satisfied as the primer should
+ *      -> If the loop of the hairpin is too short, the model for melting temperatures is not accurate and it is hard
+ *         for the hairpin structure to form
+ *      -> however this assumption is satifies as the primer is always 15 base pairs long and the
+ * - The stem's melting temperatuere is calcualted using the Santa Lucia method.
+ * - Extension can occur on the hairpin's complement, on its 5' end. A 2 base pair mismatch after the stem can
+ *   help avoid this
+ * - The acceptable snapback melting temperature range is 50-75 degrees Celcius
+ *
+ * Process:
+ * - The function starts by checking the termination conditions. It checks if the built up sequence
+ *   we are testing for goes past the viable stem area  what if it goes over limiting primer end?????
+ *   or if the stem is longer than **** base pairs. If this is the case the function returns the
+ *   sequence with the largest temperature difference after adding a 2 base pair mismatch after the stem on the 5'
+ *   end to avoid the snapbacks compliment from extending.
+ * - If the function has no built up sequence yet, the function initiallizes with adding 3 complimentary
+ *   neucleotices on each end of the varying neucleotide. This is only done if it has not been done before.
+ *      ***is it done for both sides?
+ * - The function then calculates the melting temperatures of the matched and mismatched sequence(s).
+ * - If the melting temperatures of the matched and mismatched sequence(s) are inside greater than the mimimum
+ *   snapback temperature of 50 degrees Celsius, then the function calculates the temperature difference
+ *   (for snapbacks that are only testing for one possible base change) or the minimmum temperature
+ *   difference between all different bases (for snapbacks that are testing for multiple possible
+ *   base changes)
+ * - If not then the snapback calls itself on the build-up sequence with added neucleotides on either end (as long as
+ *   they do not intrude on either primer ends (don't wasn self annealing at those locations) to make the stem longer,
+ *   so that the melting temperatures are in an acceptable range
+ * - If this melting temperture difference is greater than any previously saved melting temperature
+ *   difference, or if one has not been saved yet, the melting temperature difference is saved.
+ * - The function calls its self of the builtup sequence with all the possible addition types of
+ *
+ *
+ *
+ *
+ * Notes to make this equation more effecient:
+ * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory
+ * - I could hash and cache melting temperatures of stems? ACTUALLY they shouldnt repeat much unless theres convenient patterns in the sequence so nevermind? or try it and see how many times a cached item is used
+ * - I could save the melting temperatur so far and implement santa lucia method here and simply add entropys
+ *   and enthalpies of added neucleotides.
+ * - have a clean function to call a more simple recursive function to take out some cleaning each call
+ * - make my own data type to represent dna sequences with their own methods/properties like .complement or .complement()
+ *
+ *
+ * ** it doesnt check if it overlaps with primers or anything, but seems very rare, can force it not to if loop should be extended (add 2 pair mismatch?)
+ *
+ *
+ *
+ * @param {string} targetSeq - The DNA sequence to design the primer (snapback) for. Assume limiting
+ *                             primer is on complementary sequence.
+ *
+ * @param {number} primerLen - The length of the primer (excluding snapback). Assume limiting
+ *                             primer is on complementary sequence.
+ * @param {number} compPrimerLen - The length of the complementary primer.
+ * @param {number} minLoopLen - The minimum loop length so far, assuming that the entire tail is part
+ *                              of the stem. Includes a 2 base mismatch at start of loop towars 5' end
+ *                              to make sure loop is not self complimentary and closes itself
+ * @param {string} builtUpSeq - The DNA sequence that has been built up for testing.
+ * @param {string} allowedStemSeq - The section of the DNA sequence that can be used as part of the stem
+ * @param {number} minimumLoopLen -> this is the primer length on that end and some extra
+ * @returns {string} - The full snapback primer sequence (5'-tail+primer-3').
+ * @property {}
+ * shoult return the loop size, and entire sequence, and stem size?
+ * ** should also return the  matched temperature?? and the mismatched temperature
+ ***dont need 2 base pair mismatch every time
+ */
+function createStem() {}
+
 /****************************************************************/
 /*********************** Helper Functions ***********************/
 /****************************************************************/
@@ -342,73 +341,85 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 }
 
 /**
- * Calculates the melting temperature of a snapback stem via server API
+ * Calculates the melting temperature of a snapback stem via server API (dna-utah.org).
  *
- * Typedefs:
  * @typedef {Object} Mismatch
- * @property {number} position - The index in the sequence where the mismatch occurs.
- * @property {string} type - The type of mismatch (e.g., "A").
+ * @property {number} position - Index in the sequence where the mismatch occurs.
+ * @property {string} type     - The base on the opposite strand (e.g. "A") for the mismatch.
  *
- *
- * @param {string} seq - The DNA sequence (one strand) starting with the 5' end
- * @param {Mismatch} [mismatch] - Optional object representing the nucleotide mismatch location and type.
- *
- * @returns {number} - The melting temperature of the snapback stem
+ * @param {string}  seq             - The reference (matched) sequence (5'→3').
+ * @param {Mismatch} [mismatch]     - Optional mismatch specification.
+ * @returns {Promise<number>}       - The Tm value in °C.
+ * @throws {Error}                  - If inputs are invalid, or the response can’t be parsed.
  */
 async function getStemTm(seq, mismatch) {
-	try {
-		// Validate the input sequence
-		if (!seq || !isValidDNASequence(seq)) {
-			throw new Error(`Invalid or empty sequence: ${seq}`);
-		}
-
-		// Build the mismatch sequence if it exists
-		const mismatchSeq = mismatch
-			? buildMismatchSequenceForAPI(seq, mismatch)
-			: null;
-
-		// Build the query parameters
-		// Zach put in these strings as encodedURIComponents, though they shouldnt have any special
-		// characters by definition. Probably best practice?
-		let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
-		baseUrl += `?mg=${MG}`;
-		baseUrl += `&mono=${MONO}`;
-		baseUrl += `&seq=${encodeURIComponent(seq)}`;
-		baseUrl += `&tparam=${encodeURIComponent(T_PARAM)}`;
-		baseUrl += `&saltcalctype=${encodeURIComponent(SALT_CALC_TYPE)}`;
-		baseUrl += `&otype=${encodeURIComponent(O_TYPE)}`;
-		baseUrl += `&concentration=${CONC}`;
-		baseUrl += `&limitingconc=${LIMITING_CONC}`;
-		baseUrl += `&decimalplaces=${SNAP_DECIMAL_PLACES}`;
-
-		// If we have a mismatch sequence, pass it as mmseq
-		if (mismatchSeq) {
-			baseUrl += `&mmseq=${encodeURIComponent(mismatchSeq)}`;
-		}
-
-		// Use a public CORS proxy for development only.
-		// Remove or replace once you're hosting on a server with direct access.
-		const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-			baseUrl
-		)}`;
-
-		// Fetch the data
-		const response = await fetch(proxyUrl);
-		const data = await response.json(); // { contents: 'HTML from tmsnap.cgi', status: {...} }
-		const rawHtml = data.contents || '';
-
-		// Parse out the Tm
-		const tmValue = parseTmFromResponse(rawHtml);
-		return tmValue !== null ? tmValue : null;
-	} catch (err) {
-		console.error('Error in getStemTm:', err);
-		return null;
+	// 1) Validate input
+	if (!seq || !isValidDNASequence(seq)) {
+		throw new Error(`Invalid or empty sequence: "${seq}"`);
 	}
+
+	// 2) Build the mismatch sequence the way the API endpoint wants it, if its provided
+	let mismatchSeq = null;
+	if (mismatch) {
+		try {
+			mismatchSeq = buildMismatchSequenceForAPI(seq, mismatch);
+		} catch (err) {
+			// Re-throw error
+			throw new Error(
+				`Failed to build mismatch sequence: ${err.message}`
+			);
+		}
+	}
+
+	// 3) Build query URL
+	let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
+	baseUrl += `?mg=${MG}`;
+	baseUrl += `&mono=${MONO}`;
+	baseUrl += `&seq=${seq}`;
+	baseUrl += `&tparam=${T_PARAM}`;
+	baseUrl += `&saltcalctype=${SALT_CALC_TYPE}`;
+	baseUrl += `&otype=${O_TYPE}`;
+	baseUrl += `&concentration=${CONC}`;
+	baseUrl += `&limitingconc=${LIMITING_CONC}`;
+	baseUrl += `&decimalplaces=${SNAP_DECIMAL_PLACES}`;
+	// If a mismatch is passed in this will add the correct mismatch sequence
+	if (mismatchSeq) {
+		baseUrl += `&mmseq=${mismatchSeq}`;
+	}
+
+	// 4) For local dev only. I think we just use the baseURL if this code is on server?
+	const proxyUrl = `https://api.allorigins.win/get?url=${baseUrl}`;
+
+	// 5) Fetch and parse response
+	const response = await fetch(proxyUrl);
+	if (!response.ok) {
+		throw new Error(
+			`Network error: ${response.status} - ${response.statusText}`
+		);
+	}
+
+	const data = await response.json();
+	if (!data || !data.contents) {
+		throw new Error("Response missing 'contents'. Possibly a proxy error.");
+	}
+
+	const rawHtml = data.contents;
+	const tmValue = parseTmFromResponse(rawHtml);
+
+	if (tmValue === null) {
+		throw new Error(
+			'No <tm> element found or invalid numeric value in server response.'
+		);
+	}
+
+	// 6) Return the numeric Tm
+	return tmValue;
 }
 
 /**
  * Simple parser to extract the numeric Tm from the raw HTML:
  * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
+ * ******I let chatGPT make this one. I'll go through it later and clean it up if required
  *
  * @param {string} rawHtml - The raw string returned by tmsnap.cgi
  * @returns {number|null}  - The Tm if found, otherwise null
@@ -439,32 +450,58 @@ function parseTmFromResponse(rawHtml) {
  * mismatch in the final double-stranded structure.
  *
  * For example, if mismatch.type = 'G', that means you want an A↔G mismatch in
- * the final pairing.  The Tm service expects to see that difference as an
- * 'A' in seq=... and a 'C' (complement of G) in mmseq=... at that same position.
+ * the final pairing. The Tm service expects to see the difference as:
+ *   seq=... 'A' ...
+ *   mmseq=... 'C' ... (the complement of 'G') at that same position.
  *
  * @typedef {Object} Mismatch
- * @property {number} position - The index in the sequence where the mismatch occurs.
- * @property {string} type     - The base you want on the *opposite* strand (e.g. 'G').
+ * @property {number} position - The index in `seq` where the mismatch occurs.
+ * @property {string} type     - The base you want on the opposite strand (e.g. "G").
  *
  * @param {string} seq - Original matched sequence (5'→3').
- * @param {Mismatch} mismatch
- * @returns {string|null} - The mmseq string or null if invalid input.
+ * @param {Mismatch} mismatch - The mismatch specification.
+ * @throws {Error} If the sequence or mismatch is invalid.
+ * @returns {string} The mmseq string for the Tm service.
  */
 function buildMismatchSequenceForAPI(seq, mismatch) {
-	// Validate
-	if (!mismatch || mismatch.position == null || !mismatch.type) {
-		return null;
+	// Ensure the main sequence is valid. Throws an error if invalid or empty.
+	isValidDNASequence(seq);
+
+	// Validate mismatch object
+	if (
+		!mismatch ||
+		mismatch.position == null ||
+		typeof mismatch.type !== 'string'
+	) {
+		throw new Error(`Invalid mismatch object: ${JSON.stringify(mismatch)}`);
 	}
-	// The Tm service wants the difference in mmseq to be the complement
-	// of the desired mismatch base.
+
+	// Make sure the mismatch.type is a single valid base (A/T/C/G).
+	// We'll treat mismatch.type as a minimal "sequence" to check:
+	isValidDNASequence(mismatch.type);
+
+	// Ensure position is within seq bounds
+	if (mismatch.position < 0 || mismatch.position >= seq.length) {
+		throw new Error(
+			`Mismatch position ${mismatch.position} is out of range for sequence length ${seq.length}.`
+		);
+	}
+
+	// The Tm service wants the difference in `mmseq` to be the complement
+	// of the mismatch base. (e.g., mismatch.type='G' -> insert 'C').
 	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type.toUpperCase()];
+	// If mismatch.type wasn't in {A,T,C,G}, isValidDNASequence would have already thrown,
+	// but we check again out of caution.
 	if (!complementBase) {
-		return null; // Invalid base, or mismatch type is not A/T/C/G
+		throw new Error(
+			`Mismatch type "${mismatch.type}" has no complement. Should never happen.`
+		);
 	}
 
 	// Replace the character at 'position' with that complement
 	const arr = seq.split('');
 	arr[mismatch.position] = complementBase;
+
 	return arr.join('');
 }
 
