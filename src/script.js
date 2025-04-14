@@ -9,6 +9,7 @@ Relative Path:  uSnapback/src/script.js
 /************************** Constants ***************************/
 /****************************************************************/
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
+const WORST_NUCLEOTIDE_MATCH = { A: 'G', G: 'A', C: 'C', T: 'T' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
 // The number of matched bases required on either end of a mismatched SNV for snapback primers
 const SNV_BASE_BUFFER = 3;
@@ -349,7 +350,7 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
  * @property {string} type - The type of mismatch (e.g., "A").
  *
  *
- * @param {string} seq - The DNA sequence.
+ * @param {string} seq - The DNA sequence (one strand) starting with the 5' end
  * @param {Mismatch} [mismatch] - Optional object representing the nucleotide mismatch location and type.
  *
  * @returns {number} - The melting temperature of the snapback stem
@@ -367,6 +368,8 @@ async function getStemTm(seq, mismatch) {
 			: null;
 
 		// Build the query parameters
+		// Zach put in these strings as encodedURIComponents, though they shouldnt have any special
+		// characters by definition. Probably best practice?
 		let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
 		baseUrl += `?mg=${MG}`;
 		baseUrl += `&mono=${MONO}`;
@@ -411,35 +414,58 @@ async function getStemTm(seq, mismatch) {
  * @returns {number|null}  - The Tm if found, otherwise null
  */
 function parseTmFromResponse(rawHtml) {
-	const match = rawHtml.match(/<tm>([^<]+)<\/tm>/i);
-	if (match && match[1]) {
-		return parseFloat(match[1]);
+	try {
+		// Parse the text into a DOM
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(rawHtml, 'text/html');
+
+		// Look for a <tm> element
+		const tmElement = doc.querySelector('tm');
+		if (!tmElement) {
+			return null;
+		}
+
+		// Convert the text inside <tm> to a float
+		const tmValue = parseFloat(tmElement.textContent.trim());
+		return isNaN(tmValue) ? null : tmValue;
+	} catch (err) {
+		console.error('parseTmFromResponse error:', err);
+		return null;
 	}
-	return null;
 }
 
 /**
- * Helper that takes a "base" sequence and a single mismatch specification
- * (with fields { position, type }), and returns the full mismatch sequence (mmseq)
- * for the Tm service.
+ * Constructs the mmseq string needed by the Tm service so it sees the intended
+ * mismatch in the final double-stranded structure.
+ *
+ * For example, if mismatch.type = 'G', that means you want an A↔G mismatch in
+ * the final pairing.  The Tm service expects to see that difference as an
+ * 'A' in seq=... and a 'C' (complement of G) in mmseq=... at that same position.
  *
  * @typedef {Object} Mismatch
  * @property {number} position - The index in the sequence where the mismatch occurs.
- * @property {string} type - The type of mismatch (e.g., "A").
+ * @property {string} type     - The base you want on the *opposite* strand (e.g. 'G').
  *
- * @param {string} seq - Original matched sequence
- * @param {Mismatch} mismatch - e.g. { position: 3, type: "G" }
- * @returns {string}         - e.g. if seq="ATCG", mismatch={pos:2,type:'G'}, result="ATGG"
+ * @param {string} seq - Original matched sequence (5'→3').
+ * @param {Mismatch} mismatch
+ * @returns {string|null} - The mmseq string or null if invalid input.
  */
-function buildMismatchSequence(seq, mismatch) {
+function buildMismatchSequenceForAPI(seq, mismatch) {
+	// Validate
 	if (!mismatch || mismatch.position == null || !mismatch.type) {
 		return null;
 	}
+	// The Tm service wants the difference in mmseq to be the complement
+	// of the desired mismatch base.
+	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type.toUpperCase()];
+	if (!complementBase) {
+		return null; // Invalid base, or mismatch type is not A/T/C/G
+	}
 
-	// Convert to array so we can replace easily
-	const seqArray = seq.split('');
-	seqArray[mismatch.position] = mismatch.type;
-	return seqArray.join('');
+	// Replace the character at 'position' with that complement
+	const arr = seq.split('');
+	arr[mismatch.position] = complementBase;
+	return arr.join('');
 }
 
 /**
