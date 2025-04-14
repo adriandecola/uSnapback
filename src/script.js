@@ -10,12 +10,21 @@ Relative Path:  uSnapback/src/script.js
 /****************************************************************/
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
-//The number of matched bases required on either end of a mismatched SNV for snapback primers
+// The number of matched bases required on either end of a mismatched SNV for snapback primers
 const SNV_BASE_BUFFER = 3;
 const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
+const SNAP_DECIMAL_PLACES = 2;
+// Chemisty parameters ************** name these************
+const MG = 2.2;
+const MONO = 20.0;
+const T_PARAM = 'UnifiedSantaLucia';
+const SALT_CALC_TYPE = 'bpdenominator';
+const O_TYPE = 'oligo';
+const CONC = 0.5;
+const LIMITING_CONC = 0.5;
 
 // Min and max snapback melting temperature sthe users should be able to input shoudl be like 40-90?
 
@@ -162,8 +171,7 @@ function createSnapback(
 		);
 	}
 
-	/******************** Creating complementary strand's variables and initial, could-be snapback primer stems *********************/
-
+	/******* Creating complementary strand's variables and initial, could-be snapback primer stems *********/
 	/*** Getting complementary strand variable ***/
 	// We must reverse the complement strand so that it starts with the 5' end
 	compTargetSeqStrand = reverseComplement(targetSeqStrand);
@@ -190,9 +198,13 @@ function createSnapback(
 
 	/* Calculate the initial melting temperature differences for variants and choose the primer with the largest differnce as snapback */
 	if (useTargetStrandsPrimerForComplement(initStem, compInitStem)) {
+		//NOW WE ARE FLIPPING TO ORIENT OURSELVES SO THAT THE 5' END OF THE STRAND FOR WHICH THE SNAPBACK PRIMER IS BEING DESIGNED
+		// FOR IS INDEX 0 AND ITS PREIMER IS CALLED.... AND ....
+		//
 	} else {
 	}
 
+	//
 	// Future stem cannot not overlap with anywhere a primer would go
 	/*****************only going to use one of these aassign to new variables */
 	const allowedStemSeq = targetSeqStrand.slice(
@@ -272,23 +284,25 @@ function reverseComplement(seqStrand) {
 }
 
 /**
- * Returns the reverse compelment for a mismatch site.
- * That is it returns the complement bases and correct for the sequence's
- * complement assuming that the new sequence starts with the 5' end
+ * Returns the reverse complement for a mismatch site.
+ * That is, it returns the complement bases and corrects for the sequence's
+ * orientation, assuming that the new sequence starts with the 5' end.
  *
  * Assumptions:
- * - Assumes the variant bases are all valid (element of {"C", "G", "A", "T"})
+ * - Assumes the variant bases are all valid (elements of {"C", "G", "A", "T"}).
+ *
+ * Typedefs:
+ * @typedef {Object} SNVSite
+ * @property {number} index - The index in the sequence where the variant occurs.
+ * @property {Array<string>} variantBases - An array of one or more of the possible variant bases.
  *
  *
- * @param {Object} snvSite - An object representing the single neucleotide variant site with:
- *     @property {number} index - The index in the sequence where the variant occurs.
- *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
- * @param {number} seqLen - The length of the target sequence
+ * @param {SNVSite} snvSite - An object representing the single nucleotide variant site.
+ * @param {number} seqLen - The length of the target sequence.
  *
- * @returns {Object} - An object representing the single neucleotide variant site for the reverse complement sequence with:
- *     @property {number} index - The index in the sequence where the variant occurs.
- *     @property {Array<string>} variantBases - An array of one or more of the possible variant bases
+ * @returns {SNVSite} - An object representing the single nucleotide variant site for the reverse complement sequence.
  */
+
 function revCompSNV(snvSite, seqLen) {
 	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
 	revCompIndex = seqLen - snvSite.index - 1;
@@ -325,3 +339,120 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 
 	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
 }
+
+/**
+ * Calculates the melting temperature of a snapback stem via server API
+ *
+ * Typedefs:
+ * @typedef {Object} Mismatch
+ * @property {number} position - The index in the sequence where the mismatch occurs.
+ * @property {string} type - The type of mismatch (e.g., "A").
+ *
+ *
+ * @param {string} seq - The DNA sequence.
+ * @param {Mismatch} [mismatch] - Optional object representing the nucleotide mismatch location and type.
+ *
+ * @returns {number} - The melting temperature of the snapback stem
+ */
+async function getStemTm(seq, mismatch) {
+	try {
+		// Validate the input sequence
+		if (!seq || !isValidDNASequence(seq)) {
+			throw new Error(`Invalid or empty sequence: ${seq}`);
+		}
+
+		// Build the mismatch sequence if it exists
+		const mismatchSeq = mismatch
+			? buildMismatchSequenceForAPI(seq, mismatch)
+			: null;
+
+		// Build the query parameters
+		let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
+		baseUrl += `?mg=${MG}`;
+		baseUrl += `&mono=${MONO}`;
+		baseUrl += `&seq=${encodeURIComponent(seq)}`;
+		baseUrl += `&tparam=${encodeURIComponent(T_PARAM)}`;
+		baseUrl += `&saltcalctype=${encodeURIComponent(SALT_CALC_TYPE)}`;
+		baseUrl += `&otype=${encodeURIComponent(O_TYPE)}`;
+		baseUrl += `&concentration=${CONC}`;
+		baseUrl += `&limitingconc=${LIMITING_CONC}`;
+		baseUrl += `&decimalplaces=${SNAP_DECIMAL_PLACES}`;
+
+		// If we have a mismatch sequence, pass it as mmseq
+		if (mismatchSeq) {
+			baseUrl += `&mmseq=${encodeURIComponent(mismatchSeq)}`;
+		}
+
+		// Use a public CORS proxy for development only.
+		// Remove or replace once you're hosting on a server with direct access.
+		const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+			baseUrl
+		)}`;
+
+		// Fetch the data
+		const response = await fetch(proxyUrl);
+		const data = await response.json(); // { contents: 'HTML from tmsnap.cgi', status: {...} }
+		const rawHtml = data.contents || '';
+
+		// Parse out the Tm
+		const tmValue = parseTmFromResponse(rawHtml);
+		return tmValue !== null ? tmValue : null;
+	} catch (err) {
+		console.error('Error in getStemTm:', err);
+		return null;
+	}
+}
+
+/**
+ * Simple parser to extract the numeric Tm from the raw HTML:
+ * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
+ *
+ * @param {string} rawHtml - The raw string returned by tmsnap.cgi
+ * @returns {number|null}  - The Tm if found, otherwise null
+ */
+function parseTmFromResponse(rawHtml) {
+	const match = rawHtml.match(/<tm>([^<]+)<\/tm>/i);
+	if (match && match[1]) {
+		return parseFloat(match[1]);
+	}
+	return null;
+}
+
+/**
+ * Helper that takes a "base" sequence and a single mismatch specification
+ * (with fields { position, type }), and returns the full mismatch sequence (mmseq)
+ * for the Tm service.
+ *
+ * @typedef {Object} Mismatch
+ * @property {number} position - The index in the sequence where the mismatch occurs.
+ * @property {string} type - The type of mismatch (e.g., "A").
+ *
+ * @param {string} seq - Original matched sequence
+ * @param {Mismatch} mismatch - e.g. { position: 3, type: "G" }
+ * @returns {string}         - e.g. if seq="ATCG", mismatch={pos:2,type:'G'}, result="ATGG"
+ */
+function buildMismatchSequence(seq, mismatch) {
+	if (!mismatch || mismatch.position == null || !mismatch.type) {
+		return null;
+	}
+
+	// Convert to array so we can replace easily
+	const seqArray = seq.split('');
+	seqArray[mismatch.position] = mismatch.type;
+	return seqArray.join('');
+}
+
+/**
+ * Decides if the target strand's primer (or the complement primer) should be used to make the snapback
+ * primer. It also decides if the the wild type or one of the variants should have a match with the
+ * snapback tail. both of these are done by choosing the option with the highest melting temperature
+ * difference between the wild and variant made snapbacks. If there are multiple variants, the
+ * snapback is chosen by maximizing the minimum melting temperature difference between any two
+ * variant or wild snapback melting temperatures. This way all melting curves can be easily
+ * distinguised and identified.
+ * @param {string} initStem - A string of nucleotides representing the initial stem on the user provided strand
+ *                            of the target sequence.
+ * @param {string} compInitStem - A string of nucleotides representing the initial stem on the complementary strand
+ *                                of the target sequence
+ */
+function whichPrimertoUseAndWildOrVariantMatch(initStem, compInitStem) {}
