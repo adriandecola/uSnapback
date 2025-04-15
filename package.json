@@ -1,8 +1,8 @@
 {
   "name": "usnapback",
   "version": "1.0.0",
-  "description": "An application to design a snapback primer for single base variant asymmetrical PCR",
   "type": "module",
+  "description": "An application to design a snapback primer for single base variant asymmetrical PCR",
   "main": "index.js",
   "directories": {
     "test": "tests"
