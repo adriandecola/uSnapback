@@ -270,8 +270,10 @@ async function evaluateSnapbackOptions(
 	wildBase,
 	variantBase
 ) {
-	// 1) Tm with wild base matched (i.e., no mismatch in initStem)
-	const wildTm = await getStemTm(initStem);
+	// 1) Tm with wild base matched
+	const wildMatchTm = await getStemTm(initStem);
+
+	// 2) Tm with variant base matched
 
 	// 2) Scenario A: Snapback matches the wild base => mismatch is the variant base
 	// The base on the opposite strand for the mismatch will be the complement
