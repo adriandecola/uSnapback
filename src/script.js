@@ -105,24 +105,12 @@ function createSnapback(
 		end: compSnvSite.index + SNV_BASE_BUFFER,
 	};
 
-	/* Calculate the initial melting temperature differences for variants and choose the primer with the largest differnce as snapback */
+	/* 
+		Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild)
+		with the largest differnce as snapback 
+	*/
 	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
 	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
-	if (
-		useTargetStrandsPrimerForComplement(
-			targetSeqStrand,
-			compTargetSeqStrand,
-			initStemLoc,
-			compInitStemLoc,
-			snvSite,
-			compSnvSite
-		)
-	) {
-		//NOW WE ARE FLIPPING TO ORIENT OURSELVES SO THAT THE 5' END OF THE STRAND FOR WHICH THE SNAPBACK PRIMER IS BEING DESIGNED
-		// FOR IS INDEX 0 AND ITS PREIMER IS CALLED.... AND ....
-		//
-	} else {
-	}
 
 	//
 	// Future stem cannot not overlap with anywhere a primer would go
