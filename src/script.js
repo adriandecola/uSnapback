@@ -26,6 +26,9 @@ const O_TYPE = 'oligo';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 
+/****************************************************************/
+/*********************** Primary Function ***********************/
+/****************************************************************/
 /**
  * Creates a snapback primer sequence by identifying suitable stem regions
  * in the target DNA sequence, accounting for primer lengths and a single
@@ -170,6 +173,10 @@ async function createSnapback(
 	);
 }
 
+/****************************************************************/
+/********************* Secondary Functions **********************/
+/****************************************************************/
+
 /**
  * Decides which strand (target vs. complementary) should get the snapback primer,
  * and whether the snapback should match the wild-type base or the single variant base at the SNV.
@@ -307,156 +314,6 @@ async function evaluateSnapbackOptions(
 }
 
 /**
- * @typedef {Object} StemLoc
- * @property {number} start - The final start index of the stem on this strand.
- * @property {number} end   - The final end index of the stem on this strand.
- *
- * @typedef {Object} StemMeltingTemp
- * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
- * @property {number} variantTm - The stem's melting temperature when matching the variant allele
- *
- * @typedef {Object} CreateStemReturn
- * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
- * @property {StemMeltingTemp} meltingTemp - Melting temperatures for the wild and variant stems.
- *
- * Recursively constructs or refines the snapback stem on the chosen strand so that
- * its melting temperature meets the specified thresholds for both the wild and
- * variant bases at the SNV site.
- *
- * @param {string} targetStrandSeqSnapPrimerRefPoint - The DNA sequence (5'→3') for the chosen strand.
- * @param {Object} snvSiteSnapPrimerRefPoint         - SNV site object for this strand’s coordinates:
- *   - index: (number) The SNV's position in this strand.
- *   - variantBase: (string) The variant base (A/T/C/G).
- * @param {string} snapbackBaseAtSNV                 - The base (wild or variant) that the snapback is matching at the SNV.
- * @param {number} stemStartSnapPrimerRefPoint       - The initial start index of the stem in this strand.
- * @param {number} stemEndSnapPrimerRefPoint         - The initial end index of the stem in this strand.
- * @param {number} allowedStemStart                  - The furthest upstream index to which the stem can safely extend.
- * @param {number} allowedStemEnd                    - The furthest downstream index to which the stem can safely extend.
- * @param {number} desiredSnapbackMeltTempWildType   - The target melting temperature (°C) for the wild-type snapback.
- *
- * @returns {CreateStemReturn} An object containing the finalized stem location and the calculated melting temperatures.
- */
-async function createStem(
-	targetStrandSeqSnapPrimerRefPoint,
-	snvSiteSnapPrimerRefPoint,
-	snapbackBaseAtSNV,
-	stemStartSnapPrimerRefPoint,
-	stemEndSnapPrimerRefPoint,
-	allowedStemStart,
-	allowedStemEnd,
-	desiredSnapbackMeltTempWildType
-) {}
-
-/****************************************************************/
-/*********************** Helper Functions ***********************/
-/****************************************************************/
-
-/**
- * Checks if a given DNA sequence is valid. i.e. it is a string that only contains
- * the characters A, T, C, or G (case-insensitive).
- *
- * @param {string} seqStrand - The DNA sequence to validate.
- * @returns {boolean} - True passed in string is a valid DNA sequence
- */
-function isValidDNASequence(seqStrand) {
-	// Must only contain uppercase A, T, C, or G
-	// Its normal to use const here as its block scoped and base doesn't change in the block
-	// for any iteration
-	for (const base of seqStrand) {
-		if (!VALID_BASES.has(base)) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/**
- * Returns the DNA complement of a given nucleotide sequence.
- * If the sequence passed in is not a valid sequence it throws an error.
- *
- * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
- * @returns {string} - The complementary DNA sequence (e.g., "TAGC").
- */
-function complementSequence(seqStrand) {
-	if (!isValidDNASequence(seqStrand)) {
-		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
-	}
-
-	return seqStrand
-		.toUpperCase()
-		.split('') // Splits into an array of single character strings
-		.map((base) => NUCLEOTIDE_COMPLEMENT[base])
-		.join(''); // rejoins array into a string of the complement bases
-}
-
-/**
- * Returns the reverse complement of a DNA sequence.
- * Throws an error if the sequence is invalid.
- *
- * @param {string} seqStrand - A DNA sequence (e.g., "ATCG").
- * @returns {string} - The reverse complement (e.g., "CGAT").
- */
-function reverseComplement(seqStrand) {
-	const complementStrand = complementSequence(seqStrand);
-	return complementStrand.split('').reverse().join('');
-}
-
-/**
- * Returns the reverse complement for a mismatch site.
- * That is, it returns the complement bases and corrects for the sequence's
- * orientation, assuming that the new sequence starts with the 5' end.
- *
- * Assumptions:
- * - Assumes the variant bases are all valid (elements of {"C", "G", "A", "T"}).
- *
- * Typedefs:
- * @typedef {Object} SNVSite
- * @property {number} index - The index in the sequence where the variant occurs.
- * @property {string} variantBase - A one character string representing the variant base.
- *
- *
- * @param {SNVSite} snvSite - An object representing the single nucleotide variant site.
- * @param {number} seqLen - The length of the target sequence.
- *
- * @returns {SNVSite} - An object representing the single nucleotide variant site for the reverse complement sequence.
- */
-
-function revCompSNV(snvSite, seqLen) {
-	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
-	revCompIndex = seqLen - snvSite.index - 1;
-
-	revCompVariantBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
-
-	return {
-		index: revCompIndex,
-		variantBase: revCompVariantBase,
-	};
-}
-
-/**
- * Checks if the SNV is too close to the ends of the primers to form 3 base buffer on either end.
- *
- * Assumptions:
- * - The target sequence strand starts at the 5' end
- * - Primer corresponds to primer that binds to the target sequence strand given
- * - Complementary primer corresponds to the complement of target sequence strand given
- *
- * @param {number} snvIndex - Index of the SNV in the target sequence strand(starting at 0).
- * @param {number} primerLen - Length of the primer on the same strand as the target sequence.
- * @param {number} compPrimerLen - Length of the complementary primer on the opposite strand.
- * @param {number} seqLen - The total length of the target sequence.
- *
- * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
- */
-function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
-	// Must be at least {buffer} bases away from either primer
-	const lowerBoundIndex = primerLen + buffer;
-	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
-
-	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
-}
-
-/**
  * Calculates the melting temperature of a snapback stem via server API (dna-utah.org).
  *If the mismatch object is passed in, it calculates the mismatch Tm
  *
@@ -542,41 +399,71 @@ async function getStemTm(seq, mismatch) {
 }
 
 /**
- * Simple parser to extract the numeric Tm from the raw HTML:
- * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
- * ******I let chatGPT make this one. I'll go through it later and clean it up if required
+ * @typedef {Object} StemLoc
+ * @property {number} start - The final start index of the stem on this strand.
+ * @property {number} end   - The final end index of the stem on this strand.
  *
- * @param {string} rawHtml - The raw string returned by tmsnap.cgi
- * @param {boolean} [mismatch] - Optional specification denoting if we want to parse out the mismatched tm
- * @returns {number|null}  - The Tm if found, otherwise null
+ * @typedef {Object} StemMeltingTemp
+ * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
+ * @property {number} variantTm - The stem's melting temperature when matching the variant allele
+ *
+ * @typedef {Object} CreateStemReturn
+ * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
+ * @property {StemMeltingTemp} meltingTemp - Melting temperatures for the wild and variant stems.
+ *
+ * Recursively constructs or refines the snapback stem on the chosen strand so that
+ * its melting temperature meets the specified thresholds for both the wild and
+ * variant bases at the SNV site.
+ *
+ * @param {string} targetStrandSeqSnapPrimerRefPoint - The DNA sequence (5'→3') for the chosen strand.
+ * @param {Object} snvSiteSnapPrimerRefPoint         - SNV site object for this strand’s coordinates:
+ *   - index: (number) The SNV's position in this strand.
+ *   - variantBase: (string) The variant base (A/T/C/G).
+ * @param {string} snapbackBaseAtSNV                 - The base (wild or variant) that the snapback is matching at the SNV.
+ * @param {number} stemStartSnapPrimerRefPoint       - The initial start index of the stem in this strand.
+ * @param {number} stemEndSnapPrimerRefPoint         - The initial end index of the stem in this strand.
+ * @param {number} allowedStemStart                  - The furthest upstream index to which the stem can safely extend.
+ * @param {number} allowedStemEnd                    - The furthest downstream index to which the stem can safely extend.
+ * @param {number} desiredSnapbackMeltTempWildType   - The target melting temperature (°C) for the wild-type snapback.
+ *
+ * @returns {CreateStemReturn} An object containing the finalized stem location and the calculated melting temperatures.
  */
-function parseTmFromResponse(rawHtml, mismatch) {
-	try {
-		// Parse the text into a DOM
-		const parser = new DOMParser();
-		const doc = parser.parseFromString(rawHtml, 'text/html');
+async function createStem(
+	targetStrandSeqSnapPrimerRefPoint,
+	snvSiteSnapPrimerRefPoint,
+	snapbackBaseAtSNV,
+	stemStartSnapPrimerRefPoint,
+	stemEndSnapPrimerRefPoint,
+	allowedStemStart,
+	allowedStemEnd,
+	desiredSnapbackMeltTempWildType
+) {}
 
-		// Getting the <tm> or <mmtm> element
-		var tmElement;
-		if (!mismatch) {
-			// Look for a <tm> element
-			tmElement = doc.querySelector('tm');
-		} else {
-			tmElement = doc.querySelector('mmtm');
-		}
+/****************************************************************/
+/*********************** Helper Functions ***********************/
+/****************************************************************/
 
-		// Returns null if correct tm is not found
-		if (!tmElement) {
-			return null;
-		}
+/**
+ * Checks if the SNV is too close to the ends of the primers to form 3 base buffer on either end.
+ *
+ * Assumptions:
+ * - The target sequence strand starts at the 5' end
+ * - Primer corresponds to primer that binds to the target sequence strand given
+ * - Complementary primer corresponds to the complement of target sequence strand given
+ *
+ * @param {number} snvIndex - Index of the SNV in the target sequence strand(starting at 0).
+ * @param {number} primerLen - Length of the primer on the same strand as the target sequence.
+ * @param {number} compPrimerLen - Length of the complementary primer on the opposite strand.
+ * @param {number} seqLen - The total length of the target sequence.
+ *
+ * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
+ */
+function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
+	// Must be at least {buffer} bases away from either primer
+	const lowerBoundIndex = primerLen + buffer;
+	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
 
-		// Convert the text inside element to a float
-		const tmValue = parseFloat(tmElement.textContent.trim());
-		return isNaN(tmValue) ? null : tmValue;
-	} catch (err) {
-		console.error('parseTmFromResponse error:', err);
-		return null;
-	}
+	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
 }
 
 /**
@@ -640,3 +527,153 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 
 	return arr.join('');
 }
+
+/**
+ * Simple parser to extract the numeric Tm from the raw HTML:
+ * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
+ * ******I let chatGPT make this one. I'll go through it later and clean it up if required
+ *
+ * @param {string} rawHtml - The raw string returned by tmsnap.cgi
+ * @param {boolean} [mismatch] - Optional specification denoting if we want to parse out the mismatched tm
+ * @returns {number|null}  - The Tm if found, otherwise null
+ */
+function parseTmFromResponse(rawHtml, mismatch) {
+	try {
+		// Parse the text into a DOM
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(rawHtml, 'text/html');
+
+		// Getting the <tm> or <mmtm> element
+		var tmElement;
+		if (!mismatch) {
+			// Look for a <tm> element
+			tmElement = doc.querySelector('tm');
+		} else {
+			tmElement = doc.querySelector('mmtm');
+		}
+
+		// Returns null if correct tm is not found
+		if (!tmElement) {
+			return null;
+		}
+
+		// Convert the text inside element to a float
+		const tmValue = parseFloat(tmElement.textContent.trim());
+		return isNaN(tmValue) ? null : tmValue;
+	} catch (err) {
+		console.error('parseTmFromResponse error:', err);
+		return null;
+	}
+}
+
+/****************************************************************/
+/******************** DNA Utility Functions *********************/
+/****************************************************************/
+
+/**
+ * Checks if a given DNA sequence is valid. i.e. it is a string that only contains
+ * the characters A, T, C, or G (case-insensitive).
+ *
+ * @param {string} seqStrand - The DNA sequence to validate.
+ * @returns {boolean} - True passed in string is a valid DNA sequence
+ */
+function isValidDNASequence(seqStrand) {
+	// Must only contain uppercase A, T, C, or G
+	// Its normal to use const here as its block scoped and base doesn't change in the block
+	// for any iteration
+	for (const base of seqStrand) {
+		if (!VALID_BASES.has(base)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Returns the DNA complement of a given nucleotide sequence.
+ * If the sequence passed in is not a valid sequence it throws an error.
+ *
+ * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
+ * @returns {string} - The complementary DNA sequence (e.g., "TAGC").
+ */
+function complementSequence(seqStrand) {
+	if (!isValidDNASequence(seqStrand)) {
+		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
+	}
+
+	return seqStrand
+		.toUpperCase()
+		.split('') // Splits into an array of single character strings
+		.map((base) => NUCLEOTIDE_COMPLEMENT[base])
+		.join(''); // rejoins array into a string of the complement bases
+}
+
+/**
+ * Returns the reverse complement of a DNA sequence.
+ * Throws an error if the sequence is invalid.
+ *
+ * @param {string} seqStrand - A DNA sequence (e.g., "ATCG").
+ * @returns {string} - The reverse complement (e.g., "CGAT").
+ */
+function reverseComplement(seqStrand) {
+	const complementStrand = complementSequence(seqStrand);
+	return complementStrand.split('').reverse().join('');
+}
+
+/**
+ * Returns the reverse complement for a mismatch site.
+ * That is, it returns the complement bases and corrects for the sequence's
+ * orientation, assuming that the new sequence starts with the 5' end.
+ *
+ * Assumptions:
+ * - Assumes the variant bases are all valid (elements of {"C", "G", "A", "T"}).
+ *
+ * Typedefs:
+ * @typedef {Object} SNVSite
+ * @property {number} index - The index in the sequence where the variant occurs.
+ * @property {string} variantBase - A one character string representing the variant base.
+ *
+ *
+ * @param {SNVSite} snvSite - An object representing the single nucleotide variant site.
+ * @param {number} seqLen - The length of the target sequence.
+ *
+ * @returns {SNVSite} - An object representing the single nucleotide variant site for the reverse complement sequence.
+ */
+
+function revCompSNV(snvSite, seqLen) {
+	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
+	revCompIndex = seqLen - snvSite.index - 1;
+
+	revCompVariantBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
+
+	return {
+		index: revCompIndex,
+		variantBase: revCompVariantBase,
+	};
+}
+
+/****************************************************************/
+/*********************** Export Function ************************/
+/****************************************************************/
+
+export {
+	// Primary function
+	createSnapback,
+
+	// Secondary functions
+	useTargetStrandsPrimerForComplement,
+	evaluateSnapbackOptions,
+	getStemTm,
+	createStem,
+
+	// Helper/logic functions
+	snvTooCloseToPrimer,
+	buildMismatchSequenceForAPI,
+	parseTmFromResponse,
+
+	// DNA utility functions
+	isValidDNASequence,
+	complementSequence,
+	reverseComplement,
+	revCompSNV,
+};
