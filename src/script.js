@@ -38,7 +38,8 @@ const LIMITING_CONC = 0.5;
  *
  * Assumptions:
  * - Assumes passed in values are correct
- *     - Passed in target sequence is valid and uppercase
+ *     - Passed in target sequence is valid AND uppercase
+ *
  * - Assumes that the target sequence begins with the 5' end
  * - we want to minimize loop length for whatever reason??
  * - primers should be at least 6 bases each (or at least the snapback one?)
@@ -358,16 +359,14 @@ async function createStem(
  * @returns {boolean} - True passed in string is a valid DNA sequence
  */
 function isValidDNASequence(seqStrand) {
-	/* 
-    'const' is used as 'base' should not change within an iteration. It still changes
-    every successive iterations though. 
-    */
-	for (const base of seqStrand.toUpperCase()) {
+	// Must only contain uppercase A, T, C, or G
+	// Its normal to use const here as its block scoped and base doesn't change in the block
+	// for any iteration
+	for (const base of seqStrand) {
 		if (!VALID_BASES.has(base)) {
 			return false;
 		}
 	}
-
 	return true;
 }
 
