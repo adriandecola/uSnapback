@@ -539,21 +539,30 @@ async function getStemTm(seq, mismatch) {
  * ******I let chatGPT make this one. I'll go through it later and clean it up if required
  *
  * @param {string} rawHtml - The raw string returned by tmsnap.cgi
+ * @param {boolean} [mismatch] - Optional specification denoting if we want to parse out the mismatched tm
  * @returns {number|null}  - The Tm if found, otherwise null
  */
-function parseTmFromResponse(rawHtml) {
+function parseTmFromResponse(rawHtml, mismatch) {
 	try {
 		// Parse the text into a DOM
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
-		// Look for a <tm> element
-		const tmElement = doc.querySelector('tm');
+		// Getting the <tm> or <mmtm> element
+		var tmElement;
+		if (!mismatch) {
+			// Look for a <tm> element
+			tmElement = doc.querySelector('tm');
+		} else {
+			tmElement = doc.querySelector('mmtm');
+		}
+
+		// Returns null if correct tm is not found
 		if (!tmElement) {
 			return null;
 		}
 
-		// Convert the text inside <tm> to a float
+		// Convert the text inside element to a float
 		const tmValue = parseFloat(tmElement.textContent.trim());
 		return isNaN(tmValue) ? null : tmValue;
 	} catch (err) {
