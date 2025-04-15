@@ -578,6 +578,9 @@ function parseTmFromResponse(rawHtml, mismatch) {
  * @returns {boolean} - True passed in string is a valid DNA sequence
  */
 function isValidDNASequence(seqStrand) {
+	// Must be a string
+	if (typeof seqStrand !== 'string') return false;
+
 	// Must only contain uppercase A, T, C, or G
 	// Its normal to use const here as its block scoped and base doesn't change in the block
 	// for any iteration
