@@ -459,6 +459,7 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 
 /**
  * Calculates the melting temperature of a snapback stem via server API (dna-utah.org).
+ *If the mismatch object is passed in, it calculates the mismatch Tm
  *
  * @typedef {Object} Mismatch
  * @property {number} position - Index in the sequence where the mismatch occurs.
@@ -500,7 +501,7 @@ async function getStemTm(seq, mismatch) {
 	baseUrl += `&limitingconc=${LIMITING_CONC}`;
 	baseUrl += `&decimalplaces=${SNAP_DECIMAL_PLACES}`;
 	// If a mismatch is passed in this will add the correct mismatch sequence
-	if (mismatchSeq) {
+	if (mismatch) {
 		baseUrl += `&mmseq=${mismatchSeq}`;
 	}
 
@@ -521,8 +522,16 @@ async function getStemTm(seq, mismatch) {
 	}
 
 	const rawHtml = data.contents;
-	const tmValue = parseTmFromResponse(rawHtml);
 
+	// Parsing the correct tm value (tm or mmtm)
+	let tmValue;
+	if (!mismatch) {
+		tmValue = parseTmFromResponse(rawHtml);
+	} else {
+		tmValue = parseTmFromResponse(rawHtml, true);
+	}
+
+	// Throw error if tmValue is not found
 	if (tmValue === null) {
 		throw new Error(
 			'No <tm> element found or invalid numeric value in server response.'
@@ -582,7 +591,7 @@ function parseTmFromResponse(rawHtml, mismatch) {
  *
  * @typedef {Object} Mismatch
  * @property {number} position - The index in `seq` where the mismatch occurs.
- * @property {string} type     - The base you want on the opposite strand (e.g. "G").
+ * @property {string} type     - The base you'll have on the opposite strand (e.g. "G") (mismatch).
  *
  *
  * @param {string} seq - Original matched sequence (5'→3').
