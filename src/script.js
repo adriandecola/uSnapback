@@ -41,9 +41,16 @@ const LIMITING_CONC = 0.5;
  *     - Passed in target sequence is valid and uppercase
  * - Assumes that the target sequence begins with the 5' end
  * - we want to minimize loop length for whatever reason??
+ * - primers should be at least 6 bases each (or at least the snapback one?)
+ * - The stem's melting temperatuere is calcualted using the Santa Lucia method.
+ * - Extension can occur on the hairpin's complement, on its 5' end. A 2 base pair mismatch after the stem can
+ *   help avoid this
  *
- *
- * Things to consider/add/make better:
+ * Things to consider/add/make better/more effecient:
+ *  * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory
+ * - I could save the melting temperatur so far and implement santa lucia method here and simply add entropys
+ *   and enthalpies of added neucleotides.
+ * - make my own data type to represent dna sequences with their own methods/properties like .complement or .complement()
  *
  *
  * @param {string} targetSeqStrand - A strand of the full DNA sequence to design the snapback primer for.
@@ -53,7 +60,7 @@ const LIMITING_CONC = 0.5;
  *     @property {number} index - The index in the sequence where the variant occurs (0-based).
  *     @property {string} variantBase - A one character string representing the variant base.
  * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
- * @param {number} desiredSnapbackMeltTemp = The desired snapback melting temperature for the matched snapback (no mismatches)
+ * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type
  *
  * @returns {Object} - An object representing the formed snapback primer
  *     @property {string} snapbackSeq - The final snapback primer sequence (5'-tail + primer-3').
@@ -65,12 +72,12 @@ const LIMITING_CONC = 0.5;
  *         @property {number} snapbackMeltingTemps[].meltingTemp - The melting temperature for this base configuration.
  *
  */
-function createSnapback(
+async function createSnapback(
 	targetSeqStrand,
 	primerLen,
 	compPrimerLen,
 	snvSite,
-	desiredSnapbackMeltTemp
+	desiredSnapbackMeltTempWildType
 ) {
 	// Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
 	if (
@@ -91,16 +98,16 @@ function createSnapback(
 	/******* Creating complementary strand's variables and initial, could-be snapback primer stems *********/
 	/*** Getting complementary strand variable ***/
 	// We must reverse the complement strand so that it starts with the 5' end
-	compTargetSeqStrand = reverseComplement(targetSeqStrand);
-	compSnvSite = revCompSNV(snvSite, targetSeqStrand.length);
+	const compTargetSeqStrand = reverseComplement(targetSeqStrand);
+	const compSnvSite = revCompSNV(snvSite, targetSeqStrand.length);
 
 	// Adds {SNV base buffer} matching neucleotides on each end of SNV so that mismatch is definitely included in stem
-	initStemLoc = {
+	const initStemLoc = {
 		start: snvSite.index - SNV_BASE_BUFFER,
 		end: snvSite.index + SNV_BASE_BUFFER,
 	};
 	// Doing the same for the complementary strand
-	compInitStemLoc = {
+	const compInitStemLoc = {
 		start: compSnvSite.index - SNV_BASE_BUFFER,
 		end: compSnvSite.index + SNV_BASE_BUFFER,
 	};
@@ -111,27 +118,54 @@ function createSnapback(
 	*/
 	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
 	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
+	const { useTargetStrand, snapbackBaseAtSNV } =
+		await useTargetStrandsPrimerForComplement(
+			targetSeqStrand,
+			compTargetSeqStrand,
+			initStemLoc,
+			compInitStemLoc,
+			snvSite,
+			compSnvSite
+		);
 
-	//
-	// Future stem cannot not overlap with anywhere a primer would go
-	/*****************only going to use one of these aassign to new variables */
-	const allowedStemSeq = targetSeqStrand.slice(
-		primerLen,
-		targetSeqStrand.length - compPrimerLen
-	);
-	// Makes sure stem does not match with anywhere a primer would go
-	compAllowedStemSeq = targetSeqStrand.slice(
-		compPrimerLen,
-		compTargetSeqStrand.length - primerLen
-	);
+	// Assigning variables in terms of the primer strand to use as the snapback
+	var targetStrandSeqSnapPrimerRefPoint;
+	var snvSiteSnapPrimerRefPoint;
+	var stemStartSnapPrimerRefPoint; // index for stem start in the primers reference point (tail is at target sequences 5' end with index 0)
+	var stemEndSnapPrimerRefPoint;
+	var allowedStemStart; //The stem can not go past this location or it will me complimentary to where the snapback primes to the target sequence
+	var allowedStemEnd; // The stem can not go past this location or it will be complementary to the limiting primer
+	var currLoopLen;
 
-	// As we do not want the loop length to go larger than
-	const loopLen = initStemLoc.start + 2;
+	if (useTargetStrand) {
+		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
+		snvSiteSnapPrimerRefPoint = snvSite;
+		stemStartSnapPrimerRefPoint = initStemLoc.start;
+		stemEndSnapPrimerRefPoint = initStemLoc.end;
+		allowedStemStart = primerLen;
+		allowedStemEnd = targetSeqStrand.length - compPrimerLen - 1;
+		// +2 accounts for the 2 base mismatch to prevent loop zipping
+		currLoopLen = initStemLoc.start + 2;
+	} else {
+		targetStrandSeqSnapPrimerRefPoint = compTargetSeqStrand;
+		snvSiteSnapPrimerRefPoint = compSnvSite;
+		stemStartSnapPrimerRefPoint = compInitStemLoc.start;
+		stemEndSnapPrimerRefPoint = compInitStemLoc.end;
+		allowedStemStart = compPrimerLen;
+		allowedStemEnd = compTargetSeqStrand.length - primerLen - 1;
+		// +2 accounts for the 2 base mismatch to prevent loop zipping
+		currLoopLen = compInitStemLoc.start + 2;
+	}
 
-	snapbackPrimerTargetStrand = calculateStem(
-		allowedStemSeq,
-		initStemLoc,
-		desiredSnapbackMeltTemp
+	const objQuestionMark = createStem(
+		targetStrandSeqSnapPrimerRefPoint,
+		snvSiteSnapPrimerRefPoint,
+		snapbackBaseAtSNV,
+		stemStartSnapPrimerRefPoint,
+		stemEndSnapPrimerRefPoint,
+		allowedStemStart,
+		allowedStemEnd,
+		desiredSnapbackMeltTempWildType
 	);
 }
 
@@ -240,7 +274,11 @@ async function evaluateSnapbackOptions(
 	const wildTm = await getStemTm(initStem);
 
 	// 2) Scenario A: Snapback matches the wild base => mismatch is the variant base
-	const mismatchObjA = { position: mismatchPos, type: variantBase };
+	// The base on the opposite strand for the mismatch will be the complement
+	const mismatchObjA = {
+		position: mismatchPos,
+		type: NUCLEOTIDE_COMPLEMENT[variantBase],
+	};
 	const mismatchTmA = await getStemTm(initStem, mismatchObjA);
 	const diffA = Math.abs(wildTm - mismatchTmA);
 
@@ -266,88 +304,45 @@ async function evaluateSnapbackOptions(
 }
 
 /**
- * This function creates a snapback primer given an input sequence that includes both the 5' end and 3' end
- * primers and the location and type of the single base variant of interest. The 'scorpion tail' of the snapback
- * primer is added to the 5' end. It includes a loop and then a tail that contains a bases complimentary to the
- * input sequence, allowing it to fold on itself (once duplicated) creating a hairpin structure.
- * The hybridized part includes a single base variant of interest. Snapback primers
- * are helpful because the melting temperature of the hairpin structure can vary more greatly for a single base
- * mismatch than it can for regular PCR product.
+ * @typedef {Object} StemLoc
+ * @property {number} start - The final start index of the stem on this strand.
+ * @property {number} end   - The final end index of the stem on this strand.
  *
- * This recursive function finds a snapback primer such that difference in melting temperatures for the wild
- * and variant type single base variant is maximized. For cases where the variant can be more than one base,
- * the mimimum temperature difference between any trait is maximized.
+ * @typedef {Object} StemMeltingTemp
+ * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
+ * @property {number} variantTm - The stem's melting temperature when matching the variant allele
  *
- * Assumptions:
- * - There is only one mismatch site
- * - The stem (either end) should not be complementary to primer end
- *      - This means that the
- * - The hairpin loop must be at least 6 bases long; however this is satisfied as the primer should
- *      -> If the loop of the hairpin is too short, the model for melting temperatures is not accurate and it is hard
- *         for the hairpin structure to form
- *      -> however this assumption is satifies as the primer is always 15 base pairs long and the
- * - The stem's melting temperatuere is calcualted using the Santa Lucia method.
- * - Extension can occur on the hairpin's complement, on its 5' end. A 2 base pair mismatch after the stem can
- *   help avoid this
- * - The acceptable snapback melting temperature range is 50-75 degrees Celcius
+ * @typedef {Object} CreateStemReturn
+ * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
+ * @property {StemMeltingTemp} meltingTemp - Melting temperatures for the wild and variant stems.
  *
- * Process:
- * - The function starts by checking the termination conditions. It checks if the built up sequence
- *   we are testing for goes past the viable stem area  what if it goes over limiting primer end?????
- *   or if the stem is longer than **** base pairs. If this is the case the function returns the
- *   sequence with the largest temperature difference after adding a 2 base pair mismatch after the stem on the 5'
- *   end to avoid the snapbacks compliment from extending.
- * - If the function has no built up sequence yet, the function initiallizes with adding 3 complimentary
- *   neucleotices on each end of the varying neucleotide. This is only done if it has not been done before.
- *      ***is it done for both sides?
- * - The function then calculates the melting temperatures of the matched and mismatched sequence(s).
- * - If the melting temperatures of the matched and mismatched sequence(s) are inside greater than the mimimum
- *   snapback temperature of 50 degrees Celsius, then the function calculates the temperature difference
- *   (for snapbacks that are only testing for one possible base change) or the minimmum temperature
- *   difference between all different bases (for snapbacks that are testing for multiple possible
- *   base changes)
- * - If not then the snapback calls itself on the build-up sequence with added neucleotides on either end (as long as
- *   they do not intrude on either primer ends (don't wasn self annealing at those locations) to make the stem longer,
- *   so that the melting temperatures are in an acceptable range
- * - If this melting temperture difference is greater than any previously saved melting temperature
- *   difference, or if one has not been saved yet, the melting temperature difference is saved.
- * - The function calls its self of the builtup sequence with all the possible addition types of
+ * Recursively constructs or refines the snapback stem on the chosen strand so that
+ * its melting temperature meets the specified thresholds for both the wild and
+ * variant bases at the SNV site.
  *
+ * @param {string} targetStrandSeqSnapPrimerRefPoint - The DNA sequence (5'→3') for the chosen strand.
+ * @param {Object} snvSiteSnapPrimerRefPoint         - SNV site object for this strand’s coordinates:
+ *   - index: (number) The SNV's position in this strand.
+ *   - variantBase: (string) The variant base (A/T/C/G).
+ * @param {string} snapbackBaseAtSNV                 - The base (wild or variant) that the snapback is matching at the SNV.
+ * @param {number} stemStartSnapPrimerRefPoint       - The initial start index of the stem in this strand.
+ * @param {number} stemEndSnapPrimerRefPoint         - The initial end index of the stem in this strand.
+ * @param {number} allowedStemStart                  - The furthest upstream index to which the stem can safely extend.
+ * @param {number} allowedStemEnd                    - The furthest downstream index to which the stem can safely extend.
+ * @param {number} desiredSnapbackMeltTempWildType   - The target melting temperature (°C) for the wild-type snapback.
  *
- *
- *
- * Notes to make this equation more effecient:
- * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory
- * - I could hash and cache melting temperatures of stems? ACTUALLY they shouldnt repeat much unless theres convenient patterns in the sequence so nevermind? or try it and see how many times a cached item is used
- * - I could save the melting temperatur so far and implement santa lucia method here and simply add entropys
- *   and enthalpies of added neucleotides.
- * - have a clean function to call a more simple recursive function to take out some cleaning each call
- * - make my own data type to represent dna sequences with their own methods/properties like .complement or .complement()
- *
- *
- * ** it doesnt check if it overlaps with primers or anything, but seems very rare, can force it not to if loop should be extended (add 2 pair mismatch?)
- *
- *
- *
- * @param {string} targetSeq - The DNA sequence to design the primer (snapback) for. Assume limiting
- *                             primer is on complementary sequence.
- *
- * @param {number} primerLen - The length of the primer (excluding snapback). Assume limiting
- *                             primer is on complementary sequence.
- * @param {number} compPrimerLen - The length of the complementary primer.
- * @param {number} minLoopLen - The minimum loop length so far, assuming that the entire tail is part
- *                              of the stem. Includes a 2 base mismatch at start of loop towars 5' end
- *                              to make sure loop is not self complimentary and closes itself
- * @param {string} builtUpSeq - The DNA sequence that has been built up for testing.
- * @param {string} allowedStemSeq - The section of the DNA sequence that can be used as part of the stem
- * @param {number} minimumLoopLen -> this is the primer length on that end and some extra
- * @returns {string} - The full snapback primer sequence (5'-tail+primer-3').
- * @property {}
- * shoult return the loop size, and entire sequence, and stem size?
- * ** should also return the  matched temperature?? and the mismatched temperature
- ***dont need 2 base pair mismatch every time
+ * @returns {CreateStemReturn} An object containing the finalized stem location and the calculated melting temperatures.
  */
-function createStem() {}
+async function createStem(
+	targetStrandSeqSnapPrimerRefPoint,
+	snvSiteSnapPrimerRefPoint,
+	snapbackBaseAtSNV,
+	stemStartSnapPrimerRefPoint,
+	stemEndSnapPrimerRefPoint,
+	allowedStemStart,
+	allowedStemEnd,
+	desiredSnapbackMeltTempWildType
+) {}
 
 /****************************************************************/
 /*********************** Helper Functions ***********************/
