@@ -683,9 +683,9 @@ function revCompSNV(snvSite, seqLen) {
 	}
 
 	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
-	revCompIndex = seqLen - snvSite.index - 1;
+	const revCompIndex = seqLen - snvSite.index - 1;
 
-	revCompVariantBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
+	const revCompVariantBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
 
 	return {
 		index: revCompIndex,
