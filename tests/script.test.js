@@ -42,23 +42,23 @@ import {
 describe('getStemTm()', () => {
 	// Valid parameters
 	test('returns 47.27 for sequence "gaaaaggagtgca" with no mismatch', async () => {
-		const result = await getStemTm('GAAAAGGAGTGC');
+		const result = await getStemTm('GAAAAGGAGTGCA');
 		expect(result).toBeCloseTo(47.27, 2);
 	});
 
 	test('returns 47.27 for sequence "gaaaaggagtgca" with null mismatch', async () => {
-		const result = await getStemTm('GAAAAGGAGTGC', null);
+		const result = await getStemTm('GAAAAGGAGTGCA', null);
 		expect(result).toBeCloseTo(47.27, 2);
 	});
 
 	test('returns 37.54 with valid mismatch', async () => {
 		const mismatch = { position: 4, type: 'G' };
-		const result = await getStemTm('GAAAAGGAGTGC', mismatch);
+		const result = await getStemTm('GAAAAGGAGTGCA', mismatch);
 		expect(result).toBeCloseTo(37.54, 2);
 	});
 
 	test('does NOT throw if mismatch is null', async () => {
-		await expect(getStemTm('GAAAAGGAGTGC', null)).resolves.not.toThrow();
+		await expect(getStemTm('GAAAAGGAGTGCA', null)).resolves.not.toThrow();
 	});
 
 	// Invalid parameters
