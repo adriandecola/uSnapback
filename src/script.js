@@ -457,8 +457,43 @@ async function createStem(
  * @param {number} seqLen - The total length of the target sequence.
  *
  * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
+ * @throws {Error} - If any argument is missing, invalid, or out of bounds.
  */
 function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
+	////////////* Parameter checking *////////////////
+	// Check for missing or non-numeric inputs
+	for (const [name, val] of [
+		['snvIndex', snvIndex],
+		['primerLen', primerLen],
+		['compPrimerLen', compPrimerLen],
+		['seqLen', seqLen],
+	]) {
+		if (typeof val !== 'number' || !Number.isFinite(val)) {
+			throw new Error(`${name} must be a finite number`);
+		}
+		if (!Number.isInteger(val)) {
+			throw new Error(`${name} must be an integer`);
+		}
+		if (val < 0) {
+			throw new Error(`${name} must be non-negative`);
+		}
+	}
+	// Validate SNV index is in bounds
+	if (snvIndex >= seqLen) {
+		throw new Error(
+			`snvIndex (${snvIndex}) cannot exceed or equal sequence length (${
+				seqLen - 1
+			})`
+		);
+	}
+	// Validate primer lengths are feasible (or there was a bigger mistake)
+	if (primerLen + compPrimerLen >= seqLen) {
+		throw new Error(
+			`Primer lengths (${primerLen} + ${compPrimerLen}) exceed or match sequence length (${seqLen})`
+		);
+	}
+
+	////////////* Logic of function */////////////////
 	// Must be at least {buffer} bases away from either primer
 	const lowerBoundIndex = primerLen + buffer;
 	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
