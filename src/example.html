@@ -45,6 +45,8 @@ $(document).ready(function() {
 
     // **USING ANOTHER PUBLIC CORS PROXY - FOR DEVELOPMENT ONLY. NOT RECOMMENDED FOR PRODUCTION.**
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+    // for debugging
+    console.log('[proxyUrl]', proxyUrl);
 
     $.get(proxyUrl, function(data, status){
       if (status === "success" && data && data.contents) {
