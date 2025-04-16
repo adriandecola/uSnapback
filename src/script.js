@@ -410,27 +410,19 @@ async function getStemTm(seq, mismatch) {
 	)}`;
 
 	// 5) Fetch and parse response
-	// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging
-	console.log('[getStemTm] API URL:', decodeURIComponent(proxyUrl));
 	const response = await fetch(proxyUrl);
 	if (!response.ok) {
 		throw new Error(
 			`Network error: ${response.status} - ${response.statusText}`
 		);
 	}
-	// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging
-	console.log('[FETCH RESPONSE]', response.status, response.statusText);
 
 	const data = await response.json();
 	if (!data || !data.contents) {
 		throw new Error("Response missing 'contents'. Possibly a proxy error.");
 	}
-	// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging
-	console.log('[FETCH JSON]', data);
 
 	const rawHtml = data.contents;
-	// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging
-	console.log('[RAW HTML]', rawHtml);
 
 	// Parsing the correct tm value (tm or mmtm)
 	let tmValue;
