@@ -1,4 +1,5 @@
 /**
+ * // using jsdom to get DOM for when I eventually run tests for it
  * @jest-environment jsdom
  */
 
