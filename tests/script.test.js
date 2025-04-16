@@ -37,6 +37,93 @@ import {
 /*********************** Helper Functions ***********************/
 /****************************************************************/
 
+describe('parseTmFromResponse()', () => {
+	const validMatchHTML = `
+		<html>
+		<head></head>
+		<body>
+			<seq> gaaaaggagtgca </seq>
+			<tm> 47.27 </tm>
+		</body>
+		</html>
+	`;
+
+	const validMismatchHTML = `
+		<html>
+		<head></head>
+		<body>
+			<seq> gaaaaggagtgca </seq>
+			<tm> 47.04 </tm>
+			<mmtm> 37.54 </mmtm>
+			<warnings> Can only use Santalucia/Hicks parameter set with mismatches. Those parameters will be used here. </warnings>
+		</body>
+		</html>
+	`;
+
+	test('returns 47.27 when mismatch is not passed', () => {
+		const result = parseTmFromResponse(validMatchHTML);
+		expect(result).toBe(47.27);
+	});
+
+	test('returns 47.27 when mismatch is false', () => {
+		const result = parseTmFromResponse(validMatchHTML, false);
+		expect(result).toBe(47.27);
+	});
+
+	test('returns 37.54 when mismatch is true and <mmtm> is present', () => {
+		const result = parseTmFromResponse(validMismatchHTML, true);
+		expect(result).toBe(37.54);
+	});
+
+	// Invalid cases
+	test('returns null when <tm> tag is missing and mismatch is false', () => {
+		const html = `
+			<html>
+			<body>
+				<seq> ATCG </seq>
+			</body>
+			</html>
+		`;
+		expect(parseTmFromResponse(html, false)).toBeNull();
+	});
+
+	test('returns null when <mmtm> tag is missing and mismatch is true', () => {
+		const html = `
+			<html>
+			<body>
+				<seq> ATCG </seq>
+				<tm> 45.5 </tm>
+			</body>
+			</html>
+		`;
+		expect(parseTmFromResponse(html, true)).toBeNull();
+	});
+
+	test('returns null when <tm> is not a valid number', () => {
+		const html = `
+			<html><body><tm>not-a-number</tm></body></html>
+		`;
+		expect(parseTmFromResponse(html)).toBeNull();
+	});
+
+	test('returns null when <mmtm> is not a valid number', () => {
+		const html = `
+			<html><body><mmtm>NaN</mmtm></body></html>
+		`;
+		expect(parseTmFromResponse(html, true)).toBeNull();
+	});
+
+	test('returns null for empty string input', () => {
+		expect(parseTmFromResponse('', true)).toBeNull();
+		expect(parseTmFromResponse('', false)).toBeNull();
+	});
+
+	test('returns null for malformed HTML', () => {
+		const html = `<<tm>>`;
+		expect(parseTmFromResponse(html)).toBeNull();
+	});
+});
+
 /****************************************************************/
 /******************** DNA Utility Functions *********************/
 /****************************************************************/
