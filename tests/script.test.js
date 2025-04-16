@@ -37,6 +37,111 @@ import {
 /*********************** Helper Functions ***********************/
 /****************************************************************/
 
+describe('buildMismatchSequenceForAPI()', () => {
+	const shortSeq = 'GTCT'; // 4 bp
+	const mediumSeq = 'CCTGAGGTTTTAACGGTTGTATGTAGGTGTATATTATCAG'; // 40 bp
+	const longSeq =
+		'TACTTTGGGATTACACCACCGTCTTTTCGTATGGAACAAGTCTGCCGCGAAACGTGCTGAGTGTACTAACTCGATCTTTCGAGCAAGGAGGTTTTCCGTCCCTGTCTTTTTGTAATCAAA'; // 120 bp
+	const veryLongSeq =
+		'GCTCGATATCACACCCTGGCCGCGTTCTTTAATTTCATATGAGGCGACTCGTTGCACCCCGTTAACAGAAATCTGAGTGTTATCCCGTTAAGCTAGCGCGTGTCTGCCCGGACACATTTCGCTCCCGAGCCACATTCCTCAAAATCCAACTCGGGGCGCGCGTTGTACTCCTAGACTCCAATATGTAAATACGTGCGTCA'; // 200 bp
+
+	// ====== Valid cases ======
+	test('correctly changes base for short sequence at position 0', () => {
+		const mismatch = { position: 0, type: 'A' }; // insert T at index 0
+		const result = buildMismatchSequenceForAPI(shortSeq, mismatch);
+		expect(result.length).toBe(shortSeq.length);
+		expect(result[0]).toBe('T');
+		expect(result.slice(1)).toBe(shortSeq.slice(1));
+	});
+
+	test('correctly changes base for medium sequence in the middle', () => {
+		const mismatch = { position: 20, type: 'T' }; // insert A at index 20
+		const result = buildMismatchSequenceForAPI(mediumSeq, mismatch);
+		expect(result.length).toBe(mediumSeq.length);
+		expect(result[20]).toBe('A');
+		expect(result.slice(0, 20)).toBe(mediumSeq.slice(0, 20));
+		expect(result.slice(21)).toBe(mediumSeq.slice(21));
+	});
+
+	test('correctly changes base for long sequence near end', () => {
+		const mismatch = { position: 119, type: 'C' }; // insert G at final index
+		const result = buildMismatchSequenceForAPI(longSeq, mismatch);
+		expect(result.length).toBe(longSeq.length);
+		expect(result[119]).toBe('G');
+		expect(result.slice(0, 119)).toBe(longSeq.slice(0, 119));
+	});
+
+	test('correctly changes base for very long sequence in middle', () => {
+		const mismatch = { position: 100, type: 'G' }; // insert C at index 100
+		const result = buildMismatchSequenceForAPI(veryLongSeq, mismatch);
+		expect(result.length).toBe(veryLongSeq.length);
+		expect(result[100]).toBe('C');
+		expect(result.slice(0, 100)).toBe(veryLongSeq.slice(0, 100));
+		expect(result.slice(101)).toBe(veryLongSeq.slice(101));
+	});
+
+	// ====== Invalid input cases ======
+	test('throws on invalid base in sequence', () => {
+		expect(() =>
+			buildMismatchSequenceForAPI('ATBX', { position: 2, type: 'C' })
+		).toThrow('Invalid input sequence');
+	});
+
+	test('throws for non-string sequence', () => {
+		expect(() =>
+			buildMismatchSequenceForAPI(null, { position: 0, type: 'A' })
+		).toThrow('Invalid input sequence');
+		expect(() =>
+			buildMismatchSequenceForAPI(undefined, { position: 0, type: 'A' })
+		).toThrow();
+		expect(() =>
+			buildMismatchSequenceForAPI(42, { position: 0, type: 'A' })
+		).toThrow();
+	});
+
+	test('throws for missing mismatch keys', () => {
+		expect(() => buildMismatchSequenceForAPI('ATCG', {})).toThrow(
+			'Invalid mismatch object'
+		);
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1 })
+		).toThrow('Invalid mismatch object');
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { type: 'A' })
+		).toThrow('Invalid mismatch object');
+	});
+
+	test('throws for out-of-bounds position', () => {
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 4, type: 'A' })
+		).toThrow('out of bounds');
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: -1, type: 'T' })
+		).toThrow('out of bounds');
+	});
+
+	test('throws for invalid mismatch type values', () => {
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'X' })
+		).toThrow('Mismatch type "X" must be a single character');
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: '' })
+		).toThrow();
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'AA' })
+		).toThrow();
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 42 })
+		).toThrow();
+	});
+
+	test('throws for lowercase mismatch type', () => {
+		expect(() =>
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'g' })
+		).toThrow();
+	});
+});
+
 describe('parseTmFromResponse()', () => {
 	const validMatchHTML = `
 		<html>

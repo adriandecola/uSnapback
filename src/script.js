@@ -531,6 +531,8 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 	}
 
 	// Get the complement base
+	// Should never throw this error as parameters were already checked but can leave in, in case
+	// code structure changes in the future
 	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type];
 	if (!complementBase) {
 		throw new Error(
