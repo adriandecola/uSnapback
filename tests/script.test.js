@@ -1,7 +1,10 @@
-/**
- * // using jsdom to get DOM for when I eventually run tests for it
- * @jest-environment jsdom
- */
+// tests/script.test.js
+
+import { JSDOM } from 'jsdom';
+
+// Polyfill DOMParser globally, its used in parseTmFromResponse but its only
+// availible globally in the browser and not in node (where Jest runs)
+global.DOMParser = new JSDOM().window.DOMParser;
 
 import {
 	// Primary function
@@ -35,6 +38,122 @@ import {
 /****************************************************************/
 /********************* Secondary Functions **********************/
 /****************************************************************/
+
+describe('getStemTm()', () => {
+	// Valid parameters
+	test('returns 47.27 for sequence "gaaaaggagtgca" with no mismatch', async () => {
+		const result = await getStemTm('GAAAAGGAGTGC');
+		expect(result).toBeCloseTo(47.27, 2);
+	});
+
+	test('returns 47.27 for sequence "gaaaaggagtgca" with null mismatch', async () => {
+		const result = await getStemTm('GAAAAGGAGTGC', null);
+		expect(result).toBeCloseTo(47.27, 2);
+	});
+
+	test('returns 37.54 with valid mismatch', async () => {
+		const mismatch = { position: 4, type: 'G' };
+		const result = await getStemTm('GAAAAGGAGTGC', mismatch);
+		expect(result).toBeCloseTo(37.54, 2);
+	});
+
+	test('does NOT throw if mismatch is null', async () => {
+		await expect(getStemTm('GAAAAGGAGTGC', null)).resolves.not.toThrow();
+	});
+
+	// Invalid parameters
+	test('throws if sequence is not a string', async () => {
+		await expect(() => getStemTm(12345)).rejects.toThrow(
+			'Invalid, empty, or non-string DNA sequence: "12345"'
+		);
+	});
+
+	test('throws if sequence has invalid characters', async () => {
+		await expect(() => getStemTm('GAXXXC')).rejects.toThrow(
+			'Invalid, empty, or non-string DNA sequence: "GAXXXC"'
+		);
+	});
+
+	test('throws if mismatch is not an object', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', 'not-an-object')
+		).rejects.toThrow('Mismatch must be an object. Received: string');
+	});
+
+	test('throws if mismatch is an array', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }])
+		).rejects.toThrow('Mismatch must be an object. Received: object');
+	});
+
+	test('throws if mismatch is missing "position"', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { type: 'G' })
+		).rejects.toThrow(
+			'Mismatch object missing required keys "position" and/or "type". Received: {"type":"G"}'
+		);
+	});
+
+	test('throws if mismatch is missing "type"', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: 3 })
+		).rejects.toThrow(
+			'Mismatch object missing required keys "position" and/or "type". Received: {"position":3}'
+		);
+	});
+
+	test('throws if mismatch.position is out of bounds', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: 100, type: 'G' })
+		).rejects.toThrow(
+			'Mismatch position 100 is invalid or out of bounds for sequence of length 12'
+		);
+	});
+
+	test('throws if mismatch.position is negative', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: -1, type: 'G' })
+		).rejects.toThrow(
+			'Mismatch position -1 is invalid or out of bounds for sequence of length 12'
+		);
+	});
+
+	test('throws if mismatch.position is not an integer', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' })
+		).rejects.toThrow(
+			'Mismatch position 2.5 is invalid or out of bounds for sequence of length 12'
+		);
+	});
+
+	test('throws if mismatch.type is invalid base', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'X' })
+		).rejects.toThrow(
+			'Mismatch type "X" must be one of "A", "T", "C", "G"'
+		);
+	});
+
+	test('throws if mismatch.type is too long', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'GA' })
+		).rejects.toThrow(
+			'Mismatch type "GA" must be one of "A", "T", "C", "G"'
+		);
+	});
+
+	test('throws if mismatch has extra keys', async () => {
+		await expect(() =>
+			getStemTm('GAAAAGGAGTGC', {
+				position: 3,
+				type: 'A',
+				unexpected: true,
+			})
+		).rejects.toThrow(
+			'Mismatch object contains unexpected key: "unexpected"'
+		);
+	});
+});
 
 /****************************************************************/
 /*********************** Helper Functions ***********************/
@@ -266,6 +385,7 @@ describe('buildMismatchSequenceForAPI()', () => {
 });
 
 describe('parseTmFromResponse()', () => {
+	// Valid cases
 	const validMatchHTML = `
 		<html>
 		<head></head>
