@@ -494,9 +494,9 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 	}
 
 	////////////* Logic of function */////////////////
-	// Must be at least {buffer} bases away from either primer
-	const lowerBoundIndex = primerLen + buffer;
-	const upperBoundIndex = seqLen - compPrimerLen - buffer - 1;
+	// Must be at least {SNV_BASE_BUFFER} bases away from either primer
+	const lowerBoundIndex = primerLen + SNV_BASE_BUFFER;
+	const upperBoundIndex = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
 
 	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
 }
