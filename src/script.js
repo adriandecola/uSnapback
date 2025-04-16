@@ -327,9 +327,52 @@ async function evaluateSnapbackOptions(
  * @throws {Error}                  - If inputs are invalid, or the response can’t be parsed.
  */
 async function getStemTm(seq, mismatch) {
-	// 1) Validate input
-	if (!seq || !isValidDNASequence(seq)) {
-		throw new Error(`Invalid or empty sequence: "${seq}"`);
+	// 1) Validate Parameters
+	if (!isValidDNASequence(seq)) {
+		throw new Error(`Invalid, empty, or non-string DNA sequence: "${seq}"`);
+	}
+	if (mismatch !== undefined && mismatch !== null) {
+		// it could be passed in as null and we'll ignore it
+		if (typeof mismatch !== 'object' || Array.isArray(mismatch)) {
+			throw new Error(
+				`Mismatch must be an object. Received: ${typeof mismatch}`
+			);
+		}
+		// Check for extra keys in mismatch object
+		const allowedMismatchKeys = new Set(['position', 'type']);
+		for (const key of Object.keys(mismatch)) {
+			if (!allowedMismatchKeys.has(key)) {
+				throw new Error(
+					`Mismatch object contains unexpected key: "${key}"`
+				);
+			}
+		}
+		if (!('position' in mismatch) || !('type' in mismatch)) {
+			throw new Error(
+				`Mismatch object missing required keys "position" and/or "type". Received: ${JSON.stringify(
+					mismatch
+				)}`
+			);
+		}
+		if (
+			typeof mismatch.position !== 'number' ||
+			!Number.isInteger(mismatch.position) ||
+			mismatch.position < 0 ||
+			mismatch.position >= seq.length
+		) {
+			throw new Error(
+				`Mismatch position ${mismatch.position} is invalid or out of bounds for sequence of length ${seq.length}`
+			);
+		}
+		if (
+			typeof mismatch.type !== 'string' ||
+			mismatch.type.length !== 1 ||
+			!VALID_BASES.has(mismatch.type)
+		) {
+			throw new Error(
+				`Mismatch type "${mismatch.type}" must be one of "A", "T", "C", "G"`
+			);
+		}
 	}
 
 	// 2) Build the mismatch sequence the way the API endpoint wants it, if its provided
@@ -393,6 +436,7 @@ async function getStemTm(seq, mismatch) {
 			'No <tm> element found or invalid numeric value in server response.'
 		);
 	}
+	e;
 
 	// 6) Return the numeric Tm
 	return tmValue;
