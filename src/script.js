@@ -392,7 +392,7 @@ async function getStemTm(seq, mismatch) {
 	let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
 	baseUrl += `?mg=${MG}`;
 	baseUrl += `&mono=${MONO}`;
-	baseUrl += `&seq=${seq}`;
+	baseUrl += `&seq=${seq.toLowerCase()}`;
 	baseUrl += `&tparam=${T_PARAM}`;
 	baseUrl += `&saltcalctype=${SALT_CALC_TYPE}`;
 	baseUrl += `&otype=${O_TYPE}`;
@@ -405,7 +405,9 @@ async function getStemTm(seq, mismatch) {
 	}
 
 	// 4) For local dev only. I think we just use the baseURL if this code is on server?
-	const proxyUrl = `https://api.allorigins.win/get?url=${baseUrl}`;
+	const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+		baseUrl
+	)}`;
 
 	// 5) Fetch and parse response
 	// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging// $#(*&$#(* )) for debugging
@@ -444,7 +446,6 @@ async function getStemTm(seq, mismatch) {
 			'No <tm> element found or invalid numeric value in server response.'
 		);
 	}
-	e;
 
 	// 6) Return the numeric Tm
 	return tmValue;
