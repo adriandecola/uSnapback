@@ -3,9 +3,25 @@
  */
 
 import {
+	// Primary function
+	createSnapback,
+
+	// Secondary functions
+	useTargetStrandsPrimerForComplement,
+	evaluateSnapbackOptions,
+	getStemTm,
+	createStem,
+
+	// Helper/logic functions
+	snvTooCloseToPrimer,
+	buildMismatchSequenceForAPI,
+	parseTmFromResponse,
+
+	// DNA utility functions
 	isValidDNASequence,
 	complementSequence,
 	reverseComplement,
+	revCompSNV,
 } from '../src/script.js';
 
 describe('isValidDNASequence()', () => {
