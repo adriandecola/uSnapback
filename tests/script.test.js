@@ -227,3 +227,180 @@ describe('reverseComplement()', () => {
 		}
 	});
 });
+
+describe('revCompSNV()', () => {
+	// Valid SNV inputs — variety of lengths
+	test('returns correct reverse complement for SNVs in various length sequences', () => {
+		expect(revCompSNV({ index: 0, variantBase: 'A' }, 5)).toEqual({
+			index: 4,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 1, variantBase: 'T' }, 6)).toEqual({
+			index: 4,
+			variantBase: 'A',
+		});
+		expect(revCompSNV({ index: 2, variantBase: 'C' }, 7)).toEqual({
+			index: 4,
+			variantBase: 'G',
+		});
+		expect(revCompSNV({ index: 3, variantBase: 'G' }, 8)).toEqual({
+			index: 4,
+			variantBase: 'C',
+		});
+		expect(revCompSNV({ index: 4, variantBase: 'A' }, 9)).toEqual({
+			index: 4,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 5, variantBase: 'T' }, 11)).toEqual({
+			index: 5,
+			variantBase: 'A',
+		});
+		expect(revCompSNV({ index: 6, variantBase: 'C' }, 12)).toEqual({
+			index: 5,
+			variantBase: 'G',
+		});
+		expect(revCompSNV({ index: 7, variantBase: 'G' }, 13)).toEqual({
+			index: 5,
+			variantBase: 'C',
+		});
+		expect(revCompSNV({ index: 8, variantBase: 'A' }, 14)).toEqual({
+			index: 5,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 9, variantBase: 'T' }, 15)).toEqual({
+			index: 5,
+			variantBase: 'A',
+		});
+	});
+
+	// Valid SNV inputs
+	test('returns correct reverse complement for valid SNVs in 10-length sequence', () => {
+		expect(revCompSNV({ index: 0, variantBase: 'A' }, 10)).toEqual({
+			index: 9,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 1, variantBase: 'A' }, 10)).toEqual({
+			index: 8,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 5, variantBase: 'A' }, 10)).toEqual({
+			index: 4,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 9, variantBase: 'A' }, 10)).toEqual({
+			index: 0,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 0, variantBase: 'T' }, 10)).toEqual({
+			index: 9,
+			variantBase: 'A',
+		});
+		expect(revCompSNV({ index: 5, variantBase: 'C' }, 10)).toEqual({
+			index: 4,
+			variantBase: 'G',
+		});
+		expect(revCompSNV({ index: 7, variantBase: 'G' }, 10)).toEqual({
+			index: 2,
+			variantBase: 'C',
+		});
+	});
+
+	// Edge case: index in the middle of even and odd length seqs
+	test('returns correct for center index', () => {
+		expect(revCompSNV({ index: 4, variantBase: 'G' }, 9)).toEqual({
+			index: 4,
+			variantBase: 'C',
+		});
+		expect(revCompSNV({ index: 5, variantBase: 'C' }, 10)).toEqual({
+			index: 4,
+			variantBase: 'G',
+		});
+	});
+
+	// Very short sequences
+	test('works on shortest valid sequences (length 1-4)', () => {
+		expect(revCompSNV({ index: 0, variantBase: 'A' }, 1)).toEqual({
+			index: 0,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 1, variantBase: 'T' }, 3)).toEqual({
+			index: 1,
+			variantBase: 'A',
+		});
+		expect(revCompSNV({ index: 2, variantBase: 'G' }, 4)).toEqual({
+			index: 1,
+			variantBase: 'C',
+		});
+	});
+
+	// Long sequence case
+	test('works on long sequence', () => {
+		expect(revCompSNV({ index: 49, variantBase: 'A' }, 100)).toEqual({
+			index: 50,
+			variantBase: 'T',
+		});
+		expect(revCompSNV({ index: 0, variantBase: 'G' }, 100)).toEqual({
+			index: 99,
+			variantBase: 'C',
+		});
+		expect(revCompSNV({ index: 99, variantBase: 'C' }, 100)).toEqual({
+			index: 0,
+			variantBase: 'G',
+		});
+	});
+
+	// Invalid SNV objects
+	test('throws for non-object snvSite input', () => {
+		expect(() => revCompSNV(null, 10)).toThrow('Invalid SNV object');
+		expect(() => revCompSNV(undefined, 10)).toThrow('Invalid SNV object');
+		expect(() => revCompSNV([], 10)).toThrow('Invalid SNV object');
+		expect(() => revCompSNV(42, 10)).toThrow('Invalid SNV object');
+	});
+
+	test('throws if snvSite is missing keys or has extra keys', () => {
+		expect(() => revCompSNV({ index: 5 }, 10)).toThrow(
+			'Invalid SNV object'
+		);
+		expect(() => revCompSNV({ variantBase: 'A' }, 10)).toThrow(
+			'Invalid SNV object'
+		);
+		expect(() =>
+			revCompSNV({ index: 5, variantBase: 'A', extra: true }, 10)
+		).toThrow('Invalid SNV object');
+	});
+
+	// Invalid index
+	test('throws for invalid index values', () => {
+		expect(() => revCompSNV({ index: -1, variantBase: 'A' }, 10)).toThrow(
+			'Invalid SNV index'
+		);
+		expect(() => revCompSNV({ index: 10, variantBase: 'T' }, 10)).toThrow(
+			'Invalid SNV index'
+		);
+		expect(() => revCompSNV({ index: 5.5, variantBase: 'C' }, 10)).toThrow(
+			'Invalid SNV index'
+		);
+		expect(() => revCompSNV({ index: '5', variantBase: 'G' }, 10)).toThrow(
+			'Invalid SNV index'
+		);
+	});
+
+	// Invalid base
+	test('throws for invalid variantBase', () => {
+		expect(() => revCompSNV({ index: 5, variantBase: 'X' }, 10)).toThrow(
+			'Invalid variant base'
+		);
+		expect(() => revCompSNV({ index: 5, variantBase: 'g' }, 10)).toThrow(
+			'Invalid variant base'
+		);
+		expect(() => revCompSNV({ index: 5, variantBase: '' }, 10)).toThrow(
+			'Invalid variant base'
+		);
+		expect(() => revCompSNV({ index: 5, variantBase: 'AA' }, 10)).toThrow(
+			'Invalid variant base'
+		);
+		expect(() => revCompSNV({ index: 5, variantBase: 1 }, 10)).toThrow(
+			'Invalid variant base'
+		);
+	});
+});

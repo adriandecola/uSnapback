@@ -644,6 +644,44 @@ function reverseComplement(seqStrand) {
  */
 
 function revCompSNV(snvSite, seqLen) {
+	////////* Checking arguements */////////
+	// Ensure snvSite is an object with exactly two keys: 'index' and 'variantBase'
+	if (
+		typeof snvSite !== 'object' ||
+		snvSite == null ||
+		Array.isArray(snvSite) || // an array is also an object, but snvSite can't be an array
+		Object.keys(snvSite).length !== 2 ||
+		!('index' in snvSite) ||
+		!('variantBase' in snvSite)
+	) {
+		throw new Error(
+			'Invalid SNV object: must contain only { index: number, variantBase: string }'
+		);
+	}
+	// Validate index: must be an integer in [0, seqLen - 1]
+	if (
+		typeof snvSite.index !== 'number' ||
+		!Number.isInteger(snvSite.index) ||
+		snvSite.index < 0 ||
+		snvSite.index >= seqLen
+	) {
+		throw new Error(
+			`Invalid SNV index: ${
+				snvSite.index
+			} (must be an integer from 0 to ${seqLen - 1}(seqLen -1))`
+		);
+	}
+	// Validate variantBase: must be a valid base (A, T, C, G), case-sensitive
+	if (
+		typeof snvSite.variantBase !== 'string' ||
+		snvSite.variantBase.length !== 1 ||
+		!VALID_BASES.has(snvSite.variantBase)
+	) {
+		throw new Error(
+			`Invalid variant base: "${snvSite.variantBase}" (must be one of 'A', 'T', 'C', or 'G')`
+		);
+	}
+
 	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
 	revCompIndex = seqLen - snvSite.index - 1;
 
