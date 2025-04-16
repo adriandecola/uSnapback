@@ -771,4 +771,7 @@ export {
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
+
+	// Constants
+	SNV_BASE_BUFFER,
 };
