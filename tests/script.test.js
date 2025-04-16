@@ -23,6 +23,9 @@ import {
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
+
+	// Constants
+	SNV_BASE_BUFFER,
 } from '../src/script.js';
 
 /****************************************************************/
@@ -36,6 +39,126 @@ import {
 /****************************************************************/
 /*********************** Helper Functions ***********************/
 /****************************************************************/
+
+describe('snvTooCloseToPrimer()', () => {
+	// Valid parameter behavior
+	test('returns false if SNV is just far away enough from "left-side primer"', () => {
+		expect(snvTooCloseToPrimer(5 + SNV_BASE_BUFFER, 5, 10, 50)).toBe(false);
+		expect(snvTooCloseToPrimer(6 + SNV_BASE_BUFFER, 6, 10, 60)).toBe(false);
+	});
+
+	test('returns false when SNV is just far away enough from "right-side primer', () => {
+		const seqLen = 50;
+		const primerLen = 5;
+		const compPrimerLen = 5;
+		const snvIndex = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
+		expect(
+			snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen)
+		).toBe(false);
+	});
+
+	test('returns false when SNV is comfortably away from both primers', () => {
+		expect(snvTooCloseToPrimer(20, 5, 5, 50)).toBe(false);
+		expect(snvTooCloseToPrimer(25, 10, 10, 70)).toBe(false);
+	});
+
+	test('returns true if SNV is too close to left primer', () => {
+		expect(snvTooCloseToPrimer(7, 5, 10, 50)).toBe(true);
+		expect(snvTooCloseToPrimer(4, 4, 5, 30)).toBe(true);
+	});
+
+	test('returns true if SNV is too close to right primer', () => {
+		expect(snvTooCloseToPrimer(43, 5, 5, 50)).toBe(true);
+	});
+
+	test('returns true if SNV is both too close to left and right primer', () => {
+		expect(snvTooCloseToPrimer(9, 9, 9, 20)).toBe(true);
+	});
+
+	test('returns true when SNV is exactly one base inside lower threshold', () => {
+		const snvIndex = 5 + SNV_BASE_BUFFER - 1;
+		expect(snvTooCloseToPrimer(snvIndex, 5, 5, 50)).toBe(true);
+	});
+
+	test('returns true when SNV is exactly one base outside upper threshold', () => {
+		const snvIndex = 50 - 5 - SNV_BASE_BUFFER;
+		expect(snvTooCloseToPrimer(snvIndex, 5, 5, 50)).toBe(true);
+	});
+
+	// Invalid input tests
+	test('throws if any input is not a number', () => {
+		expect(() => snvTooCloseToPrimer('1', 5, 5, 50)).toThrow(
+			'snvIndex must be a finite number'
+		);
+		expect(() => snvTooCloseToPrimer(1, '5', 5, 50)).toThrow(
+			'primerLen must be a finite number'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, null, 50)).toThrow(
+			'compPrimerLen must be a finite number'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, 5, undefined)).toThrow(
+			'seqLen must be a finite number'
+		);
+	});
+
+	test('throws if any input is not an integer', () => {
+		expect(() => snvTooCloseToPrimer(1.5, 5, 5, 50)).toThrow(
+			'snvIndex must be an integer'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5.2, 5, 50)).toThrow(
+			'primerLen must be an integer'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, 5.9, 50)).toThrow(
+			'compPrimerLen must be an integer'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, 5, 50.01)).toThrow(
+			'seqLen must be an integer'
+		);
+	});
+
+	test('throws for negative values', () => {
+		expect(() => snvTooCloseToPrimer(-1, 5, 5, 50)).toThrow(
+			'snvIndex must be non-negative'
+		);
+		expect(() => snvTooCloseToPrimer(1, -5, 5, 50)).toThrow(
+			'primerLen must be non-negative'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, -5, 50)).toThrow(
+			'compPrimerLen must be non-negative'
+		);
+		expect(() => snvTooCloseToPrimer(1, 5, 5, -50)).toThrow(
+			'seqLen must be non-negative'
+		);
+	});
+
+	test('throws if snvIndex is equal to seqLen', () => {
+		expect(() => snvTooCloseToPrimer(50, 5, 5, 50)).toThrow(
+			/snvIndex \(50\) cannot exceed or equal/
+		);
+	});
+
+	test('throws if snvIndex > seqLen', () => {
+		expect(() => snvTooCloseToPrimer(51, 5, 5, 50)).toThrow();
+	});
+
+	test('throws if total primer lengths exceed sequence length', () => {
+		expect(() => snvTooCloseToPrimer(10, 25, 25, 50)).toThrow(
+			/Primer lengths.*exceed or match/
+		);
+		expect(() => snvTooCloseToPrimer(10, 30, 30, 60)).toThrow();
+	});
+
+	// Edge cases (can change to throw errors if I want to implement differently)
+	test('returns false when primers are 0-length and SNV is within bounds', () => {
+		expect(snvTooCloseToPrimer(10, 0, 0, 20)).toBe(false);
+		expect(snvTooCloseToPrimer(3, 0, 0, 10)).toBe(false);
+	});
+
+	test('returns true when primers are 0 and SNV is too close to sequence edge', () => {
+		expect(snvTooCloseToPrimer(0, 0, 0, 10)).toBe(true);
+		expect(snvTooCloseToPrimer(9, 0, 0, 10)).toBe(true);
+	});
+});
 
 describe('buildMismatchSequenceForAPI()', () => {
 	const shortSeq = 'GTCT'; // 4 bp
