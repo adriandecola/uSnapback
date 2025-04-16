@@ -415,12 +415,18 @@ async function getStemTm(seq, mismatch) {
 		);
 	}
 
+	console.log('[FETCH RESPONSE]', response.status, response.statusText);
+
 	const data = await response.json();
 	if (!data || !data.contents) {
 		throw new Error("Response missing 'contents'. Possibly a proxy error.");
 	}
+	// $#(*&$#(* )) for debugging
+	console.log('[FETCH JSON]', data);
 
 	const rawHtml = data.contents;
+	// $#(*&$#(* )) for debugging
+	console.log('[RAW HTML]', rawHtml);
 
 	// Parsing the correct tm value (tm or mmtm)
 	let tmValue;
