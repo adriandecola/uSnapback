@@ -487,44 +487,61 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
  * @returns {string} The mmseq string for the Tm service.
  */
 function buildMismatchSequenceForAPI(seq, mismatch) {
-	// Ensure the main sequence is valid. Throws an error if invalid or empty.
-	isValidDNASequence(seq);
-
-	// Validate mismatch object
-	if (
-		!mismatch ||
-		mismatch.position == null ||
-		typeof mismatch.type !== 'string'
-	) {
-		throw new Error(`Invalid mismatch object: ${JSON.stringify(mismatch)}`);
-	}
-
-	// Make sure the mismatch.type is a single valid base (A/T/C/G).
-	// We'll treat mismatch.type as a minimal "sequence" to check:
-	isValidDNASequence(mismatch.type);
-
-	// Ensure position is within seq bounds
-	if (mismatch.position < 0 || mismatch.position >= seq.length) {
+	///////////* Parameter Checking */////////////
+	// Sequence must be a valid DNA string
+	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Mismatch position ${mismatch.position} is out of range for sequence length ${seq.length}.`
+			`Invalid input sequence: "${seq}". Must only contain A, T, C, or G and be a string.`
+		);
+	}
+	// Mismatch must be a javascript object with position and type keys
+	if (
+		typeof mismatch !== 'object' ||
+		mismatch == null ||
+		Array.isArray(mismatch) ||
+		!('position' in mismatch) ||
+		!('type' in mismatch)
+	) {
+		throw new Error(
+			`Invalid mismatch object. Expected { position: number, type: string }. Received: ${JSON.stringify(
+				mismatch
+			)}`
+		);
+	}
+	// mismatch.position must be an integer in [0, seqLen-1]
+	if (
+		typeof mismatch.position !== 'number' ||
+		!Number.isInteger(mismatch.position) ||
+		mismatch.position < 0 ||
+		mismatch.position >= seq.length
+	) {
+		throw new Error(
+			`Mismatch position ${mismatch.position} is not an integer or out of bounds for sequence of length ${seq.length}`
+		);
+	}
+	// mismatch.type must be a string with one character: 'A', 'C', 'T', or 'G'
+	if (
+		typeof mismatch.type !== 'string' ||
+		mismatch.type.length !== 1 ||
+		!VALID_BASES.has(mismatch.type)
+	) {
+		throw new Error(
+			`Mismatch type "${mismatch.type}" must be a single character: A, T, C, or G`
 		);
 	}
 
-	// The Tm service wants the difference in `mmseq` to be the complement
-	// of the mismatch base. (e.g., mismatch.type='G' -> insert 'C').
-	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type.toUpperCase()];
-	// If mismatch.type wasn't in {A,T,C,G}, isValidDNASequence would have already thrown,
-	// but we check again out of caution.
+	// Get the complement base
+	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type];
 	if (!complementBase) {
 		throw new Error(
-			`Mismatch type "${mismatch.type}" has no complement. Should never happen.`
+			`Unexpected error: unable to determine complement for mismatch base "${mismatch.type}". Error shouldn't be 
+			thrown as parameters are checked.`
 		);
 	}
 
-	// Replace the character at 'position' with that complement
+	// Replace that position with the mismatch complement's in the original sequence, thisis what the API wants
 	const arr = seq.split('');
 	arr[mismatch.position] = complementBase;
-
 	return arr.join('');
 }
 
