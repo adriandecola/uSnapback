@@ -157,3 +157,73 @@ describe('complementSequence()', () => {
 		);
 	});
 });
+
+describe('reverseComplement()', () => {
+	// Simple valid tests
+	test('returns correct reverse complement for valid sequences', () => {
+		expect(reverseComplement('A')).toBe('T');
+		expect(reverseComplement('T')).toBe('A');
+		expect(reverseComplement('C')).toBe('G');
+		expect(reverseComplement('G')).toBe('C');
+		expect(reverseComplement('ATCG')).toBe('CGAT');
+		expect(reverseComplement('GGGTTTAAA')).toBe('TTTAAACCC');
+		expect(reverseComplement('ATGCG')).toBe('CGCAT');
+		expect(reverseComplement('TACGT')).toBe('ACGTA');
+		expect(reverseComplement('CCGGA')).toBe('TCCGG');
+		expect(reverseComplement('TTTGG')).toBe('CCAAA');
+	});
+
+	// Long sequences
+	test('handles long valid sequences', () => {
+		const input = 'ATCGGGTTAACCGGATTCGAGCTTAAACCGGGTTTAAACC';
+		const expected = 'GGTTTAAACCCGGTTTAAGCTCGAATCCGGTTAACCCGAT';
+		expect(reverseComplement(input)).toBe(expected);
+	});
+
+	// Edge case: empty input
+	test('returns empty string for empty input', () => {
+		expect(reverseComplement('')).toBe('');
+	});
+
+	// Case sensitivity (should throw on non-uppercase)
+	test('throws error on lowercase or mixed-case inputs', () => {
+		expect(() => reverseComplement('atcg')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('a')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('AtCg')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('GgGg')).toThrow('Invalid DNA sequence');
+	});
+
+	// Invalid characters
+	test('throws error on invalid characters or formatting', () => {
+		expect(() => reverseComplement('ATXG')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('A T')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('ACG$')).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement('1234')).toThrow('Invalid DNA sequence');
+	});
+
+	// Non-string input
+	test('throws error for non-string input', () => {
+		expect(() => reverseComplement(42)).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement(null)).toThrow('Invalid DNA sequence');
+		expect(() => reverseComplement(undefined)).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => reverseComplement(['A', 'T', 'C', 'G'])).toThrow(
+			'Invalid DNA sequence'
+		);
+	});
+
+	// Palindrome
+	test('reverseComplement(reverseComplement(seq)) === seq', () => {
+		const sequences = [
+			'A',
+			'ATCG',
+			'GGGTTTAAA',
+			'CCGGAATTC',
+			'ATCGGGTTAACCGGATTCGAGCTTAAACCGGGTTTAAACC',
+		];
+		for (const seq of sequences) {
+			expect(reverseComplement(reverseComplement(seq))).toBe(seq);
+		}
+	});
+});
