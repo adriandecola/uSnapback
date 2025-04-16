@@ -78,3 +78,66 @@ describe('isValidDNASequence()', () => {
 		expect(isValidDNASequence(['A', 'T', 'C', 'G'])).toBe(false);
 	});
 });
+
+describe('complementSequence()', () => {
+	test('returns correct complement for simple valid sequences', () => {
+		expect(complementSequence('A')).toBe('T');
+		expect(complementSequence('T')).toBe('A');
+		expect(complementSequence('C')).toBe('G');
+		expect(complementSequence('G')).toBe('C');
+		expect(complementSequence('ATCG')).toBe('TAGC');
+		expect(complementSequence('GGGTTTAAAACCC')).toBe('CCCAAATTTTGGG');
+	});
+
+	test('throws error on lowercase input', () => {
+		expect(() => complementSequence('atcg')).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence('a')).toThrow('Invalid DNA sequence');
+	});
+
+	test('throws error on mixed case', () => {
+		expect(() => complementSequence('AtCg')).toThrow(
+			'Invalid DNA sequence'
+		);
+	});
+
+	test('throws error on invalid characters', () => {
+		expect(() => complementSequence('AT1G')).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence('A*T^G')).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence('ACGT!')).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence('ACGT ')).toThrow(
+			'Invalid DNA sequence'
+		);
+	});
+
+	test('throws error on whitespace', () => {
+		expect(() => complementSequence('A T G')).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence('AT\nCG')).toThrow(
+			'Invalid DNA sequence'
+		);
+	});
+
+	test('returns empty string if input is empty', () => {
+		expect(complementSequence('')).toBe('');
+	});
+
+	test('throws error for non-string input', () => {
+		expect(() => complementSequence(1234)).toThrow('Invalid DNA sequence');
+		expect(() => complementSequence(null)).toThrow('Invalid DNA sequence');
+		expect(() => complementSequence(undefined)).toThrow(
+			'Invalid DNA sequence'
+		);
+		expect(() => complementSequence(['A', 'T'])).toThrow(
+			'Invalid DNA sequence'
+		);
+	});
+});
