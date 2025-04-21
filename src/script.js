@@ -11,7 +11,7 @@ Relative Path:  uSnapback/src/script.js
 const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const STRONG_NUCLEOTIDE_MISMATCH = { A: 'G', G: 'A', C: 'C', T: 'T' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
-const SNV_BASE_BUFFER = 3; // The number of matched bases required on either end of a mismatched SNV
+const SNV_BASE_BUFFER = 4; // The number of matched bases required on either end of a mismatched SNV
 const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
@@ -219,8 +219,8 @@ async function useTargetStrandsPrimerForComplement(
 	const targetWildBase = targetSeqStrand[snvSite.index];
 	const compWildBase = compTargetSeqStrand[compSnvSite.index];
 
-	// 3) SNV is at position 3 in these 7-base slices (SNV_BASE_BUFFER=3)
-	const mismatchPos = 3;
+	// 3) SNV is at position {SNV_BASE_BUFFER} in these 2*{SNV_BASE_BUFFER}+1 slices
+	const mismatchPos = SNV_BASE_BUFFER;
 
 	// 4) Evaluate Tm differences for the target strand
 	const targetScenario = await evaluateSnapbackOptions(
