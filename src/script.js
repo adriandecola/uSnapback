@@ -792,6 +792,22 @@ function revCompSNV(snvSite, seqLen) {
 	};
 }
 
+/**
+ *
+ * @param {*} sequence
+ * @param {*} mismatch
+ * @param {*} mg
+ * @param {*} mono
+ * @param {*} dNTP
+ * @param {*} k
+ */
+function calculateTm(seq, mismatch, mg, mono, dNTP, k) {
+	// 1) Validate parameters
+	// 2) Calculate \Delta H
+
+	for (i = 0; i < seq.length; i++) {}
+}
+
 /****************************************************************/
 /*********************** Export Function ************************/
 /****************************************************************/
