@@ -160,6 +160,8 @@ describe('getStemTm()', () => {
 /****************************************************************/
 
 describe('snvTooCloseToPrimer()', () => {
+	//These tests assume the SNV_BASE_BUFFER variable will never be unreasonably huge
+
 	// Valid parameter behavior
 	test('returns false if SNV is just far away enough from "left-side primer"', () => {
 		expect(snvTooCloseToPrimer(5 + SNV_BASE_BUFFER, 5, 10, 50)).toBe(false);
@@ -177,17 +179,35 @@ describe('snvTooCloseToPrimer()', () => {
 	});
 
 	test('returns false when SNV is comfortably away from both primers', () => {
-		expect(snvTooCloseToPrimer(20, 5, 5, 50)).toBe(false);
-		expect(snvTooCloseToPrimer(25, 10, 10, 70)).toBe(false);
+		expect(
+			snvTooCloseToPrimer(
+				SNV_BASE_BUFFER + 20,
+				5,
+				5,
+				SNV_BASE_BUFFER + 50
+			)
+		).toBe(false);
+		expect(
+			snvTooCloseToPrimer(
+				SNV_BASE_BUFFER + 25,
+				10,
+				10,
+				SNV_BASE_BUFFER + 70
+			)
+		).toBe(false);
 	});
 
 	test('returns true if SNV is too close to left primer', () => {
-		expect(snvTooCloseToPrimer(7, 5, 10, 50)).toBe(true);
+		expect(snvTooCloseToPrimer(5 + SNV_BASE_BUFFER - 2, 5, 10, 50)).toBe(
+			true
+		);
 		expect(snvTooCloseToPrimer(4, 4, 5, 30)).toBe(true);
 	});
 
 	test('returns true if SNV is too close to right primer', () => {
-		expect(snvTooCloseToPrimer(43, 5, 5, 50)).toBe(true);
+		expect(snvTooCloseToPrimer(50 - SNV_BASE_BUFFER - 5, 5, 5, 50)).toBe(
+			true
+		);
 	});
 
 	test('returns true if SNV is both too close to left and right primer', () => {
@@ -269,13 +289,15 @@ describe('snvTooCloseToPrimer()', () => {
 
 	// Edge cases (can change to throw errors if I want to implement differently)
 	test('returns false when primers are 0-length and SNV is within bounds', () => {
-		expect(snvTooCloseToPrimer(10, 0, 0, 20)).toBe(false);
-		expect(snvTooCloseToPrimer(3, 0, 0, 10)).toBe(false);
+		expect(snvTooCloseToPrimer(SNV_BASE_BUFFER + 3, 0, 0, 20)).toBe(false);
+		expect(snvTooCloseToPrimer(SNV_BASE_BUFFER, 0, 0, 10)).toBe(false);
 	});
 
 	test('returns true when primers are 0 and SNV is too close to sequence edge', () => {
 		expect(snvTooCloseToPrimer(0, 0, 0, 10)).toBe(true);
-		expect(snvTooCloseToPrimer(9, 0, 0, 10)).toBe(true);
+		expect(snvTooCloseToPrimer(10 - SNV_BASE_BUFFER + 2, 0, 0, 10)).toBe(
+			true
+		);
 	});
 });
 
