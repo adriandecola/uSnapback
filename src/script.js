@@ -220,6 +220,17 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 		);
 	}
 
+	// 3) Ensure the sequence is long enough around the SNV site to accommodate the initial stem
+	if (
+		snvSite.index < SNV_BASE_BUFFER ||
+		snvSite.index > targetSeqStrand.length - SNV_BASE_BUFFER - 1
+	) {
+		throw new Error(
+			`Cannot create initial stem: SNV at index ${snvSite.index} is too close to the ends of the sequence. ` +
+				`Need ${SNV_BASE_BUFFER} matched bases on both sides. Sequence length is ${targetSeqStrand.length}.`
+		);
+	}
+
 	/////////// Function Logic ///////////
 
 	// 1) Build reverse complement of the target sequence's strand
