@@ -64,7 +64,7 @@ const LIMITING_CONC = 0.5;
  *     @property {number} index - The index in the sequence where the variant occurs (0-based).
  *     @property {string} variantBase - A one character string representing the variant base.
  * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
- * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type
+ * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type (an integer)
  *
  * @returns {Object} - An object representing the formed snapback primer
  *     @property {string} snapbackSeq - The final snapback primer sequence (5'-tail + primer-3').
@@ -83,6 +83,79 @@ async function createSnapback(
 	snvSite,
 	desiredSnapbackMeltTempWildType
 ) {
+	/////////// Parameter Checking ///////////
+	// Validate targetSeqStrand is a valid DNA sequence
+	if (!isValidDNASequence(targetSeqStrand)) {
+		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
+	}
+
+	// Validate desiredSnapbackMeltTempWildType is a positive number
+	if (
+		typeof desiredSnapbackMeltTempWildType !== 'number' ||
+		!Number.isFinite(desiredSnapbackMeltTempWildType) ||
+		desiredSnapbackMeltTempWildType < 0
+	) {
+		throw new Error(
+			`desiredSnapbackMeltTempWildType must be a positive, finite number`
+		);
+	}
+
+	// Validate primerLen and compPrimerLen are positive integers
+	for (const [name, val] of [
+		['primerLen', primerLen],
+		['compPrimerLen', compPrimerLen],
+	]) {
+		if (typeof val !== 'number' || !Number.isFinite(val)) {
+			throw new Error(`${name} must be a finite number`);
+		}
+		if (val < 0) {
+			throw new Error(`${name} must be non-negative`);
+		}
+		if (!Number.isInteger(val)) {
+			throw new Error(`${name} must be an integer`);
+		}
+	}
+
+	// Validate snvSite structure and values
+	if (
+		typeof snvSite !== 'object' ||
+		snvSite == null ||
+		Array.isArray(snvSite)
+	) {
+		throw new Error(`snvSite must be a non-null object`);
+	}
+	const expectedKeys = new Set(['index', 'variantBase']);
+	for (const key of Object.keys(snvSite)) {
+		if (!expectedKeys.has(key)) {
+			throw new Error(`Unexpected key in snvSite: "${key}"`);
+		}
+	}
+	if (!('index' in snvSite) || !('variantBase' in snvSite)) {
+		throw new Error(`snvSite must contain both "index" and "variantBase"`);
+	}
+	if (
+		typeof snvSite.index !== 'number' ||
+		!Number.isInteger(snvSite.index) ||
+		snvSite.index < 0 ||
+		snvSite.index >= targetSeqStrand.length
+	) {
+		throw new Error(
+			`snvSite.index must be an integer from 0 to ${
+				targetSeqStrand.length - 1
+			}`
+		);
+	}
+	if (
+		typeof snvSite.variantBase !== 'string' ||
+		snvSite.variantBase.length !== 1 ||
+		!VALID_BASES.has(snvSite.variantBase)
+	) {
+		throw new Error(
+			`snvSite.variantBase must be a single character: A, T, C, or G`
+		);
+	}
+	/////////// Funciton Logic ///////////
+
 	// 1) Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
 	if (
 		snvTooCloseToPrimer(
@@ -544,9 +617,9 @@ async function getStemTm(seq, mismatch) {
 }
 
 /**
- * @typedef {Object} StemLoc
- * @property {number} start - The final start index of the stem on this strand.
- * @property {number} end   - The final end index of the stem on this strand.
+ * Constructs or refines the snapback stem on the chosen strand so that
+ * the melting temperature of the wild type allele gets as close to the passed
+ * in desired snapback melting temperature for the wilt type
  *
  * @typedef {Object} StemMeltingTemp
  * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
@@ -556,19 +629,12 @@ async function getStemTm(seq, mismatch) {
  * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
  * @property {StemMeltingTemp} meltingTemp - Melting temperatures for the wild and variant stems.
  *
- * Recursively constructs or refines the snapback stem on the chosen strand so that
- * its melting temperature meets the specified thresholds for both the wild and
- * variant bases at the SNV site.
  *
  * @param {string} targetStrandSeqSnapPrimerRefPoint - The DNA sequence (5'→3') for the chosen strand.
  * @param {Object} snvSiteSnapPrimerRefPoint         - SNV site object for this strand’s coordinates:
  *   - index: (number) The SNV's position in this strand.
  *   - variantBase: (string) The variant base (A/T/C/G).
  * @param {string} snapbackBaseAtSNV                 - The base (wild or variant) that the snapback is matching at the SNV.
- * @param {number} stemStartSnapPrimerRefPoint       - The initial start index of the stem in this strand.
- * @param {number} stemEndSnapPrimerRefPoint         - The initial end index of the stem in this strand.
- * @param {number} allowedStemStart                  - The furthest upstream index to which the stem can safely extend.
- * @param {number} allowedStemEnd                    - The furthest downstream index to which the stem can safely extend.
  * @param {number} desiredSnapbackMeltTempWildType   - The target melting temperature (°C) for the wild-type snapback.
  *
  * @returns {CreateStemReturn} An object containing the finalized stem location and the calculated melting temperatures.
@@ -577,10 +643,6 @@ async function createStem(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
 	snapbackBaseAtSNV,
-	stemStartSnapPrimerRefPoint,
-	stemEndSnapPrimerRefPoint,
-	allowedStemStart,
-	allowedStemEnd,
 	desiredSnapbackMeltTempWildType
 ) {}
 
