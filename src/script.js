@@ -379,6 +379,62 @@ async function evaluateSnapbackOptions(
 	wildBase,
 	variantBase
 ) {
+	//////////////////////
+	// Parameter Checks //
+	//////////////////////
+
+	// 1. Validate initStem
+	if (!isValidDNASequence(initStem)) {
+		throw new Error(`Invalid initStem sequence: "${initStem}"`);
+	}
+
+	// 2. Validate mismatchPos
+	if (
+		typeof mismatchPos !== 'number' ||
+		!Number.isInteger(mismatchPos) ||
+		mismatchPos < 0 ||
+		mismatchPos >= initStem.length
+	) {
+		throw new Error(
+			`mismatchPos must be an integer in range [0, ${
+				initStem.length - 1
+			}]. Received: ${mismatchPos}`
+		);
+	}
+
+	// 3. Validate wildBase
+	if (
+		typeof wildBase !== 'string' ||
+		wildBase.length !== 1 ||
+		!VALID_BASES.has(wildBase)
+	) {
+		throw new Error(
+			`wildBase must be a single character from "A", "T", "C", or "G". Received: "${wildBase}"`
+		);
+	}
+
+	// 4. Validate variantBase
+	if (
+		typeof variantBase !== 'string' ||
+		variantBase.length !== 1 ||
+		!VALID_BASES.has(variantBase)
+	) {
+		throw new Error(
+			`variantBase must be a single character from "A", "T", "C", or "G". Received: "${variantBase}"`
+		);
+	}
+
+	// 5. Ensure variantBase differs from wildBase
+	if (variantBase === wildBase) {
+		throw new Error(
+			`variantBase and wildBase must differ to represent a true SNV. Both were "${wildBase}".`
+		);
+	}
+
+	//////////////////////
+	//  Function Logic  //
+	//////////////////////
+
 	// 1) Tm with wild base, matched
 	const wildMatchTm = await getStemTm(initStem);
 
