@@ -308,11 +308,11 @@ async function useTargetStrandsPrimerForComplement(
 	// 1) Slice out the "init stem" region from each strand
 	const targetInitStem = targetSeqStrand.slice(
 		initStemLoc.start,
-		initStemLoc.end
+		initStemLoc.end + 1
 	);
 	const compInitStem = compTargetSeqStrand.slice(
 		compInitStemLoc.start,
-		compInitStemLoc.end
+		compInitStemLoc.end + 1
 	);
 
 	// 2) Identify the wild-type base on each strand
