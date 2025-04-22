@@ -363,6 +363,7 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
  * “matched wild” Tm.
  *
  * @param {string} initStem     - The sub-sequence {2*SNV_BASE_BUFFER+1} nucleotides long, containing the SNV at position `mismatchPos`
+ * 								  assumed to be passed in with the wild base.
  * @param {number} mismatchPos  - Usually {SNV_BASE_BUFFER} (SNV in center)
  * @param {string} wildBase     - The wild-type base at that SNV
  * @param {string} variantBase  - The single variant base
@@ -408,6 +409,13 @@ async function evaluateSnapbackMatchingOptions(
 	) {
 		throw new Error(
 			`wildBase must be a single character from "A", "T", "C", or "G". Received: "${wildBase}"`
+		);
+	}
+	// Check that initStem[mismatchPos] === wildBase
+	if (initStem[mismatchPos] !== wildBase) {
+		throw new Error(
+			`Mismatch position ${mismatchPos} in initStem does not contain wildBase. ` +
+				`Found "${initStem[mismatchPos]}", expected "${wildBase}".`
 		);
 	}
 
