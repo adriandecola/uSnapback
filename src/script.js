@@ -997,4 +997,5 @@ export {
 
 	// Constants
 	SNV_BASE_BUFFER,
+	NUCLEOTIDE_COMPLEMENT,
 };
