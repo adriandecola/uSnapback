@@ -39,7 +39,33 @@ import {
 /********************* Secondary Functions **********************/
 /****************************************************************/
 
-describe('useTargetStrandsPrimerForComplement() - Parameter Validation', () => {
+describe('useTargetStrandsPrimerForComplement()', () => {
+	test('returns correct strand and snapback base for known Tm-diff scenario', async () => {
+		const targetSeqStrand =
+			'ATATTCAGAATAACTAATGTTTGGAAGTTGTTTTGTTTTGCTAAAACAAAGTTTTAGCAAACGATTTTTTTTTTCAAATTTGTGTCTTCTGTTCTCAAAGCATCTCTGATGTAAGAGATAATGCGCCACGATGGGCATCAGAAGACCTCAGCTCAAATCCCAGTTCTGCCAGCTATGAGCTGTGTGGCACCAACAGGTGTC';
+		const compTargetSeqStrand =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACAAAGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+		const initStemLoc = { start: 96, end: 104 };
+		const compInitStemLoc = { start: 96, end: 104 };
+		const snvSite = { index: 100, variantBase: 'T' };
+		const compSnvSite = { index: 100, variantBase: 'A' };
+
+		const result = await useTargetStrandsPrimerForComplement(
+			targetSeqStrand,
+			compTargetSeqStrand,
+			initStemLoc,
+			compInitStemLoc,
+			snvSite,
+			compSnvSite
+		);
+
+		expect(result).toEqual({
+			useTargetStrand: false,
+			snapbackBaseAtSNV: 'C',
+		});
+	});
+
+	////////////// Parameter Checking ///////////////
 	const validTarget = 'ATCGATCGATCG';
 	const validComp = 'CGATCGATCGAT';
 	const validStemLoc = { start: 2, end: 10 };
@@ -184,7 +210,7 @@ describe('useTargetStrandsPrimerForComplement() - Parameter Validation', () => {
 	}
 });
 
-describe('evaluateSnapbackOptions() Parameter Checks', () => {
+describe('evaluateSnapbackOptions()', () => {
 	const validSeq = 'GAAAAGGAG';
 	const mismatchPos = 4;
 	const wild = 'A';
