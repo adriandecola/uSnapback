@@ -17,6 +17,7 @@ const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
 const SNAP_DECIMAL_PLACES = 2;
+const API_TOKEN = 1;
 // Chemisty parameters ************** name these better ************
 const MG = 2.2;
 const MONO = 20.0;
@@ -562,7 +563,7 @@ async function getStemTm(seq, mismatch) {
 	}
 
 	// 3) Build query URL
-	let baseUrl = 'https://dna-utah.org/ths/cgi-bin/tmsnap.cgi';
+	let baseUrl = 'https://dna-utah.org/tm/snaprequest.php';
 	baseUrl += `?mg=${MG}`;
 	baseUrl += `&mono=${MONO}`;
 	baseUrl += `&seq=${seq.toLowerCase()}`;
@@ -572,30 +573,21 @@ async function getStemTm(seq, mismatch) {
 	baseUrl += `&concentration=${CONC}`;
 	baseUrl += `&limitingconc=${LIMITING_CONC}`;
 	baseUrl += `&decimalplaces=${SNAP_DECIMAL_PLACES}`;
+	baseUrl += `&token=${API_TOKEN}`;
 	// If a mismatch is passed in this will add the correct mismatch sequence
 	if (mismatch) {
 		baseUrl += `&mmseq=${mismatchSeq}`;
 	}
 
-	// 4) For local dev only. I think we just use the baseURL if this code is on server?
-	const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
-		baseUrl
-	)}`;
-
 	// 5) Fetch and parse response
-	const response = await fetch(proxyUrl);
+	const response = await fetch(baseUrl);
 	if (!response.ok) {
 		throw new Error(
 			`Network error: ${response.status} - ${response.statusText}`
 		);
 	}
-
-	const data = await response.json();
-	if (!data || !data.contents) {
-		throw new Error("Response missing 'contents'. Possibly a proxy error.");
-	}
-
-	const rawHtml = data.contents;
+	// Parses the body of the response as text
+	const rawHtml = await response.text();
 
 	// Parsing the correct tm value (tm or mmtm)
 	let tmValue;
