@@ -39,6 +39,151 @@ import {
 /********************* Secondary Functions **********************/
 /****************************************************************/
 
+describe('useTargetStrandsPrimerForComplement() - Parameter Validation', () => {
+	const validTarget = 'ATCGATCGATCG';
+	const validComp = 'CGATCGATCGAT';
+	const validStemLoc = { start: 2, end: 10 };
+	const validSNV = { index: 6, variantBase: 'G' };
+
+	// Invalid targetSeqStrand
+	test('throws if targetSeqStrand is not a string', async () => {
+		await expect(
+			useTargetStrandsPrimerForComplement(
+				123,
+				validComp,
+				validStemLoc,
+				validStemLoc,
+				validSNV,
+				validSNV
+			)
+		).rejects.toThrow(/Invalid targetSeqStrand/);
+	});
+
+	test('throws if targetSeqStrand has invalid bases', async () => {
+		await expect(
+			useTargetStrandsPrimerForComplement(
+				'ATXG',
+				validComp,
+				validStemLoc,
+				validStemLoc,
+				validSNV,
+				validSNV
+			)
+		).rejects.toThrow(/Invalid targetSeqStrand/);
+	});
+
+	// Invalid compTargetSeqStrand
+	test('throws if compTargetSeqStrand is not a string', async () => {
+		await expect(
+			useTargetStrandsPrimerForComplement(
+				validTarget,
+				undefined,
+				validStemLoc,
+				validStemLoc,
+				validSNV,
+				validSNV
+			)
+		).rejects.toThrow(/Invalid compTargetSeqStrand/);
+	});
+
+	test('throws if compTargetSeqStrand has invalid bases', async () => {
+		await expect(
+			useTargetStrandsPrimerForComplement(
+				validTarget,
+				'CGXT',
+				validStemLoc,
+				validStemLoc,
+				validSNV,
+				validSNV
+			)
+		).rejects.toThrow(/Invalid compTargetSeqStrand/);
+	});
+
+	// Invalid stem locations
+	const badStemLocs = [
+		['null', null],
+		['array', [1, 2]],
+		['missing keys', {}],
+		['extra key', { start: 1, end: 3, foo: true }],
+		['non-integer start', { start: 1.5, end: 5 }],
+		['non-integer end', { start: 1, end: '5' }],
+		['start < 0', { start: -1, end: 5 }],
+		['end <= start', { start: 5, end: 5 }],
+		['end >= length', { start: 2, end: 99 }],
+	];
+
+	for (const [label, badLoc] of badStemLocs) {
+		test(`throws if initStemLoc is invalid: ${label}`, async () => {
+			await expect(
+				useTargetStrandsPrimerForComplement(
+					validTarget,
+					validComp,
+					badLoc,
+					validStemLoc,
+					validSNV,
+					validSNV
+				)
+			).rejects.toThrow(/initStemLoc/);
+		});
+
+		test(`throws if compInitStemLoc is invalid: ${label}`, async () => {
+			await expect(
+				useTargetStrandsPrimerForComplement(
+					validTarget,
+					validComp,
+					validStemLoc,
+					badLoc,
+					validSNV,
+					validSNV
+				)
+			).rejects.toThrow(/compInitStemLoc/);
+		});
+	}
+
+	// Invalid SNV site objects
+	const badSNVs = [
+		['null', null],
+		['array', [1, 2]],
+		['missing index', { variantBase: 'A' }],
+		['missing variantBase', { index: 5 }],
+		['extra key', { index: 5, variantBase: 'A', foo: 1 }],
+		['non-integer index', { index: 5.5, variantBase: 'A' }],
+		['negative index', { index: -1, variantBase: 'A' }],
+		['index out of bounds', { index: 99, variantBase: 'A' }],
+		['variantBase not string', { index: 5, variantBase: 7 }],
+		['variantBase too long', { index: 5, variantBase: 'AC' }],
+		['variantBase invalid', { index: 5, variantBase: 'Z' }],
+	];
+
+	for (const [label, badSnv] of badSNVs) {
+		test(`throws if snvSite is invalid: ${label}`, async () => {
+			await expect(
+				useTargetStrandsPrimerForComplement(
+					validTarget,
+					validComp,
+					validStemLoc,
+					validStemLoc,
+					badSnv,
+					validSNV
+				)
+			).rejects.toThrow(/snvSite/);
+		});
+
+		test(`throws if compSnvSite is invalid: ${label}`, async () => {
+			await expect(
+				useTargetStrandsPrimerForComplement(
+					validTarget,
+					validComp,
+					validStemLoc,
+					validStemLoc,
+					validSNV,
+					badSnv
+				)
+			).rejects.toThrow(/compSnvSite/);
+		});
+	}
+});
+
 describe('evaluateSnapbackOptions() Parameter Checks', () => {
 	const validSeq = 'GAAAAGGAG';
 	const mismatchPos = 4;
