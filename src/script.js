@@ -83,7 +83,7 @@ async function createSnapback(
 	snvSite,
 	desiredSnapbackMeltTempWildType
 ) {
-	// Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
+	// 1) Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
 	if (
 		snvTooCloseToPrimer(
 			snvSite.index,
@@ -99,38 +99,12 @@ async function createSnapback(
 		);
 	}
 
-	/******* Creating complementary strand's variables and initial, could-be snapback primer stems *********/
-	/*** Getting complementary strand variable ***/
-	// We must reverse the complement strand so that it starts with the 5' end
-	const compTargetSeqStrand = reverseComplement(targetSeqStrand);
-	const compSnvSite = revCompSNV(snvSite, targetSeqStrand.length);
-
-	// Adds {SNV base buffer} matching neucleotides on each end of SNV so that mismatch is definitely included in stem
-	const initStemLoc = {
-		start: snvSite.index - SNV_BASE_BUFFER,
-		end: snvSite.index + SNV_BASE_BUFFER,
-	};
-	// Doing the same for the complementary strand
-	const compInitStemLoc = {
-		start: compSnvSite.index - SNV_BASE_BUFFER,
-		end: compSnvSite.index + SNV_BASE_BUFFER,
-	};
-
-	/* 
-		Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild)
-		with the largest differnce as snapback 
-	*/
-	// Note: It is assumed that the melting temperature difference will not vary as the stem length is increased, in accordance
-	//       with the nearest neighbor model of the Santa Lucia melting temperature equations
+	// 2) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild)
+	//	  with the largest differnce as snapback
+	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
+	//	  snapback with the greatest temperature difference will remain the same
 	const { useTargetStrand, snapbackBaseAtSNV } =
-		await useTargetStrandsPrimerForComplement(
-			targetSeqStrand,
-			compTargetSeqStrand,
-			initStemLoc,
-			compInitStemLoc,
-			snvSite,
-			compSnvSite
-		);
+		await useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite);
 
 	// Assigning variables in terms of the primer strand to use as the snapback
 	var targetStrandSeqSnapPrimerRefPoint;
@@ -188,142 +162,101 @@ async function createSnapback(
  *   }
  *
  * @param {string} targetSeqStrand     - Full target strand (5'→3')
- * @param {string} compTargetSeqStrand - Full complementary strand (5'→3') [reverse complement of the target]
- * @param {Object} initStemLoc         - { start: number, end: number } for the target’s initial stem
- * @param {Object} compInitStemLoc     - { start: number, end: number } for the complementary’s initial stem
  * @param {Object} snvSite             - { index: number, variantBase: string }
- * @param {Object} compSnvSite         - { index: number, variantBase: string }
  *
  * @returns {Promise<{ useTargetStrand: boolean, snapbackBaseAtSNV: string }>}
  */
-async function useTargetStrandsPrimerForComplement(
-	targetSeqStrand,
-	compTargetSeqStrand,
-	initStemLoc,
-	compInitStemLoc,
-	snvSite,
-	compSnvSite
-) {
+async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 	/////////// Parameter Checking ///////////
 
-	// 1. Check that both strands are valid DNA sequences
+	// 1. Validate targetSeqStrand
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
 	}
-	if (!isValidDNASequence(compTargetSeqStrand)) {
+
+	// 2. Validate SNV site object
+	// Checks that SNV sites are JavaScript objects
+	if (
+		typeof snvSite !== 'object' ||
+		snvSite == null ||
+		Array.isArray(snvSite)
+	) {
 		throw new Error(
-			`Invalid compTargetSeqStrand: "${compTargetSeqStrand}"`
+			`snvSite must be an object with 'index' and 'variantBase' fields.`
 		);
 	}
-
-	// 2. Validate stem location objects
-	for (const [name, loc, seqLen] of [
-		['initStemLoc', initStemLoc, targetSeqStrand.length],
-		['compInitStemLoc', compInitStemLoc, compTargetSeqStrand.length],
-	]) {
-		// Makes sure stem location variables are JavaScript object
-		if (typeof loc !== 'object' || loc == null || Array.isArray(loc)) {
-			throw new Error(
-				`${name} must be an object with 'start' and 'end' fields.`
-			);
-		}
-
-		// Checks keys in each stem location object
-		const expectedKeys = new Set(['start', 'end']);
-		const actualKeys = new Set(Object.keys(loc));
-		for (const key of actualKeys) {
-			if (!expectedKeys.has(key)) {
-				throw new Error(`${name} contains unexpected key: "${key}"`);
-			}
-		}
-		if (!('start' in loc) || !('end' in loc)) {
-			throw new Error(
-				`${name} must include both "start" and "end" keys.`
-			);
-		}
-
-		// Validates location values
-		if (
-			!Number.isInteger(loc.start) ||
-			!Number.isInteger(loc.end) ||
-			loc.start < 0 ||
-			loc.end <= loc.start ||
-			loc.end >= seqLen
-		) {
-			throw new Error(
-				`${name} must have valid indices: 0 ≤ start ≤ end < sequence length (${seqLen})`
-			);
+	// Checks proper keys, and only proper keys are part of SNV site Javascript objects
+	const expectedKeys = new Set(['index', 'variantBase']);
+	const actualKeys = new Set(Object.keys(snvSite));
+	for (const key of actualKeys) {
+		if (!expectedKeys.has(key)) {
+			throw new Error(`snvSite contains unexpected key: "${key}"`);
 		}
 	}
-
-	// 3. Validate SNV site objects
-	for (const [name, site, seqLen] of [
-		['snvSite', snvSite, targetSeqStrand.length],
-		['compSnvSite', compSnvSite, compTargetSeqStrand.length],
-	]) {
-		// Checks that SNV sites are JavaScript objects
-		if (typeof site !== 'object' || site == null || Array.isArray(site)) {
-			throw new Error(
-				`${name} must be an object with 'index' and 'variantBase' fields.`
-			);
-		}
-
-		// Checks proper keys, and only proper keys are part of SNV site Javascript objects
-		const expectedKeys = new Set(['index', 'variantBase']);
-		const actualKeys = new Set(Object.keys(site));
-		for (const key of actualKeys) {
-			if (!expectedKeys.has(key)) {
-				throw new Error(`${name} contains unexpected key: "${key}"`);
-			}
-		}
-		if (!('index' in site) || !('variantBase' in site)) {
-			throw new Error(
-				`${name} must include both "index" and "variantBase" keys.`
-			);
-		}
-
-		// Validate keys
-		if (
-			!Number.isInteger(site.index) ||
-			site.index < 0 ||
-			site.index >= seqLen
-		) {
-			throw new Error(
-				`${name}.index must be a valid integer from 0 to ${seqLen - 1}`
-			);
-		}
-		if (
-			typeof site.variantBase !== 'string' ||
-			site.variantBase.length !== 1 ||
-			!VALID_BASES.has(site.variantBase)
-		) {
-			throw new Error(
-				`${name}.variantBase must be a single character: A, T, C, or G`
-			);
-		}
+	if (!('index' in snvSite) || !('variantBase' in snvSite)) {
+		throw new Error(
+			`snvSite must include both "index" and "variantBase" keys.`
+		);
+	}
+	// Validate values of keys
+	if (
+		!Number.isInteger(snvSite.index) ||
+		snvSite.index < 0 ||
+		snvSite.index >= targetSeqStrand.length
+	) {
+		throw new Error(
+			`snvSite.index must be a valid integer from 0 to ${
+				targetSeqStrand.length - 1
+			}`
+		);
+	}
+	if (
+		typeof snvSite.variantBase !== 'string' ||
+		snvSite.variantBase.length !== 1 ||
+		!VALID_BASES.has(snvSite.variantBase)
+	) {
+		throw new Error(
+			`snvSite.variantBase must be a single character: A, T, C, or G`
+		);
 	}
 
 	/////////// Function Logic ///////////
 
-	// 1) Slice out the "init stem" region from each strand
+	// 1) Build reverse complement of the target sequence's strand
+	const revCompTargetSeqStrand = reverseComplement(targetSeqStrand);
+
+	// 2) Build the SNV Site object for the reveres complement strand
+	const revCompSnvSite = revCompSNV(snvSite, targetSeqStrand.length);
+
+	// 3) Adds {SNV base buffer} matching neucleotides on each end of SNV to create the initial stem
+	const initStemLoc = {
+		start: snvSite.index - SNV_BASE_BUFFER,
+		end: snvSite.index + SNV_BASE_BUFFER,
+	};
+	const compInitStemLoc = {
+		start: revCompSnvSite.index - SNV_BASE_BUFFER,
+		end: revCompSnvSite.index + SNV_BASE_BUFFER,
+	};
+
+	// 4) Slice out the "init stem" region from each strand
 	const targetInitStem = targetSeqStrand.slice(
 		initStemLoc.start,
 		initStemLoc.end + 1
 	);
-	const compInitStem = compTargetSeqStrand.slice(
+	const compInitStem = revCompTargetSeqStrand.slice(
 		compInitStemLoc.start,
 		compInitStemLoc.end + 1
 	);
 
-	// 2) Identify the wild-type base on each strand
+	// 5) Identify the wild-type base on each strand
 	//    Should be complementary
 	const targetWildBase = targetSeqStrand[snvSite.index];
-	const compWildBase = compTargetSeqStrand[compSnvSite.index];
+	const compWildBase = revCompTargetSeqStrand[revCompSnvSite.index];
 
-	// 3) SNV is at position {SNV_BASE_BUFFER} in these 2*{SNV_BASE_BUFFER}+1 slices
+	// 6) SNV is at position {SNV_BASE_BUFFER} in these 2*{SNV_BASE_BUFFER}+1 slices
 	const mismatchPos = SNV_BASE_BUFFER;
 
-	// 4) Evaluate Tm differences for snapback tail on target strand
+	// 7) Evaluate Tm differences for snapback tail on target strand
 	const targetScenario = await evaluateSnapbackOptions(
 		targetInitStem,
 		mismatchPos,
@@ -331,15 +264,15 @@ async function useTargetStrandsPrimerForComplement(
 		snvSite.variantBase
 	);
 
-	// 5) Evaluate Tm differences for snapback tail on complementary strand
+	// 8) Evaluate Tm differences for snapback tail on complementary strand
 	const compScenario = await evaluateSnapbackOptions(
 		compInitStem,
 		mismatchPos,
 		compWildBase,
-		compSnvSite.variantBase
+		revCompSnvSite.variantBase
 	);
 
-	// 6) Compare which scenario yields the bigger Tm difference
+	// 9) Compare which scenario yields the bigger Tm difference
 	if (targetScenario.bestDifference > compScenario.bestDifference) {
 		return {
 			useTargetStrand: true,
