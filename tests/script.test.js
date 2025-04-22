@@ -43,20 +43,11 @@ describe('useTargetStrandsPrimerForComplement()', () => {
 	test('returns correct strand and snapback base for known Tm-diff scenario', async () => {
 		const targetSeqStrand =
 			'ATATTCAGAATAACTAATGTTTGGAAGTTGTTTTGTTTTGCTAAAACAAAGTTTTAGCAAACGATTTTTTTTTTCAAATTTGTGTCTTCTGTTCTCAAAGCATCTCTGATGTAAGAGATAATGCGCCACGATGGGCATCAGAAGACCTCAGCTCAAATCCCAGTTCTGCCAGCTATGAGCTGTGTGGCACCAACAGGTGTC';
-		const compTargetSeqStrand =
-			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACAAAGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
-		const initStemLoc = { start: 96, end: 104 };
-		const compInitStemLoc = { start: 96, end: 104 };
 		const snvSite = { index: 100, variantBase: 'T' };
-		const compSnvSite = { index: 100, variantBase: 'A' };
 
 		const result = await useTargetStrandsPrimerForComplement(
 			targetSeqStrand,
-			compTargetSeqStrand,
-			initStemLoc,
-			compInitStemLoc,
-			snvSite,
-			compSnvSite
+			snvSite
 		);
 
 		expect(result).toEqual({
