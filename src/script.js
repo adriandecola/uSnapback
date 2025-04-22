@@ -64,7 +64,7 @@ const LIMITING_CONC = 0.5;
  *     @property {number} index - The index in the sequence where the variant occurs (0-based).
  *     @property {string} variantBase - A one character string representing the variant base.
  * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
- * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type (an integer)
+ * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type
  *
  * @returns {Object} - An object representing the formed snapback primer
  *     @property {string} snapbackSeq - The final snapback primer sequence (5'-tail + primer-3').
@@ -187,8 +187,8 @@ async function createSnapback(
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
 	} else {
-		targetStrandSeqSnapPrimerRefPoint = compTargetSeqStrand;
-		snvSiteSnapPrimerRefPoint = compSnvSite;
+		targetStrandSeqSnapPrimerRefPoint = reverseComplement(targetSeqStrand);
+		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite);
 	}
 
 	// 4) Calculating the stem
