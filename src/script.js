@@ -106,43 +106,23 @@ async function createSnapback(
 	const { useTargetStrand, snapbackBaseAtSNV } =
 		await useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite);
 
-	// Assigning variables in terms of the primer strand to use as the snapback
+	// 3) Assigning variables in terms of the primer strand to use as the snapback
 	var targetStrandSeqSnapPrimerRefPoint;
 	var snvSiteSnapPrimerRefPoint;
-	var stemStartSnapPrimerRefPoint; // index for stem start in the primers reference point (tail is at target sequences 5' end with index 0)
-	var stemEndSnapPrimerRefPoint;
-	var allowedStemStart; //The stem can not go past this location or it will me complimentary to where the snapback primes to the target sequence
-	var allowedStemEnd; // The stem can not go past this location or it will be complementary to the limiting primer
-	var currLoopLen;
 
 	if (useTargetStrand) {
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
-		stemStartSnapPrimerRefPoint = initStemLoc.start;
-		stemEndSnapPrimerRefPoint = initStemLoc.end;
-		allowedStemStart = primerLen;
-		allowedStemEnd = targetSeqStrand.length - compPrimerLen - 1;
-		// +2 accounts for the 2 base mismatch to prevent loop zipping
-		currLoopLen = initStemLoc.start + 2;
 	} else {
 		targetStrandSeqSnapPrimerRefPoint = compTargetSeqStrand;
 		snvSiteSnapPrimerRefPoint = compSnvSite;
-		stemStartSnapPrimerRefPoint = compInitStemLoc.start;
-		stemEndSnapPrimerRefPoint = compInitStemLoc.end;
-		allowedStemStart = compPrimerLen;
-		allowedStemEnd = compTargetSeqStrand.length - primerLen - 1;
-		// +2 accounts for the 2 base mismatch to prevent loop zipping
-		currLoopLen = compInitStemLoc.start + 2;
 	}
 
+	// 4) Calculating the stem
 	const objQuestionMark = createStem(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		snapbackBaseAtSNV,
-		stemStartSnapPrimerRefPoint,
-		stemEndSnapPrimerRefPoint,
-		allowedStemStart,
-		allowedStemEnd,
 		desiredSnapbackMeltTempWildType
 	);
 }
