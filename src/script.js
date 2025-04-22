@@ -322,7 +322,7 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 	const mismatchPos = SNV_BASE_BUFFER;
 
 	// 7) Evaluate Tm differences for snapback tail on target strand
-	const targetScenario = await evaluateSnapbackOptions(
+	const targetScenario = await evaluateSnapbackMatchingOptions(
 		targetInitStem,
 		mismatchPos,
 		targetWildBase,
@@ -330,7 +330,7 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 	);
 
 	// 8) Evaluate Tm differences for snapback tail on complementary strand
-	const compScenario = await evaluateSnapbackOptions(
+	const compScenario = await evaluateSnapbackMatchingOptions(
 		compInitStem,
 		mismatchPos,
 		compWildBase,
@@ -362,7 +362,7 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
  * Returns whichever scenario yields the largest absolute difference from the
  * “matched wild” Tm.
  *
- * @param {string} initStem     - The sub-sequence (7 bases) containing the SNV at position `mismatchPos`
+ * @param {string} initStem     - The sub-sequence {2*SNV_BASE_BUFFER+1} nucleotides long, containing the SNV at position `mismatchPos`
  * @param {number} mismatchPos  - Usually {SNV_BASE_BUFFER} (SNV in center)
  * @param {string} wildBase     - The wild-type base at that SNV
  * @param {string} variantBase  - The single variant base
@@ -371,7 +371,7 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
  *   bestSnapbackBase => the base to use in the snapback (either complementary to the wild or variant base)
  *   bestDifference => the numeric Tm difference from the wild scenario
  */
-async function evaluateSnapbackOptions(
+async function evaluateSnapbackMatchingOptions(
 	initStem,
 	mismatchPos,
 	wildBase,
@@ -972,7 +972,7 @@ export {
 
 	// Secondary functions
 	useTargetStrandsPrimerForComplement,
-	evaluateSnapbackOptions,
+	evaluateSnapbackMatchingOptions,
 	getStemTm,
 	createStem,
 
