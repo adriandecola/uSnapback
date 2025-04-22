@@ -39,6 +39,85 @@ import {
 /********************* Secondary Functions **********************/
 /****************************************************************/
 
+describe('evaluateSnapbackOptions() Parameter Checks', () => {
+	const validSeq = 'GAAAAGGAG';
+	const mismatchPos = 4;
+	const wild = 'A';
+	const variant = 'G';
+
+	test('throws if initStem is not a string', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(12345, mismatchPos, wild, variant)
+		).rejects.toThrow(/Invalid initStem/);
+	});
+
+	test('throws if initStem contains invalid characters', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions('GAAXXGAG', mismatchPos, wild, variant)
+		).rejects.toThrow(/Invalid initStem/);
+	});
+
+	test('throws if mismatchPos is not a number', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, 'notNum', wild, variant)
+		).rejects.toThrow(/mismatchPos must be an integer/);
+	});
+
+	test('throws if mismatchPos is negative', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, -1, wild, variant)
+		).rejects.toThrow(/mismatchPos must be an integer/);
+	});
+
+	test('throws if mismatchPos >= seq.length', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, 99, wild, variant)
+		).rejects.toThrow(/mismatchPos must be an integer/);
+	});
+
+	test('throws if wildBase is not a string', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, 55, variant)
+		).rejects.toThrow(/wildBase must be a single character/);
+	});
+
+	test('throws if wildBase is longer than 1 char', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, 'AG', variant)
+		).rejects.toThrow(/wildBase must be a single character/);
+	});
+
+	test('throws if wildBase is not A/T/C/G', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, 'Z', variant)
+		).rejects.toThrow(/wildBase must be a single character/);
+	});
+
+	test('throws if variantBase is not a string', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, wild, 55)
+		).rejects.toThrow(/variantBase must be a single character/);
+	});
+
+	test('throws if variantBase is longer than 1 char', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, wild, 'TT')
+		).rejects.toThrow(/variantBase must be a single character/);
+	});
+
+	test('throws if variantBase is not A/T/C/G', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, wild, 'Z')
+		).rejects.toThrow(/variantBase must be a single character/);
+	});
+
+	test('throws if variantBase === wildBase', async () => {
+		await expect(() =>
+			evaluateSnapbackOptions(validSeq, mismatchPos, 'A', 'A')
+		).rejects.toThrow(/variantBase and wildBase must differ/);
+	});
+});
+
 describe('getStemTm()', () => {
 	// Valid parameters
 	test('returns 47.27 for sequence "gaaaaggagtgca" with no mismatch', async () => {
