@@ -199,6 +199,10 @@ async function createSnapback(
 		snapbackBaseAtSNV,
 		desiredSnapbackMeltTempWildType
 	);
+
+	// Pass in snapbackbase, stem locations, andINNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED and END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+	// to some build snapback function. get the snapback melting temperature, assumes nothing added to the end of stem or have it passed but createStem()
+	//
 }
 
 /****************************************************************/
@@ -622,8 +626,8 @@ async function getStemTm(seq, mismatch) {
  * in desired snapback melting temperature for the wilt type
  *
  * @typedef {Object} StemMeltingTemp
- * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
- * @property {number} variantTm - The stem's melting temperature when matching the variant allele
+ * @property {number} wildTm    - The snapbacks's melting temperature when extended with the wild allele
+ * @property {number} variantTm - The snapbacks's melting temperature when matching the variant allele
  *
  * @typedef {Object} StemLoc
  * @property {number} start - The starting index (0-based) of the stem region in the sequence.
@@ -631,7 +635,7 @@ async function getStemTm(seq, mismatch) {
  *
  * @typedef {Object} CreateStemReturn
  * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
- * @property {StemMeltingTemp} meltingTemps - Melting temperatures for the wild and variant stems.
+ * @property {StemMeltingTemp} meltingTemps - Melting temperatures for the wild and variant snapbacks
  * @property {number} snapbackBaseAtSNV - the base to use in the snapback (either complementary to the wild or variant base)
  *
  *
