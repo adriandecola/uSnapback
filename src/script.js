@@ -625,9 +625,14 @@ async function getStemTm(seq, mismatch) {
  * @property {number} wildTm    - The stem's melting temperature when extended with the wild allele
  * @property {number} variantTm - The stem's melting temperature when matching the variant allele
  *
+ * @typedef {Object} StemLoc
+ * @property {number} start - The starting index (0-based) of the stem region in the sequence.
+ * @property {number} end   - The ending index (0-based, inclusive) of the stem region in the sequence.
+ *
  * @typedef {Object} CreateStemReturn
  * @property {StemLoc} stemLoc          - The finalized stem location in this strand context.
- * @property {StemMeltingTemp} meltingTemp - Melting temperatures for the wild and variant stems.
+ * @property {StemMeltingTemp} meltingTemps - Melting temperatures for the wild and variant stems.
+ * @property {number} snapbackBaseAtSNV - the base to use in the snapback (either complementary to the wild or variant base)
  *
  *
  * @param {string} targetStrandSeqSnapPrimerRefPoint - The DNA sequence (5'→3') for the chosen strand.
@@ -644,7 +649,11 @@ async function createStem(
 	snvSiteSnapPrimerRefPoint,
 	snapbackBaseAtSNV,
 	desiredSnapbackMeltTempWildType
-) {}
+) {
+	// Parameter Checking
+	// Function logic
+	// create initial stem again
+}
 
 /****************************************************************/
 /*********************** Helper Functions ***********************/
