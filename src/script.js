@@ -204,6 +204,107 @@ async function useTargetStrandsPrimerForComplement(
 	snvSite,
 	compSnvSite
 ) {
+	/////////// Parameter Checking ///////////
+
+	// 1. Check that both strands are valid DNA sequences
+	if (!isValidDNASequence(targetSeqStrand)) {
+		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
+	}
+	if (!isValidDNASequence(compTargetSeqStrand)) {
+		throw new Error(
+			`Invalid compTargetSeqStrand: "${compTargetSeqStrand}"`
+		);
+	}
+
+	// 2. Validate stem location objects
+	for (const [name, loc, seqLen] of [
+		['initStemLoc', initStemLoc, targetSeqStrand.length],
+		['compInitStemLoc', compInitStemLoc, compTargetSeqStrand.length],
+	]) {
+		// Makes sure stem location variables are JavaScript object
+		if (typeof loc !== 'object' || loc == null || Array.isArray(loc)) {
+			throw new Error(
+				`${name} must be an object with 'start' and 'end' fields.`
+			);
+		}
+
+		// Checks keys in each stem location object
+		const expectedKeys = new Set(['start', 'end']);
+		const actualKeys = new Set(Object.keys(loc));
+		for (const key of actualKeys) {
+			if (!expectedKeys.has(key)) {
+				throw new Error(`${name} contains unexpected key: "${key}"`);
+			}
+		}
+		if (!('start' in loc) || !('end' in loc)) {
+			throw new Error(
+				`${name} must include both "start" and "end" keys.`
+			);
+		}
+
+		// Validates location values
+		if (
+			!Number.isInteger(loc.start) ||
+			!Number.isInteger(loc.end) ||
+			loc.start < 0 ||
+			loc.end <= loc.start ||
+			loc.end >= seqLen
+		) {
+			throw new Error(
+				`${name} must have valid indices: 0 ≤ start ≤ end < sequence length (${seqLen})`
+			);
+		}
+	}
+
+	// 3. Validate SNV site objects
+	for (const [name, site, seqLen] of [
+		['snvSite', snvSite, targetSeqStrand.length],
+		['compSnvSite', compSnvSite, compTargetSeqStrand.length],
+	]) {
+		// Checks that SNV sites are JavaScript objects
+		if (typeof site !== 'object' || site == null || Array.isArray(site)) {
+			throw new Error(
+				`${name} must be an object with 'index' and 'variantBase' fields.`
+			);
+		}
+
+		// Checks proper keys, and only proper keys are part of SNV site Javascript objects
+		const expectedKeys = new Set(['index', 'variantBase']);
+		const actualKeys = new Set(Object.keys(site));
+		for (const key of actualKeys) {
+			if (!expectedKeys.has(key)) {
+				throw new Error(`${name} contains unexpected key: "${key}"`);
+			}
+		}
+		if (!('index' in site) || !('variantBase' in site)) {
+			throw new Error(
+				`${name} must include both "index" and "variantBase" keys.`
+			);
+		}
+
+		// Validate keys
+		if (
+			!Number.isInteger(site.index) ||
+			site.index < 0 ||
+			site.index >= seqLen
+		) {
+			throw new Error(
+				`${name}.index must be a valid integer from 0 to ${seqLen - 1}`
+			);
+		}
+		if (
+			typeof site.variantBase !== 'string' ||
+			site.variantBase.length !== 1 ||
+			!VALID_BASES.has(site.variantBase)
+		) {
+			throw new Error(
+				`${name}.variantBase must be a single character: A, T, C, or G`
+			);
+		}
+	}
+
+	/////////// Function Logic ///////////
+
 	// 1) Slice out the "init stem" region from each strand
 	const targetInitStem = targetSeqStrand.slice(
 		initStemLoc.start,
