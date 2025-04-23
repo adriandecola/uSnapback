@@ -843,81 +843,6 @@ function parseTmFromResponse(rawHtml, mismatch) {
 	}
 }
 
-/**
- * Calculates the difference in melting temperature (Tm) for a given stem sequence
- * between a fully matched duplex and a mismatch duplex at a specified position.
- *
- * The mismatch base provided is assumed to be the base in the snapback that does
- * not match the snapback tail at the mismatch position — it could be either
- * the wild type or variant base, depending on which was not used in the tail.
- *
- * Assumptions:
- * - The snapback tail sequence is oriented 5' to 3'
- * - Mismatch is at a specific position and affects only one base pairing
- *
- * @param {string} currentStemSeqOnTail - The DNA stem sequence on the snapback tail (5'→3').
- * @param {number} mismatchPos - The position (0-based) in the sequence where the mismatch occurs.
- * @param {string} mismatchBase - The base in the snapback (A/T/C/G) that causes the mismatch.
- *
- * @returns {Promise<number>} - The absolute difference in Tm (°C) between the matched and mismatched stem.
- *
- * @throws {Error} - If inputs are invalid or Tm calculation fails.
- */
-async function calculateStemTmDiff(
-	currentStemSeqOnTail,
-	mismatchPos,
-	mismatchBase
-) {
-	//////////// Parameter Checking ////////////
-
-	// Check sequence validity
-	if (!isValidDNASequence(currentStemSeqOnTail)) {
-		throw new Error(`Invalid DNA sequence: "${currentStemSeqOnTail}"`);
-	}
-
-	// Check mismatchPos
-	if (
-		typeof mismatchPos !== 'number' ||
-		!Number.isInteger(mismatchPos) ||
-		mismatchPos < 0 ||
-		mismatchPos >= currentStemSeqOnTail.length
-	) {
-		throw new Error(
-			`mismatchPos must be an integer in range [0, ${
-				currentStemSeqOnTail.length - 1
-			}]. Received: ${mismatchPos}`
-		);
-	}
-
-	// Check mismatchBase
-	if (
-		typeof mismatchBase !== 'string' ||
-		mismatchBase.length !== 1 ||
-		!VALID_BASES.has(mismatchBase)
-	) {
-		throw new Error(
-			`mismatchBase must be a single character from A, T, C, or G. Received: "${mismatchBase}"`
-		);
-	}
-
-	//////////// Core Logic ////////////
-
-	// 1. Calculate matched Tm
-	const matchedTm = await getStemTm(currentStemSeqOnTail);
-
-	// 2. Construct mismatch object
-	const mismatch = {
-		position: mismatchPos,
-		type: mismatchBase,
-	};
-
-	// 3. Calculate mismatched Tm
-	const mismatchedTm = await getStemTm(currentStemSeqOnTail, mismatch);
-
-	// 4. Return absolute Tm difference
-	return Math.abs(matchedTm - mismatchedTm);
-}
-
 /****************************************************************/
 /******************** DNA Utility Functions *********************/
 /****************************************************************/
@@ -1088,7 +1013,6 @@ export {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
-	calculateStemTmDiff,
 
 	// DNA utility functions
 	isValidDNASequence,
