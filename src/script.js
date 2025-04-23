@@ -809,15 +809,14 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 /**
  * Simple parser to extract the numeric Tm from the raw HTML:
  * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
- * ******I let chatGPT make this one. I'll go through it later and clean it up if required
  *
- * @param {string} rawHtml - The raw string returned by tmsnap.cgi
+ * @param {string} rawHtml - The raw string returned by .cgi file
  * @param {boolean} [mismatch] - Optional specification denoting if we want to parse out the mismatched tm
  * @returns {number|null}  - The Tm if found, otherwise null
  */
 function parseTmFromResponse(rawHtml, mismatch) {
 	try {
-		// Parse the text into a DOM
+		// Parse the text into a DOM (there might be a better way to do this with functionality built into Node too)
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
@@ -1080,6 +1079,7 @@ export {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
+	calculateStemTmDiff,
 
 	// DNA utility functions
 	isValidDNASequence,

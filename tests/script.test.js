@@ -20,6 +20,7 @@ import {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
+	calculateStemTmDiff,,
 
 	// DNA utility functions
 	isValidDNASequence,
