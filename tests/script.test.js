@@ -33,6 +33,7 @@ import {
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
 	MIN_LOOP_LEN,
+	MIN_PRIMER_LEN,
 } from '../src/script.js';
 
 /****************************************************************/
@@ -399,6 +400,181 @@ describe('getStemTm()', () => {
 			'Mismatch object contains unexpected key: "unexpected"'
 		);
 	});
+});
+
+describe('createStem() parameter validation', () => {
+	const validSeq = 'ATCGATCGATCGATCGAACGCGCGCGCTCGATCGATCGATCGACTATATA';
+	const validSNV = { index: 25, variantBase: 'C' };
+	const validPrimerLens = { primerLen: 12, compPrimerLen: 12 };
+	const validSnapBase = 'G';
+	const validMatchesWild = true;
+	const validMelt = 67;
+
+	const baseArgs = {
+		targetStrandSeqSnapPrimerRefPoint: validSeq,
+		snvSiteSnapPrimerRefPoint: validSNV,
+		primerLensSnapPrimerRefPoint: validPrimerLens,
+		snapbackBaseAtSNV: validSnapBase,
+		matchesWild: validMatchesWild,
+		desiredSnapbackMeltTempWildType: validMelt,
+	};
+
+	const tests = [
+		// snvSiteSnapPrimerRefPoint
+		[
+			'snvSite is null',
+			{ snvSiteSnapPrimerRefPoint: null },
+			'snvSiteSnapPrimerRefPoint',
+		],
+		[
+			'snvSite is missing index',
+			{ snvSiteSnapPrimerRefPoint: { variantBase: 'A' } },
+			'Missing key',
+		],
+		[
+			'snvSite index wrong type',
+			{ snvSiteSnapPrimerRefPoint: { index: 'a', variantBase: 'A' } },
+			'index must be an integer',
+		],
+		[
+			'snvSite index out of range',
+			{ snvSiteSnapPrimerRefPoint: { index: 999, variantBase: 'A' } },
+			'index must be an integer',
+		],
+		[
+			'snvSite variantBase invalid',
+			{ snvSiteSnapPrimerRefPoint: { index: 10, variantBase: 'Z' } },
+			'variantBase must be',
+		],
+
+		// primerLensSnapPrimerRefPoint
+		[
+			'primerLens is not object',
+			{ primerLensSnapPrimerRefPoint: 'notObj' },
+			'primerLensSnapPrimerRefPoint',
+		],
+		[
+			'primerLen missing',
+			{ primerLensSnapPrimerRefPoint: { compPrimerLen: 12 } },
+			'Missing key',
+		],
+		[
+			'compPrimerLen missing',
+			{ primerLensSnapPrimerRefPoint: { primerLen: 12 } },
+			'Missing key',
+		],
+		[
+			'primerLen < MIN_PRIMER_LEN',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: MIN_PRIMER_LEN - 1,
+					compPrimerLen: MIN_PRIMER_LEN + 1,
+				},
+			},
+			'primerLen must be an integer',
+		],
+		[
+			'compPrimerLen < MIN_PRIMER_LEN',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: MIN_PRIMER_LEN + 1,
+					compPrimerLen: MIN_PRIMER_LEN - 1,
+				},
+			},
+			'compPrimerLen must be an integer',
+		],
+		[
+			'primerLen not int',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: 12.5,
+					compPrimerLen: 12,
+				},
+			},
+			'primerLen must be an integer',
+		],
+		[
+			'compPrimerLen not int',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: 12,
+					compPrimerLen: 12.5,
+				},
+			},
+			'compPrimerLen must be an integer',
+		],
+		[
+			'primerLen negative',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: -1,
+					compPrimerLen: 12,
+				},
+			},
+			'primerLen must be an integer',
+		],
+		[
+			'compPrimerLen negative',
+			{
+				primerLensSnapPrimerRefPoint: {
+					primerLen: 12,
+					compPrimerLen: -1,
+				},
+			},
+			'compPrimerLen must be an integer',
+		],
+
+		// snapbackBaseAtSNV
+		[
+			'snapbackBaseAtSNV invalid base',
+			{ snapbackBaseAtSNV: 'Z' },
+			'snapbackBaseAtSNV',
+		],
+
+		// matchesWild
+		['matchesWild not boolean', { matchesWild: 'true' }, 'matchesWild'],
+
+		// desiredSnapbackMeltTempWildType
+		[
+			'desiredSnapbackMeltTempWildType < 0',
+			{ desiredSnapbackMeltTempWildType: -5 },
+			'desiredSnapbackMeltTempWildType',
+		],
+		[
+			'desiredSnapbackMeltTempWildType not a number',
+			{ desiredSnapbackMeltTempWildType: 'hot' },
+			'desiredSnapbackMeltTempWildType',
+		],
+
+		// SNV on primer
+		[
+			'SNV on primer',
+			{
+				snvSiteSnapPrimerRefPoint: { index: 20, variantBase: 'A' },
+				primerLensSnapPrimerRefPoint: {
+					primerLen: 20,
+					compPrimerLen: 20,
+				},
+			},
+			'SNV at index',
+		],
+	];
+
+	for (const [label, overrideArgs, errorPattern] of tests) {
+		test(`throws for ${label}`, async () => {
+			const args = { ...baseArgs, ...overrideArgs }; // overrides valid arg
+			await expect(
+				createStem(
+					args.targetStrandSeqSnapPrimerRefPoint,
+					args.snvSiteSnapPrimerRefPoint,
+					args.primerLensSnapPrimerRefPoint,
+					args.snapbackBaseAtSNV,
+					args.matchesWild,
+					args.desiredSnapbackMeltTempWildType
+				)
+			).rejects.toThrow(new RegExp(errorPattern));
+		});
+	}
 });
 
 /****************************************************************/

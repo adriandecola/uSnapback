@@ -672,7 +672,7 @@ async function getStemTm(seq, mismatch) {
 async function createStem(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
-	primerLensSnapPrimeRefPoint,
+	primerLensSnapPrimerRefPoint,
 	snapbackBaseAtSNV,
 	matchesWild,
 	desiredSnapbackMeltTempWildType
@@ -1292,4 +1292,5 @@ export {
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
 	MIN_LOOP_LEN,
+	MIN_PRIMER_LEN,
 };
