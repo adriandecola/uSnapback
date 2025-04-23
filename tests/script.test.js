@@ -1171,7 +1171,7 @@ describe('calculateSnapbackTm()', () => {
 	//////////////////// Parameter Checking ////////////////////
 	////////////////////////////////////////////////////////////
 	const validStem = 'ATCGATCGATCG';
-	const validLoopLen = 5;
+	const validLoopLen = MIN_LOOP_LEN;
 	const validMismatch = { position: 4, type: 'T' };
 
 	const badStems = [
@@ -1190,7 +1190,7 @@ describe('calculateSnapbackTm()', () => {
 		['zero', 0],
 		['NaN', NaN],
 		['Infinity', Infinity],
-		['below SNV_BASE_BUFFER', SNV_BASE_BUFFER - 1],
+		['less than MIN_LOOP_LEN', MIN_LOOP_LEN - 1],
 	];
 
 	const badMismatches = [
