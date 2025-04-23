@@ -1170,6 +1170,63 @@ describe('reverseSequence()', () => {
 });
 
 describe('calculateSnapbackTm()', () => {
+	////////////////////////////////////////////////////////
+	//////////////////// Function Logic ////////////////////
+	////////////////////////////////////////////////////////
+	const loopLen = 10;
+
+	test('returns correct Tm with no mismatch for wild-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
+		const stemSeq = 'AAAGCATCT';
+		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		expect(result).toBe(41.78);
+	});
+
+	test('returns correct Tm with mismatch for wild-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
+		const stemSeq = 'AAAGTATCT';
+		const mismatch = { position: 4, type: 'G' };
+		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		expect(result).toBe(20.54);
+	});
+
+	test('returns correct Tm with no mismatch for variant-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
+		const stemSeq = 'AAAGTATCT';
+		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		expect(result).toBe(34.71);
+	});
+
+	test('returns correct Tm with mismatch for variant-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
+		const stemSeq = 'AAAGCATCT';
+		const mismatch = { position: 4, type: 'A' };
+		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		expect(result).toBe(8.31);
+	});
+
+	test('returns correct Tm with no mismatch for wild-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
+		const stemSeq = 'AGATGCTTT'; // reverse complement of AAAGCATCT
+		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		expect(result).toBe(41.78);
+	});
+
+	test('returns correct Tm with mismatch for wild-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
+		const stemSeq = 'AGATACTTT'; // reverse complement of AAAGCATCT
+		const mismatch = { position: 4, type: 'C' };
+		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		expect(result).toBe(8.31);
+	});
+
+	test('returns correct Tm with no mismatch for variant-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
+		const stemSeq = 'AGATACTTT'; // reverse complement of AAAGCATCT
+		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		expect(result).toBe(34.71);
+	});
+
+	test('returns correct Tm with mismatch for variant-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
+		const stemSeq = 'AGATGCTTT'; // reverse complement of AAAGCATCT
+		const mismatch = { position: 4, type: 'T' };
+		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		expect(result).toBe(20.54);
+	});
+
 	////////////////////////////////////////////////////////////
 	//////////////////// Parameter Checking ////////////////////
 	////////////////////////////////////////////////////////////
