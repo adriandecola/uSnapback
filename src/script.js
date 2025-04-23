@@ -857,12 +857,12 @@ function parseTmFromResponse(rawHtml, mismatch) {
  * - The mismatch position is within bounds of the stem.
  * - The snapback base is the one used in the snapback at the SNV position.
  * - The loopLen is at least {MIN_LOOP_LEN} bases long
- * 
+ *
  * @typedef {Object} Mismatch
  * @property {number} position - Index in the stem where mismatch occurs.
  * @property {string} type     - Base on the opposite strand at the mismatch site
  * 								 This would be the snapback base at the SNV location, on the tail,
- * 								 if the wild type does not match the snapback tail. 
+ * 								 if the wild type does not match the snapback tail.
  *
  * @param {string} stemSeq - The stem sequence (5'→3'), which includes the SNV.
  * @param {number} loopLen - The length (in nucleotides) of the snapback loop (unpaired region).
@@ -872,11 +872,7 @@ function parseTmFromResponse(rawHtml, mismatch) {
  *
  * @throws {Error} - If any input is missing or invalid.
  */
-async function calculateSnapbackTm(
-	stemSeq,
-	loopLen,
-	mismatch
-) {
+async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 	///////////////// Parameter Checking /////////////////
 	// Checking the stemSeq parameter
 	if (!isValidDNASequence(stemSeq)) {
@@ -886,7 +882,7 @@ async function calculateSnapbackTm(
 	if (
 		typeof loopLen !== 'number' ||
 		!Number.isFinite(loopLen) ||
-		loopLen < MIN_LOOP_LEN ||
+		loopLen < MIN_LOOP_LEN
 	) {
 		throw new Error(
 			`loopLen must be a positive, finite number greater than or equal to ${MIN_LOOP_LEN}`
@@ -895,23 +891,26 @@ async function calculateSnapbackTm(
 	// Checking the mismatch parameter, if it is passed
 	if (mismatch !== undefined && mismatch !== null) {
 		// Check its a JavaScript object
-		if (
-			typeof mismatch !== 'object' ||
-			Array.isArray(mismatch)
-		) {
-			throw new Error(`Mismatch must be an object if provided. Received: ${typeof mismatch}`);
+		if (typeof mismatch !== 'object' || Array.isArray(mismatch)) {
+			throw new Error(
+				`Mismatch must be an object if provided. Received: ${typeof mismatch}`
+			);
 		}
 		// Check that it contains the right keys
 		const allowedKeys = new Set(['position', 'type']);
 		const actualKeys = Object.keys(mismatch);
 		for (const key of actualKeys) {
 			if (!allowedKeys.has(key)) {
-				throw new Error(`Mismatch object contains unexpected key: "${key}"`);
+				throw new Error(
+					`Mismatch object contains unexpected key: "${key}"`
+				);
 			}
 		}
 		if (!('position' in mismatch) || !('type' in mismatch)) {
 			throw new Error(
-				`Mismatch object must include both "position" and "type". Got: ${JSON.stringify(mismatch)}`
+				`Mismatch object must include both "position" and "type". Got: ${JSON.stringify(
+					mismatch
+				)}`
 			);
 		}
 		//// Check the key values
@@ -920,9 +919,7 @@ async function calculateSnapbackTm(
 			typeof mismatch.position !== 'number' ||
 			!Number.isInteger(mismatch.position)
 		) {
-			throw new Error(
-				`Mismatch.position must be an integer.`
-			);
+			throw new Error(`Mismatch.position must be an integer.`);
 		}
 		// Ensure mismatch is not too close to ends of the stem
 		if (
@@ -950,14 +947,10 @@ async function calculateSnapbackTm(
 	const stemTM = await getStemTm(stemSeq, mismatch ?? undefined);
 
 	// Plug into the Tm formula
-	const tm =
-		-5.25 * Math.log(loopLen) +
-		0.837 * stemTM +
-		32.9;
+	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTM + 32.9;
 
 	// Return rounded to {TM_DECIMAL_PLACES} decimal place(s)
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
-
 }
 
 /****************************************************************/

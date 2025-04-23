@@ -1165,3 +1165,97 @@ describe('reverseSequence()', () => {
 		});
 	}
 });
+
+describe('calculateSnapbackTm()', () => {
+	////////////////////////////////////////////////////////////
+	//////////////////// Parameter Checking ////////////////////
+	////////////////////////////////////////////////////////////
+	const validStem = 'ATCGATCGATCG';
+	const validLoopLen = 5;
+	const validMismatch = { position: 4, type: 'T' };
+
+	const badStems = [
+		['null', null],
+		['number', 12345],
+		['non-DNA string', 'AXCGT'],
+		['array', ['A', 'T', 'C', 'G']],
+		['object', { seq: 'ATCG' }],
+		['lowercase string', 'atcg'],
+	];
+
+	const badLoopLens = [
+		['null', null],
+		['non-number', 'loop'],
+		['negative', -1],
+		['zero', 0],
+		['NaN', NaN],
+		['Infinity', Infinity],
+		['below SNV_BASE_BUFFER', SNV_BASE_BUFFER - 1],
+	];
+
+	const badMismatches = [
+		['non-object', 'mismatch'],
+		['null', null],
+		['array', [2, 'A']],
+		['missing position', { type: 'T' }],
+		['missing type', { position: 3 }],
+		['extra key', { position: 3, type: 'T', extra: 1 }],
+		['position not number', { position: '3', type: 'T' }],
+		['position not integer', { position: 3.2, type: 'T' }],
+		['position negative', { position: -1, type: 'T' }],
+		['position out of bounds', { position: 20, type: 'T' }],
+		['type invalid base', { position: 2, type: 'Z' }],
+		['type wrong type', { position: 2, type: 3 }],
+		['type too long', { position: 2, type: 'AG' }],
+		[
+			'not SNV_BASE_BUFFER from end',
+			{ position: validStem.length - SNV_BASE_BUFFER, type: 'T' },
+		],
+	];
+
+	//////////////////////
+	// Valid Input Test //
+	//////////////////////
+	test('returns number for valid input with mismatch', async () => {
+		const result = await calculateSnapbackTm(
+			validStem,
+			validLoopLen,
+			validMismatch
+		);
+		expect(typeof result).toBe('number');
+		expect(Number.isFinite(result)).toBe(true);
+	});
+
+	////////////////////////
+	// Invalid Stem Tests //
+	////////////////////////
+	for (const [label, badStem] of badStems) {
+		test(`throws for invalid stemSeq (${label})`, async () => {
+			await expect(
+				calculateSnapbackTm(badStem, validLoopLen, validMismatch)
+			).rejects.toThrow(/stemSeq/i);
+		});
+	}
+
+	///////////////////////////
+	// Invalid LoopLen Tests //
+	///////////////////////////
+	for (const [label, badLoop] of badLoopLens) {
+		test(`throws for invalid loopLen (${label})`, async () => {
+			await expect(
+				calculateSnapbackTm(validStem, badLoop, validMismatch)
+			).rejects.toThrow(/loopLen/i);
+		});
+	}
+
+	////////////////////////////
+	// Invalid Mismatch Tests //
+	////////////////////////////
+	for (const [label, badMismatch] of badMismatches) {
+		test(`throws for invalid mismatch (${label})`, async () => {
+			await expect(
+				calculateSnapbackTm(validStem, validLoopLen, badMismatch)
+			).rejects.toThrow(/mismatch/i);
+		});
+	}
+});
