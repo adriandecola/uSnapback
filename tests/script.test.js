@@ -1195,7 +1195,6 @@ describe('calculateSnapbackTm()', () => {
 
 	const badMismatches = [
 		['non-object', 'mismatch'],
-		['null', null],
 		['array', [2, 'A']],
 		['missing position', { type: 'T' }],
 		['missing type', { position: 3 }],
@@ -1207,6 +1206,10 @@ describe('calculateSnapbackTm()', () => {
 		['type invalid base', { position: 2, type: 'Z' }],
 		['type wrong type', { position: 2, type: 3 }],
 		['type too long', { position: 2, type: 'AG' }],
+		[
+			'not SNV_BASE_BUFFER from start',
+			{ position: SNV_BASE_BUFFER - 1, type: 'A' },
+		],
 		[
 			'not SNV_BASE_BUFFER from end',
 			{ position: validStem.length - SNV_BASE_BUFFER, type: 'T' },
@@ -1222,6 +1225,18 @@ describe('calculateSnapbackTm()', () => {
 			validLoopLen,
 			validMismatch
 		);
+		expect(typeof result).toBe('number');
+		expect(Number.isFinite(result)).toBe(true);
+	});
+
+	test('returns number for valid input with out a mismatch', async () => {
+		const result = await calculateSnapbackTm(validStem, validLoopLen);
+		expect(typeof result).toBe('number');
+		expect(Number.isFinite(result)).toBe(true);
+	});
+
+	test('returns number for valid input with a null mismatch', async () => {
+		const result = await calculateSnapbackTm(validStem, validLoopLen, null);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
 	});

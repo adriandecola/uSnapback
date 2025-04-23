@@ -923,11 +923,11 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 		}
 		// Ensure mismatch is not too close to ends of the stem
 		if (
-			position < SNV_BASE_BUFFER ||
-			position > stemSeq.length - SNV_BASE_BUFFER - 1
+			mismatch.position < SNV_BASE_BUFFER ||
+			mismatch.position > stemSeq.length - SNV_BASE_BUFFER - 1
 		) {
 			throw new Error(
-				`Mismatch.position (${position}) must be at least ${SNV_BASE_BUFFER} bases from both ends of the stem (length: ${stemSeq.length})`
+				`Mismatch.position (${mismatch.position}) must be at least ${SNV_BASE_BUFFER} bases from both ends of the stem (length: ${stemSeq.length})`
 			);
 		}
 		// Validate mismatch type is a nucleotide
