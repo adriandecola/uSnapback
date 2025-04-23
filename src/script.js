@@ -799,9 +799,11 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 	}
 
 	// Replace that position with the mismatch complement's in the original sequence, this is what the API wants
-	const arr = seq.split('');
-	arr[mismatch.position] = complementBase;
-	return arr.join('');
+	return (
+		seq.slice(0, mismatch.position) +
+		complementBase +
+		seq.slice(mismatch.position + 1)
+	);
 }
 
 /**
