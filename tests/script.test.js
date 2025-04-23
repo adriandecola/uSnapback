@@ -27,6 +27,7 @@ import {
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
+	reverseSequence,
 
 	// Constants
 	SNV_BASE_BUFFER,

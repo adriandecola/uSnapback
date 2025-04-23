@@ -1046,19 +1046,28 @@ function revCompSNV(snvSite, seqLen) {
 }
 
 /**
+ * Reverses a DNA sequence.
  *
- * @param {*} sequence
- * @param {*} mismatch
- * @param {*} mg
- * @param {*} mono
- * @param {*} dNTP
- * @param {*} k
+ * This function returns the input sequence in reverse order.
+ *
+ * Assumptions:
+ * - The sequence consists only of valid DNA bases and is a string.
+ *
+ * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
+ * @returns {string} - The reversed sequence (e.g., "GCTA").
+ *
+ * @throws {Error} - If the input is not a string or contains invalid characters.
  */
-function calculateTm(seq, mismatch, mg, mono, dNTP, k) {
-	// 1) Validate parameters
-	// 2) Calculate \Delta H
+function reverseSequence(seqStrand) {
+	// Validate input
+	if (!isValidDNASequence(seqStrand)) {
+		throw new Error(
+			`Invalid DNA sequence: "${seqStrand}". Must only contain A, T, C, or G and be a string`
+		);
+	}
 
-	for (i = 0; i < seq.length; i++) {}
+	// Reverse the sequence
+	return seqStrand.split('').reverse().join('');
 }
 
 /****************************************************************/
@@ -1086,6 +1095,7 @@ export {
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
+	reverseSequence,
 
 	// Constants
 	SNV_BASE_BUFFER,
