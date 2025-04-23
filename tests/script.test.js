@@ -1120,3 +1120,45 @@ describe('revCompSNV()', () => {
 		);
 	});
 });
+
+describe('reverseSequence()', () => {
+	////////////// Valid Input Tests ///////////////
+	test('returns correct reverse for simple sequence', () => {
+		expect(reverseSequence('ATCG')).toBe('GCTA');
+		expect(reverseSequence('GATTACA')).toBe('ACATTAG');
+		expect(reverseSequence('AAAA')).toBe('AAAA');
+		expect(reverseSequence('CGTACGTA')).toBe('ATGCATGC');
+	});
+
+	test('returns empty string for empty input', () => {
+		expect(reverseSequence('')).toBe('');
+	});
+
+	test('returns same base for single character', () => {
+		expect(reverseSequence('A')).toBe('A');
+		expect(reverseSequence('T')).toBe('T');
+		expect(reverseSequence('C')).toBe('C');
+		expect(reverseSequence('G')).toBe('G');
+	});
+
+	////////////// Parameter Checking ///////////////
+	const invalidInputs = [
+		['null', null],
+		['undefined', undefined],
+		['number', 1234],
+		['array of chars', ['A', 'T', 'C', 'G']],
+		['object', { seq: 'ATCG' }],
+		['invalid characters', 'AXTG'],
+		['lowercase string', 'atcg'],
+		['mixed case', 'aTCG'],
+		['whitespace', 'A T C G'],
+		['special characters', 'AT#G'],
+		['newline', 'AT\nCG'],
+	];
+
+	for (const [label, badInput] of invalidInputs) {
+		test(`throws for invalid input (${label})`, () => {
+			expect(() => reverseSequence(badInput)).toThrow(/Invalid DNA sequence/);
+		});
+	}
+});
