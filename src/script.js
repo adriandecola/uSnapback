@@ -214,16 +214,16 @@ async function createSnapback(
  * Decides which strand (target vs. complementary) should get the snapback primer,
  * and whether the snapback should match the wild-type base or the single variant base at the SNV.
  *
- * Returns an object:
- *   {
- *     useTargetStrand: boolean,   // True => use target strand for snapback
- *     snapbackBaseAtSNV: string,  // e.g. 'A' or 'G', whichever base is best to match
- *   }
+ * @typedef {Object} snapbackDecision
+ *    @property {boolean} useTargetStrand - True if the snapback tail should be added to the target strand.
+ *    @property {string} snapbackBaseAtSNV - The base (e.g., "A", "G") used in the snapback at the SNV site.
+ *    @property {boolean} matchesWild - True if the snapback matches the wild-type base.
  *
  * @param {string} targetSeqStrand     - Full target strand (5'→3')
  * @param {Object} snvSite             - { index: number, variantBase: string }
  *
- * @returns {Promise<{ useTargetStrand: boolean, snapbackBaseAtSNV: string }>}
+ * @returns {Promise<{ snapbackDecision}>} - The decision object for which primer should be the snapback and what it should match
+ * 											 (wild or variant type)
  */
 async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 	/////////// Parameter Checking ///////////
@@ -347,11 +347,13 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 		return {
 			useTargetStrand: true,
 			snapbackBaseAtSNV: targetScenario.bestSnapbackBase,
+			matchesWild: targetScenario.matchesWild,
 		};
 	} else {
 		return {
 			useTargetStrand: false,
 			snapbackBaseAtSNV: compScenario.bestSnapbackBase,
+			matchesWild: compScenario.matchesWild,
 		};
 	}
 }
@@ -373,9 +375,10 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
  * @param {string} wildBase     - The wild-type base at that SNV
  * @param {string} variantBase  - The single variant base
  *
- * @returns {Promise<{ bestSnapbackBase: string, bestDifference: number }>}
+ * @returns {Promise<{ bestSnapbackBase: string, bestDifference: number, matchesWild: boolean }>}
  *   bestSnapbackBase => the base to use in the snapback (either complementary to the wild or variant base)
  *   bestDifference => the numeric Tm difference from the wild scenario
+ *   matchesWild => true if the snapback tail matches the wild type at the SNV location
  */
 async function evaluateSnapbackMatchingOptions(
 	initStem,
@@ -487,15 +490,19 @@ async function evaluateSnapbackMatchingOptions(
 	// 4) Pick whichever scenario yields the larger difference
 	if (wildSnapbackTmDiff > variantSnapbackTmDiff) {
 		// Scenario A wins
+		// Snapback should match wild
 		return {
-			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[wildBase], // Snapback is matching wild
+			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[wildBase],
 			bestDifference: wildSnapbackTmDiff,
+			matchesWild: true, // <-- ADDED
 		};
 	} else {
 		// Scenario B wins
+		// Snapback should match variant
 		return {
-			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[variantBase], // Snapback is matching variant
+			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[variantBase],
 			bestDifference: variantSnapbackTmDiff,
+			matchesWild: false,
 		};
 	}
 }

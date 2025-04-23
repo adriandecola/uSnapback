@@ -58,6 +58,7 @@ describe('useTargetStrandsPrimerForComplement()', () => {
 		expect(result).toEqual({
 			useTargetStrand: false,
 			snapbackBaseAtSNV: 'C',
+			matchesWild: true,
 		});
 	});
 
@@ -149,6 +150,7 @@ describe('evaluateSnapbackMatchingOptions()', () => {
 		expect(result).toEqual({
 			bestSnapbackBase: 'A',
 			bestDifference: 31.54,
+			matchesWild: false,
 		});
 	});
 	test('returns correct snapback base and temperature difference for rs12248560, with an SNV base buffer of 4, on the complement strand', async () => {
@@ -172,6 +174,7 @@ describe('evaluateSnapbackMatchingOptions()', () => {
 		expect(result).toEqual({
 			bestSnapbackBase: 'C',
 			bestDifference: 39.99,
+			matchesWild: true,
 		});
 	});
 
