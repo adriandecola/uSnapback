@@ -20,7 +20,7 @@ import {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
-	calculateStemTmDiff,,
+	calculateStemTmDiff,
 
 	// DNA utility functions
 	isValidDNASequence,
@@ -1158,7 +1158,9 @@ describe('reverseSequence()', () => {
 
 	for (const [label, badInput] of invalidInputs) {
 		test(`throws for invalid input (${label})`, () => {
-			expect(() => reverseSequence(badInput)).toThrow(/Invalid DNA sequence/);
+			expect(() => reverseSequence(badInput)).toThrow(
+				/Invalid DNA sequence/
+			);
 		});
 	}
 });
