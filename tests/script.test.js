@@ -27,10 +27,12 @@ import {
 	reverseComplement,
 	revCompSNV,
 	reverseSequence,
+	calculateSnapbackTm,
 
 	// Constants
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
+	MIN_LOOP_LEN,
 } from '../src/script.js';
 
 /****************************************************************/
