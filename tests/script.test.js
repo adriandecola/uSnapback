@@ -15,6 +15,7 @@ import {
 	evaluateSnapbackMatchingOptions,
 	getStemTm,
 	createStem,
+	buildFinalSnapback,
 
 	// Helper/logic functions
 	snvTooCloseToPrimer,
