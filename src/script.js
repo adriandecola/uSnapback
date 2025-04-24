@@ -789,16 +789,16 @@ async function createStem(
 	}
 
 	// 6. SNV must be at least SNV_BASE_BUFFER away from both primers
-	const { index } = snvSiteSnapPrimerRefPoint;
+	const { snvIndex, variantBase } = snvSiteSnapPrimerRefPoint;
 	const { primerLen, compPrimerLen } = primerLensSnapPrimerRefPoint;
 	const seqLen = targetStrandSeqSnapPrimerRefPoint.length;
 
 	if (
-		index < primerLen + SNV_BASE_BUFFER ||
-		index > seqLen - compPrimerLen - SNV_BASE_BUFFER - 1
+		snvIndex < primerLen + SNV_BASE_BUFFER ||
+		snvIndex > seqLen - compPrimerLen - SNV_BASE_BUFFER - 1
 	) {
 		throw new Error(
-			`SNV at index ${index} is too close to one of the primers. Must be at least ${SNV_BASE_BUFFER} bases away from both.`
+			`SNV at index ${snvIndex} is too close to one of the primers. Must be at least ${SNV_BASE_BUFFER} bases away from both.`
 		);
 	}
 
@@ -814,6 +814,99 @@ async function createStem(
 	}
 
 	/////////////////////////////////// Function Logic /////////////////////////////////////
+	//// We will keep enlarging the stem, right then left... (as long as we are not up against the primers), keeping
+	//// track of the melting temperature of the snapback for the wild-type allele, until we go over the desired meling
+	//// temperature or we run out of viable stem location
+
+	// Initialize variable to hold the snapback melting temperature for the wild and variant type alleles that is closest to the desired
+	// snapback melting temperature for the wild type allele
+	let bestWildTm = null;
+	let bestVariantTm = null;
+	// Initialize the variable for the corresponding stem locations
+	let bestStemLocation = { start: null, end: null };
+
+	// Initialize stem region
+	let stemStart = snvIndex - SNV_BASE_BUFFER;
+	let stemEnd = snvIndex + SNV_BASE_BUFFER;
+
+	// Loop to grow stem until we go above desired Tm OR we've come up against both primers
+	while (true) {
+		// Slice current stem
+		const currentStem = seq.slice(stemStart, stemEnd + 1);
+
+		// Build mismatch object for wild and variant type, if needed, for stem Tm calculation
+		let wildMismatch = null;
+		let variantMismatch = null;
+		if (!matchesWild) {
+			wildMismatch = {
+				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
+				type: snapbackBaseAtSNV,
+			};
+		} else {
+			variantMismatch = {
+				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
+				type: snapbackBaseAtSNV,
+			};
+		}
+
+		// Compute the wild type allele melting temperature of the snapback
+		const wildTm = await getStemTm(currentStem, wildMismatch);
+
+		// Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
+		if (
+			!bestWildTm ||
+			Math.abs(wildTm - desiredSnapbackMeltTempWildType) <
+				Math.abs(bestWildTm - desiredSnapbackMeltTempWildType)
+		) {
+			bestWildTm = wildTm;
+			bestStemLocation.start = stemStart;
+			bestStemLocation.end = stemEnd;
+			// Compute and save the corresponding best variant type snapback temperature
+			bestVariantTm = await getStemTm(currentStem, variantMismatch);
+		}
+
+		// Loop Temination if wildTm has become larger than the desired snapback melting temperature
+		// for the wild type allele
+		if (wildTm >= desiredSnapbackMeltTempWildType) {
+			break;
+		}
+
+		// Grow the stem in the appropriate direction (if it can be grown without overlapping a primer location)
+		if (
+			snvIndex - stemStart < stemEnd - snvIndex &&
+			stemStart > primerLen
+		) {
+			// We should push the start of the stem one nucleotide to the left
+			stemStart -= 1;
+		} else if (
+			stemEnd - snvIndex <= snvIndex - stemStart &&
+			stemEnd < seqLen - compPrimerLen - 1
+		) {
+			// We should push the start of the stem one nucleotide to the left
+			stemEnd += 1;
+		} else {
+			// stem is up against both primers and we need to terminate the loop
+			break;
+		}
+	}
+
+	// Final check if final stem doesn’t meet minimum melting temperature requirement
+	if (finalWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
+		throw new Error(
+			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${finalWildTm.toFixed(
+				2
+			)}°C. Please consider moving primers farther out so a larger, more stable snapback stem can be created. `
+		);
+	}
+
+	return {
+		bestStemLocation,
+		meltingTemps: {
+			wildTm: parseFloat(bestWildTm.toFixed(TM_DECIMAL_PLACES)),
+			variantTm: parseFloat(finalVariantTm.toFixed(TM_DECIMAL_PLACES)),
+		},
+		snapbackBaseAtSNV,
+	};
 }
 
 /****************************************************************/
