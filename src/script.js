@@ -1106,6 +1106,18 @@ function buildFinalSnapback(
 		);
 	}
 
+	// 7) make sure we can still add the required strong-mismatch bases
+	//    without falling off the end of the sequence
+	const maxIndexNeeded =
+		stemLoc.end + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+
+	if (maxIndexNeeded >= targetStrandSeqSnapPrimerRefPoint.length) {
+		throw new Error(
+			`stemLoc.end (${stemLoc.end}) + ${END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED} strong-mismatch bases exceeds sequence length ` +
+				`(${targetStrandSeqSnapPrimerRefPoint.length}).`
+		);
+	}
+
 	//////////////////////////////////////
 	/////////// Function Logic ///////////
 	//////////////////////////////////////
