@@ -1531,24 +1531,37 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 /*****************************************************************************************/
 
 /**
- * Checks if a given DNA sequence is valid. i.e. it is a string that only contains
- * the characters A, T, C, or G (case-insensitive).
+ * Determines whether `seqStrand` is a valid, non-empty, uppercase
+ * DNA string consisting solely of the characters A, T, C, or G.
  *
- * @param {string} seqStrand - The DNA sequence to validate.
- * @returns {boolean} - True passed in string is a valid DNA sequence
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ─────────────────────────────────────────────────────────────────────────────
+ * - A valid DNA sequence must be uppercase and contain at least one nucleotide.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @param   {string}  seqStrand   Candidate DNA sequence to validate.
+ *
+ * @returns {boolean}             true  → valid DNA string
+ *                                false → invalid type, empty, or contains
+ *                                        characters outside A/T/C/G.
  */
 function isValidDNASequence(seqStrand) {
-	// Must be a string
-	if (typeof seqStrand !== 'string') return false;
+	//──────────────────────────────────────────────────────────────────────//
+	//                           Function Logic                             //
+	//──────────────────────────────────────────────────────────────────────//
+	if (typeof seqStrand !== 'string' || seqStrand.length === 0) {
+		return false;
+	}
 
-	// Must only contain uppercase A, T, C, or G
-	// Its normal to use const here as its block scoped and base doesn't change in the block
-	// for any iteration
 	for (const base of seqStrand) {
 		if (!VALID_BASES.has(base)) {
 			return false;
 		}
 	}
+
 	return true;
 }
 
