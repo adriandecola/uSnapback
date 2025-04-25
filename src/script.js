@@ -261,8 +261,9 @@ async function createSnapback(
  * 											 (wild or variant type)
  */
 async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
-	/////////// Parameter Checking ///////////
-
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// 1. Validate targetSeqStrand
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
@@ -421,9 +422,9 @@ async function evaluateSnapbackMatchingOptions(
 	wildBase,
 	variantBase
 ) {
-	//////////////////////
-	// Parameter Checks //
-	//////////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1. Validate initStem
 	if (!isValidDNASequence(initStem)) {
@@ -556,7 +557,9 @@ async function evaluateSnapbackMatchingOptions(
  * @throws {Error}                  - If inputs are invalid, or the response can’t be parsed.
  */
 async function getStemTm(seq, mismatch) {
-	// 1) Validate Parameters
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	if (!isValidDNASequence(seq)) {
 		throw new Error(`Invalid, empty, or non-string DNA sequence: "${seq}"`);
 	}
@@ -707,7 +710,9 @@ async function createStem(
 	matchesWild,
 	targetSnapMeltTemp
 ) {
-	/////////// Parameter Checking ///////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// 1. targetStrandSeqSnapPrimerRefPoint
 	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
 		throw new Error(
@@ -987,9 +992,9 @@ function buildFinalSnapback(
 	stemLoc,
 	snapbackBaseAtSNV
 ) {
-	//////////////////////////////////////
-	///////// Parameter Checking /////////
-	//////////////////////////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// 1. targetStrandSeqSnapPrimerRefPoint
 	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
 		throw new Error(
@@ -1208,7 +1213,9 @@ function buildFinalSnapback(
  * @throws {Error} - If any argument is missing, invalid, or out of bounds.
  */
 function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
-	////////////* Parameter checking *////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// Check for missing or non-numeric inputs
 	for (const [name, val] of [
 		['snvIndex', snvIndex],
@@ -1270,7 +1277,9 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
  * @returns {string} The mmseq string for the Tm service.
  */
 function buildMismatchSequenceForAPI(seq, mismatch) {
-	///////////// Parameter Checking ///////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// Sequence must be a valid DNA string
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
@@ -1343,6 +1352,9 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
  * @returns {number|null}  - The Tm if found, otherwise null
  */
 function parseTmFromResponse(rawHtml, mismatch) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	try {
 		// Parse the text into a DOM (there might be a better way to do this with functionality built into Node too)
 		const parser = new DOMParser();
@@ -1400,7 +1412,9 @@ function parseTmFromResponse(rawHtml, mismatch) {
  * @throws {Error} - If any input is missing or invalid.
  */
 async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
-	///////////////// Parameter Checking /////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// Checking the stemSeq parameter
 	if (!isValidDNASequence(stemSeq)) {
 		throw new Error(`Invalid DNA sequence passed to stemSeq: "${stemSeq}"`);
@@ -1514,6 +1528,9 @@ function isValidDNASequence(seqStrand) {
  * @returns {string} - The complementary DNA sequence (e.g., "TAGC").
  */
 function complementSequence(seqStrand) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
 	}
@@ -1533,6 +1550,9 @@ function complementSequence(seqStrand) {
  * @returns {string} - The reverse complement (e.g., "CGAT").
  */
 function reverseComplement(seqStrand) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	const complementStrand = complementSequence(seqStrand);
 	return complementStrand.split('').reverse().join('');
 }
@@ -1558,7 +1578,9 @@ function reverseComplement(seqStrand) {
  */
 
 function revCompSNV(snvSite, seqLen) {
-	////////* Checking arguements */////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// Ensure snvSite is an object with exactly two keys: 'index' and 'variantBase'
 	if (
 		typeof snvSite !== 'object' ||
@@ -1621,7 +1643,9 @@ function revCompSNV(snvSite, seqLen) {
  * @throws {Error} - If the input is not a string or contains invalid characters.
  */
 function reverseSequence(seqStrand) {
-	// Validate input
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
 			`Invalid DNA sequence: "${seqStrand}". Must only contain A, T, C, or G and be a string`
