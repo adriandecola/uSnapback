@@ -33,51 +33,73 @@ const LIMITING_CONC = 0.5;
 /*********************** Primary Function ***********************/
 /****************************************************************/
 /**
- * Creates a snapback primer sequence by identifying suitable stem regions
- * in the target DNA sequence, accounting for primer lengths and a single
- * mismatch site. The function then chooses which primer to add the snapback
- * tail to and whether it should match with the wild type of one of the
- * variants, if there are multiple. It then creates the rest of the stem
- * so that it gets as close as it can to the desired snapback melting temperature
- * and returns an error if it cannot have the snapback melting temperatures
- * (match or mismatch) all be aboge the minimum snapback melting temperature.
+ * Creates a snapback primer by:
+ *  1. Evaluating both strands to decide which primer receives the tail and
+ *     whether the tail pairs to the wild or variant base (choose the option
+ *     with the largest wild/variant Tm difference in an initial seed stem).
+ *  2. Extending that seed stem outward—respecting primer bounds—until the
+ *     wild-type stem Tm approaches `desiredSnapbackMeltTempWildType`, or no
+ *     further growth is possible.  Every configuration must meet
+ *     `minSnapbackMeltTemp`.
+ *  3. Building the final 5'→3' sequence:
+ *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
  *
  * Assumptions:
- * - Assumes passed in values are correct
- *     - Passed in target sequence is valid AND uppercase
+ * - targetSeqStrand is a valid uppercase DNA string given 5'→3'.
+ * - primerLen and compPrimerLen ≥ {MIN_PRIMER_LEN}.
+ * - The SNV is ≥ {SNV_BASE_BUFFER} bases away from both primers.
+ * - Stem Tm values are computed with the Santa Lucia nearest-neighbour model
+ *   via dna-utah.org.
+ * - We want to miminize the loop length to the primer on which the snapback tail is on
+ *   plus the two strong mismatched in the inner loop so it doesn't zip
+ * - We want to keep the SNV in the middle of the stem or as close to centered as we
+ *   can as we build the snapback stem
+ * - Extension can occur on the snapback's complement, on the side of the stem does not contain
+ *   the loop, if the polymerase can easily attach to that location. A 2 base pair, strong mismatch,
+ *   is added after the 5' end of the stem (in the reference frame of the forward primer) help avoid this on its complement snapback
  *
- * - Assumes that the target sequence begins with the 5' end
- * - we want to minimize loop length for whatever reason??
- * - primers should be at least 6 bases each (or at least the snapback one?)
- * - The stem's melting temperatuere is calcualted using the Santa Lucia method.
- * - Extension can occur on the hairpin's complement, on its 5' end. A 2 base pair mismatch after the stem can
- *   help avoid this
+ * Things to change to make this function better:
+ * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory,
+ *   albeit minimal. It would be a fun thing to code
+ * 		- Then DNA functions could be implemented as methods
+ * - I could implement the SantaLucia melting temperature calculations for the STEM in JavaScript in this file
+ *   as it's own function
+ * - I could add in some temperature correction for the dangling end/end mismatch for the snapback primer on
+ *   on the end of the stem (the strong mismatches that prevent extension on the complementary primer)
  *
- * Things to consider/add/make better/more effecient:
- *  * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory
- * - I could save the melting temperatur so far and implement santa lucia method here and simply add entropys
- *   and enthalpies of added neucleotides.
- * - make my own data type to represent dna sequences with their own methods/properties like .complement or .complement()
- * - add in dagling ends thingy to get some better melt temperature
+ * ──────────────────────────────────────────────────────────────────────────
+ * Type definitions
+ * ──────────────────────────────────────────────────────────────────────────
+ * @typedef {Object} SNVSite
+ * @property {number} 				index				0-based position of the SNV on **targetSeqStrand**.
+ * @property {string}				variantBase			Variant base ('A', 'C', 'G', or 'T')
  *
+ * @typedef {Object} SnapbackMeltingTm
+ * @property {number} wildTm     Calculated Tm (°C) of the snapback on the wilt type allele
+ * @property {number} variantTm  Calculated Tm (°C) of the snapback on the variant type allele
  *
- * @param {string} targetSeqStrand - A strand of the full DNA sequence to design the snapback primer for.
- * @param {number} primerLen - The length of the primer on the strand denoted by the target sequence
- * @param {number} compPrimerLen - The length of the complementary primer on the opposite strand.
- * @param {Object} snvSite - An object representing the single neucleotide variant site with:
- *     @property {number} index - The index in the sequence where the variant occurs (0-based).
- *     @property {string} variantBase - A one character string representing the variant base.
- * @param {number} minSnapbackMeltTemp - The minimum viable snapback melting temperature for any match or mismatch snapback
- * @param {number} desiredSnapbackMeltTempWildType = The desired snapback melting temperature for the wild type
+ * @typedef {Object} SnapbackPrimerResult
+ * @property {string}				snapbackSeq			Entire snapback primer written 5' → 3'
+ *                                                   	(tail → primer).
+ * @property {boolean}				isOnTargetPrimer	true if tail is appended to the primer on
+ *                           							targetSeqStrand (the primer that would share
+ * 														its pattern); false if it is appended
+ * 														to the complementary primer.
+ * @property {boolean}				matchesWild			true if the snapback base at the SNV matches
+ *                                       				the wild-type allele
+ * @property {SnapbackMeltingTm}	snapbackMeltingTm	Object holding wild/variant stem Tm values.
+ * ──────────────────────────────────────────────────────────────────────────
  *
- * @returns {Object} - An object representing the formed snapback primer
- *     @property {string} snapbackSeq - The final snapback primer sequence (5'-tail + primer-3').
- *     @property {boolean} isOnTargetPrimer - A boolean representing if the primer to add a tail on is the primer denoted
- *                                            by the target sequence (True) or by its complement (False)
- *     @property {Array<Object>} snapbackMeltingTemps - Melting temperature info for match and mismatch variants.
- *         @property {string} snapbackMeltingTemps[].isWild - True if this is the melting temperature corresponding to the wild allele
- *         @property {boolean} snapbackMeltingTemps[].isMatch - True if this base is the correct one (no mismatch in snapback).
- *         @property {number} snapbackMeltingTemps[].meltingTemp - The melting temperature for this base configuration.
+ * @param {string}				targetSeqStrand					A strand of the full DNA sequence to design the snapback primer for.
+ * @param {number}				primerLen						The length of the primer on the strand denoted by the target sequence
+ * @param {number}				compPrimerLen					The length of the complementary primer on the opposite strand.
+ * @param {SNVSite}				snvSite							An object representing the single neucleotide variant site with:
+ * @param {number}				minSnapbackMeltTemp				The minimum viable snapback melting temperature for any match or mismatch snapback
+ * @param {number}				desiredSnapbackMeltTempWildType	The desired snapback melting temperature for the wild type
+ *
+ * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer
+ * @throws {Error} 												If any input is invalid, the SNV is too close to a primer,
+ *             													or an acceptable stem cannot be constructed.
  *
  */
 async function createSnapback(
@@ -794,7 +816,7 @@ async function createStem(
 	}
 
 	// 6. SNV must be at least SNV_BASE_BUFFER away from both primers
-	const { snvIndex, variantBase } = snvSiteSnapPrimerRefPoint;
+	const { index: snvIndex } = snvSiteSnapPrimerRefPoint;
 	const { primerLen, compPrimerLen } = primerLensSnapPrimerRefPoint;
 	const seqLen = targetStrandSeqSnapPrimerRefPoint.length;
 
@@ -1097,8 +1119,8 @@ function buildFinalSnapback(
 		!Number.isInteger(stemLoc.end) ||
 		stemLoc.start < 0 ||
 		stemLoc.end < 0 ||
-		stemLoc.start >= seqStrand.length ||
-		stemLoc.end >= seqStrand.length ||
+		stemLoc.start >= targetStrandSeqSnapPrimerRefPoint.length ||
+		stemLoc.end >= targetStrandSeqSnapPrimerRefPoint.length ||
 		stemLoc.start > stemLoc.end
 	) {
 		throw new Error(
@@ -1640,4 +1662,5 @@ export {
 	NUCLEOTIDE_COMPLEMENT,
 	MIN_LOOP_LEN,
 	MIN_PRIMER_LEN,
+	END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
 };
