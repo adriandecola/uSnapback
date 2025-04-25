@@ -186,7 +186,9 @@ async function createSnapback(
 			`snvSite.variantBase must be a single character: A, T, C, or G`
 		);
 	}
-	/////////// Function Logic ///////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
 	if (
@@ -326,7 +328,9 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 		);
 	}
 
-	/////////// Function Logic ///////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Build reverse complement of the target sequence's strand
 	const revCompTargetSeqStrand = reverseComplement(targetSeqStrand);
@@ -481,9 +485,9 @@ async function evaluateSnapbackMatchingOptions(
 		);
 	}
 
-	//////////////////////
-	//  Function Logic  //
-	//////////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Tm with wild base, matched
 	const wildMatchTm = await getStemTm(initStem);
@@ -606,6 +610,10 @@ async function getStemTm(seq, mismatch) {
 			);
 		}
 	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// 2) Build the mismatch sequence the way the API endpoint wants it, if its provided
 	let mismatchSeq = null;
@@ -848,7 +856,10 @@ async function createStem(
 		);
 	}
 
-	/////////////////////////////////// Function Logic /////////////////////////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	//// We will keep enlarging the stem, right then left... (as long as we are not up against the primers), keeping
 	//// track of the melting temperature of the snapback for the wild-type allele, until we go over the desired meling
 	//// temperature or we run out of viable stem location
@@ -1148,9 +1159,9 @@ function buildFinalSnapback(
 		);
 	}
 
-	//////////////////////////////////////
-	/////////// Function Logic ///////////
-	//////////////////////////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 	// aliases
 	const seq = targetStrandSeqSnapPrimerRefPoint;
 	const primerLen = primerLensSnapPrimerRefPoint.primerLen;
@@ -1248,7 +1259,10 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 		);
 	}
 
-	////////////* Logic of function */////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	// Must be at least {SNV_BASE_BUFFER} bases away from either primer
 	const lowerBoundIndex = primerLen + SNV_BASE_BUFFER;
 	const upperBoundIndex = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
@@ -1322,7 +1336,9 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 		);
 	}
 
-	///////////// Core Logic ///////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// Get the complement base
 	// Should never throw this error as parameters were already checked but can leave in, in case
@@ -1354,6 +1370,10 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 function parseTmFromResponse(rawHtml, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 	try {
 		// Parse the text into a DOM (there might be a better way to do this with functionality built into Node too)
@@ -1483,7 +1503,10 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 		}
 	}
 
-	///////////////// Function Logic /////////////////
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	// Calculate the wild type's stem melting temperature, only pass the mismatch if it was passed
 	const stemTM = await getStemTm(stemSeq, mismatch ?? undefined);
 
@@ -1535,6 +1558,10 @@ function complementSequence(seqStrand) {
 		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
 	}
 
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	return seqStrand
 		.toUpperCase()
 		.split('') // Splits into an array of single character strings
@@ -1552,6 +1579,10 @@ function complementSequence(seqStrand) {
 function reverseComplement(seqStrand) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 	const complementStrand = complementSequence(seqStrand);
 	return complementStrand.split('').reverse().join('');
@@ -1618,6 +1649,10 @@ function revCompSNV(snvSite, seqLen) {
 		);
 	}
 
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
 	const revCompIndex = seqLen - snvSite.index - 1;
 
@@ -1651,6 +1686,10 @@ function reverseSequence(seqStrand) {
 			`Invalid DNA sequence: "${seqStrand}". Must only contain A, T, C, or G and be a string`
 		);
 	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
 	// Reverse the sequence
 	return seqStrand.split('').reverse().join('');
