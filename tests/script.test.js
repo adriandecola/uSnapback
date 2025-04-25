@@ -1176,8 +1176,8 @@ describe('isValidDNASequence()', () => {
 		expect(isValidDNASequence('AT\nCG')).toBe(false);
 	});
 
-	test('returns true for empty string (no invalid bases)', () => {
-		expect(isValidDNASequence('')).toBe(true);
+	test('returns false for empty string (no invalid bases)', () => {
+		expect(isValidDNASequence('')).toBe(false);
 	});
 
 	test('returns false for completely invalid strings', () => {
@@ -1514,10 +1514,6 @@ describe('reverseSequence()', () => {
 		expect(reverseSequence('CGTACGTA')).toBe('ATGCATGC');
 	});
 
-	test('returns empty string for empty input', () => {
-		expect(reverseSequence('')).toBe('');
-	});
-
 	test('returns same base for single character', () => {
 		expect(reverseSequence('A')).toBe('A');
 		expect(reverseSequence('T')).toBe('T');
@@ -1538,6 +1534,7 @@ describe('reverseSequence()', () => {
 		['whitespace', 'A T C G'],
 		['special characters', 'AT#G'],
 		['newline', 'AT\nCG'],
+		['empty sequence', ''],
 	];
 
 	for (const [label, badInput] of invalidInputs) {
