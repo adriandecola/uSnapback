@@ -35,12 +35,13 @@ const LIMITING_CONC = 0.5;
 /**
  * Creates a snapback primer by:
  *  1. Evaluating both strands to decide which primer receives the tail and
- *     whether the tail pairs to the wild or variant base (choose the option
- *     with the largest wild/variant Tm difference in an initial seed stem).
- *  2. Extending that seed stem outward—respecting primer bounds—until the
- *     wild-type stem Tm approaches `desiredSnapbackMeltTempWildType`, or no
- *     further growth is possible.  Every configuration must meet
- *     `minSnapbackMeltTemp`.
+ *     whether the tail pairs to the wild or variant allele (choose the option
+ *     with the largest wild/variant Tm difference in an initial small stem).
+ * 	   This initial stem is built by adding `SNV_BASE_BUFFER` bases on each end
+ *     of the single nucleotide variant (SNV).
+ *  2. Extending that initial stem outward, respecting primer annealing locations,
+ *     until the wild-type stem Tm approaches `targetSnapMeltTemp`, or no
+ *     further growth is possible.  This temperature must exceed `minSnapbackMeltTemp`.
  *  3. Building the final 5'→3' sequence:
  *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
  *
@@ -53,10 +54,11 @@ const LIMITING_CONC = 0.5;
  * - We want to miminize the loop length to the primer on which the snapback tail is on
  *   plus the two strong mismatched in the inner loop so it doesn't zip
  * - We want to keep the SNV in the middle of the stem or as close to centered as we
- *   can as we build the snapback stem
+ *   can, as we build the snapback stem
  * - Extension can occur on the snapback's complement, on the side of the stem does not contain
  *   the loop, if the polymerase can easily attach to that location. A 2 base pair, strong mismatch,
- *   is added after the 5' end of the stem (in the reference frame of the forward primer) help avoid this on its complement snapback
+ *   is added after the 5' end of the stem (on the snapback primer) help avoid this extension
+ *   on its complement snapback
  *
  * Things to change to make this function better:
  * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory,
@@ -71,59 +73,60 @@ const LIMITING_CONC = 0.5;
  * Type definitions
  * ──────────────────────────────────────────────────────────────────────────
  * @typedef {Object} SNVSite
- * @property {number} 				index				0-based position of the SNV on **targetSeqStrand**.
+ * @property {number} 				index				0-based position of the SNV on `targetSeqStrand`
  * @property {string}				variantBase			Variant base ('A', 'C', 'G', or 'T')
  *
  * @typedef {Object} SnapbackMeltingTm
- * @property {number} wildTm     Calculated Tm (°C) of the snapback on the wilt type allele
- * @property {number} variantTm  Calculated Tm (°C) of the snapback on the variant type allele
+ * @property {number} 				wildTm     			Calculated Tm (°C) of the snapback on the wilt type allele
+ * @property {number} 				variantTm  			Calculated Tm (°C) of the snapback on the variant type allele
  *
  * @typedef {Object} SnapbackPrimerResult
  * @property {string}				snapbackSeq			Entire snapback primer written 5' → 3'
  *                                                   	(tail → primer).
- * @property {boolean}				isOnTargetPrimer	true if tail is appended to the primer on
- *                           							targetSeqStrand (the primer that would share
- * 														its pattern); false if it is appended
- * 														to the complementary primer.
+ * @property {boolean}				isOnTargetPrimer	true if tail is appended to the forward primer, i.e. the
+ * 														primer on `targetSeqStrand`; false if it is appended
+ * 														to the reverse primer.
  * @property {boolean}				matchesWild			true if the snapback base at the SNV matches
  *                                       				the wild-type allele
- * @property {SnapbackMeltingTm}	snapbackMeltingTm	Object holding wild/variant stem Tm values.
+ * @property {SnapbackMeltingTm}	snapbackMeltingTm	Object holding wild/variant snapback Tm values.
+ *
  * ──────────────────────────────────────────────────────────────────────────
- *
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
  * @param {string}				targetSeqStrand					A strand of the full DNA sequence to design the snapback primer for.
- * @param {number}				primerLen						The length of the primer on the strand denoted by the target sequence
- * @param {number}				compPrimerLen					The length of the complementary primer on the opposite strand.
- * @param {SNVSite}				snvSite							An object representing the single neucleotide variant site with:
- * @param {number}				minSnapbackMeltTemp				The minimum viable snapback melting temperature for any match or mismatch snapback
- * @param {number}				desiredSnapbackMeltTempWildType	The desired snapback melting temperature for the wild type
+ * @param {number}				primerLen						The length of the forward primer, primer that shares the nucleotides with the
+ * 																strand denoted by the `targetSeqStrand`
+ * @param {number}				compPrimerLen					The length of the complementary primer on the complementary strand to
+ * 																`targetSeqStrand`
+ * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
+ * @param {number}				targetSnapMeltTemp	The desired snapback melting temperature for the wild type allele
  *
- * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer
+ * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer and is specification
+ *
  * @throws {Error} 												If any input is invalid, the SNV is too close to a primer,
  *             													or an acceptable stem cannot be constructed.
- *
  */
 async function createSnapback(
 	targetSeqStrand,
 	primerLen,
 	compPrimerLen,
 	snvSite,
-	desiredSnapbackMeltTempWildType
+	targetSnapMeltTemp
 ) {
-	/////////// Parameter Checking ///////////
-	// Validate targetSeqStrand is a valid DNA sequence
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
 	}
 
-	// Validate desiredSnapbackMeltTempWildType is a positive number
+	// Validate targetSnapMeltTemp is a positive number
 	if (
-		typeof desiredSnapbackMeltTempWildType !== 'number' ||
-		!Number.isFinite(desiredSnapbackMeltTempWildType) ||
-		desiredSnapbackMeltTempWildType < 0
+		typeof targetSnapMeltTemp !== 'number' ||
+		!Number.isFinite(targetSnapMeltTemp) ||
+		targetSnapMeltTemp < 0
 	) {
-		throw new Error(
-			`desiredSnapbackMeltTempWildType must be a positive, finite number`
-		);
+		throw new Error(`targetSnapMeltTemp must be a positive, finite number`);
 	}
 
 	// Validate primerLen and compPrimerLen are positive integers
@@ -226,7 +229,7 @@ async function createSnapback(
 		primerLensSnapPrimerRefPoint,
 		snapbackBaseAtSNV,
 		matchesWild,
-		desiredSnapbackMeltTempWildType
+		targetSnapMeltTemp
 	);
 
 	// 5) Create a final snapback.
@@ -692,7 +695,7 @@ async function getStemTm(seq, mismatch) {
  * @param {PrimerLensRefPoint} primerLensSnapPrimerRefPoint - Object containing both the primer and complementary primer lengths.
  * @param {string} snapbackBaseAtSNV - The base to place in the snapback tail at the SNV position.
  * @param {boolean} matchesWild - Whether the snapback tail matches the wild-type allele.
- * @param {number} desiredSnapbackMeltTempWildType - Desired melting temperature (°C) for the wild-type stem.
+ * @param {number} targetSnapMeltTemp - Desired melting temperature (°C) for the wild-type stem.
  *
  * @returns {CreateStemReturn} Finalized stem location and melting temperature information.
  */
@@ -702,7 +705,7 @@ async function createStem(
 	primerLensSnapPrimerRefPoint,
 	snapbackBaseAtSNV,
 	matchesWild,
-	desiredSnapbackMeltTempWildType
+	targetSnapMeltTemp
 ) {
 	/////////// Parameter Checking ///////////
 	// 1. targetStrandSeqSnapPrimerRefPoint
@@ -829,14 +832,14 @@ async function createStem(
 		);
 	}
 
-	// 7. desiredSnapbackMeltTempWildType
+	// 7. targetSnapMeltTemp
 	if (
-		typeof desiredSnapbackMeltTempWildType !== 'number' ||
-		!Number.isFinite(desiredSnapbackMeltTempWildType) ||
-		desiredSnapbackMeltTempWildType <= 0
+		typeof targetSnapMeltTemp !== 'number' ||
+		!Number.isFinite(targetSnapMeltTemp) ||
+		targetSnapMeltTemp <= 0
 	) {
 		throw new Error(
-			`desiredSnapbackMeltTempWildType must be a positive finite number. Got: ${desiredSnapbackMeltTempWildType}`
+			`targetSnapMeltTemp must be a positive finite number. Got: ${targetSnapMeltTemp}`
 		);
 	}
 
@@ -889,8 +892,8 @@ async function createStem(
 		// Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
 		if (
 			!bestWildTm ||
-			Math.abs(wildTm - desiredSnapbackMeltTempWildType) <
-				Math.abs(bestWildTm - desiredSnapbackMeltTempWildType)
+			Math.abs(wildTm - targetSnapMeltTemp) <
+				Math.abs(bestWildTm - targetSnapMeltTemp)
 		) {
 			bestWildTm = wildTm;
 			bestStemLocation.start = stemStart;
@@ -905,7 +908,7 @@ async function createStem(
 
 		// Loop Temination if wildTm has become larger than the desired snapback melting temperature
 		// for the wild type allele
-		if (wildTm >= desiredSnapbackMeltTempWildType) {
+		if (wildTm >= targetSnapMeltTemp) {
 			break;
 		}
 
