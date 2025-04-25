@@ -29,9 +29,9 @@ const O_TYPE = 'oligo';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 
-/****************************************************************/
-/*********************** Primary Function ***********************/
-/****************************************************************/
+/*****************************************************************************************/
+/************************************ Primary Function ***********************************/
+/*****************************************************************************************/
 /**
  * Creates a snapback primer by:
  *  1. Evaluating both strands to decide which primer receives the tail and
@@ -45,7 +45,9 @@ const LIMITING_CONC = 0.5;
  *  3. Building the final 5'→3' sequence:
  *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
  *
- * Assumptions:
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
  * - targetSeqStrand is a valid uppercase DNA string given 5'→3'.
  * - primerLen and compPrimerLen ≥ {MIN_PRIMER_LEN}.
  * - The SNV is ≥ {SNV_BASE_BUFFER} bases away from both primers.
@@ -60,7 +62,9 @@ const LIMITING_CONC = 0.5;
  *   is added after the 5' end of the stem (on the snapback primer) help avoid this extension
  *   on its complement snapback
  *
- * Things to change to make this function better:
+ * ──────────────────────────────────────────────────────────────────────────
+ * Possible improvements
+ * ──────────────────────────────────────────────────────────────────────────
  * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory,
  *   albeit minimal. It would be a fun thing to code
  * 		- Then DNA functions could be implemented as methods
@@ -116,8 +120,13 @@ async function createSnapback(
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. targetSeqStrand
 	if (!isValidDNASequence(targetSeqStrand)) {
-		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
+		throw new Error(
+			`Invalid DNA sequence: ${targetSeqStrand}. ` +
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G..`
+		);
 	}
 
 	// Validate targetSnapMeltTemp is a positive number
@@ -1665,25 +1674,34 @@ function revCompSNV(snvSite, seqLen) {
 }
 
 /**
- * Reverses a DNA sequence.
+ * Reverses a DNA sequence
  *
- * This function returns the input sequence in reverse order.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `seqStrand` is expected to be a non-empty uppercase DNA string containing
+ *   only the characters “A”, “T”, “C”, or “G”.
  *
- * Assumptions:
- * - The sequence consists only of valid DNA bases and is a string.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {string}  		seqStrand   	DNA sequence to reverse.
  *
- * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
- * @returns {string} - The reversed sequence (e.g., "GCTA").
+ * @returns {string}              			The reversed sequence.
  *
- * @throws {Error} - If the input is not a string or contains invalid characters.
+ * @throws  {Error}               			If `seqStrand` is missing, not a string,
+ *                                			or contains characters other than A/T/C/G.
  */
 function reverseSequence(seqStrand) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. seqStrand
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
-			`Invalid DNA sequence: "${seqStrand}". Must only contain A, T, C, or G and be a string`
+			`Invalid DNA sequence: ${seqStrand}. ` +
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G..`
 		);
 	}
 
@@ -1691,7 +1709,7 @@ function reverseSequence(seqStrand) {
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// Reverse the sequence
+	// 1. Reverse the sequence
 	return seqStrand.split('').reverse().join('');
 }
 
@@ -1699,6 +1717,7 @@ function reverseSequence(seqStrand) {
 /*********************** Export Function ************************/
 /****************************************************************/
 
+// For testing with script.test.js
 export {
 	// Primary function
 	createSnapback,
