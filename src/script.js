@@ -1566,29 +1566,47 @@ function isValidDNASequence(seqStrand) {
 }
 
 /**
- * Returns the DNA complement of a given nucleotide sequence.
- * If the sequence passed in is not a valid sequence it throws an error.
+ * Returns the complement of a DNA sequence.
  *
- * @param {string} seqStrand - A string representing the DNA sequence (e.g., "ATCG").
- * @returns {string} - The complementary DNA sequence (e.g., "TAGC").
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - Input must be a valid uppercase DNA sequence consisting of characters:
+ *   A, T, C, or G.
+ * - The complement sequence is NOT reversed. For example, the complement of 'GA'
+ *   is 'CT'.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {string}   seqStrand     DNA sequence (e.g., "ATCG").
+ *
+ * @returns {string}                 Complement of the input (e.g., "TAGC").
+ *
+ * @throws  {Error}                  If input is not a valid DNA sequence.
  */
 function complementSequence(seqStrand) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. seqStrand
 	if (!isValidDNASequence(seqStrand)) {
-		throw new Error(`Invalid DNA sequence: ${seqStrand}`);
+		throw new Error(
+			`Invalid DNA sequence: ${seqStrand}. ` +
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+		);
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
+	// 1. Convert each base to its complement
 	return seqStrand
-		.toUpperCase()
-		.split('') // Splits into an array of single character strings
+		.split('')
 		.map((base) => NUCLEOTIDE_COMPLEMENT[base])
-		.join(''); // rejoins array into a string of the complement bases
+		.join('');
 }
 
 /**
