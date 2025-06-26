@@ -1612,11 +1612,22 @@ function reverseComplement(seqStrand) {
 
 /**
  * Returns the reverse complement for a mismatch site.
- * That is, it returns the complement bases and corrects for the sequence's
- * orientation, assuming that the new sequence starts with the 5' end.
+ * That is, it returns the complement base and and location, corrected for the
+ * complement sequence's orientation, that also is indexed 0 at the 5' end.
  *
- * Assumptions:
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ *
  * - Assumes the variant bases are all valid (elements of {"C", "G", "A", "T"}).
+ * - Assumes the snvSite is a proper SNVSite objext with correct index and
+ *   variant base
+ * - Assumes the index is not out of length of the seqence length
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
  *
  * Typedefs:
  * @typedef {Object} SNVSite
