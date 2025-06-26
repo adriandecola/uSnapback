@@ -1702,7 +1702,7 @@ function revCompSNV(snvSite, seqLen) {
  *
  * @returns {string}              			The reversed sequence.
  *
- * @throws  {Error}               			If `seqStrand` is missing, not a string,
+ * @throws  {Error}               			If `seqStrand` is empty, not a string,
  *                                			or contains characters other than A/T/C/G.
  */
 function reverseSequence(seqStrand) {
