@@ -1593,20 +1593,46 @@ function complementSequence(seqStrand) {
 
 /**
  * Returns the reverse complement of a DNA sequence.
- * Throws an error if the sequence is invalid.
  *
- * @param {string} seqStrand - A DNA sequence (e.g., "ATCG").
- * @returns {string} - The reverse complement (e.g., "CGAT").
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - The input sequence is a valid, uppercase DNA sequence using only A, T, C, or G.
+ * - The reverse complement is defined as:
+ *     1. Replacing each base with its complement (A<->T, C<->G)
+ *     2. Reversing the entire resulting string to keep 5' to 3' orientation
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {string}   seqStrand     DNA sequence (e.g., "ATCG").
+ *
+ * @returns {string}                 Reverse complement of `seqStrand` (e.g., "CGAT").
+ *
+ * @throws  {Error}                  If input is empty, not a string, or contains
+ *                                   invalid DNA characters.
  */
 function reverseComplement(seqStrand) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
 
+	// 1. seqStrand
+	if (!isValidDNASequence(seqStrand)) {
+		throw new Error(
+			`Invalid DNA sequence: ${seqStrand}. ` +
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+		);
+	}
+
 	//──────────────────────────────────────────────────────────────────────────//
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. Get complement of sequence
 	const complementStrand = complementSequence(seqStrand);
+
+	// 2. Reverse the complement strand
 	return complementStrand.split('').reverse().join('');
 }
 
