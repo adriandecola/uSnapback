@@ -1,15 +1,5 @@
 // tests/script.test.js
 
-import { JSDOM } from 'jsdom';
-import { jest } from '@jest/globals';
-
-// Polyfill DOMParser globally, its used in parseTmFromResponse but its only
-// availible globally in the browser and not in node (where Jest runs)
-global.DOMParser = new JSDOM().window.DOMParser;
-
-// Set 10s timeout for each test
-jest.setTimeout(10_000);
-
 import {
 	// Primary function
 	createSnapback,
