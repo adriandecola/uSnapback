@@ -544,12 +544,12 @@ describe('createStem() parameter validation', () => {
 		[
 			'desiredSnapbackMeltTempWildType < 0',
 			{ desiredSnapbackMeltTempWildType: -5 },
-			'desiredSnapbackMeltTempWildType',
+			'must be a positive finite number',
 		],
 		[
 			'desiredSnapbackMeltTempWildType not a number',
 			{ desiredSnapbackMeltTempWildType: 'hot' },
-			'desiredSnapbackMeltTempWildType',
+			'must be a positive finite number',
 		],
 
 		// SNV on primer
@@ -1242,8 +1242,8 @@ describe('complementSequence()', () => {
 		);
 	});
 
-	test('returns empty string if input is empty', () => {
-		expect(complementSequence('')).toBe('');
+	test('throws error if input is empty', () => {
+		expect(() => complementSequence('')).toThrow('Invalid DNA sequence');
 	});
 
 	test('throws error for non-string input', () => {
@@ -1281,8 +1281,8 @@ describe('reverseComplement()', () => {
 	});
 
 	// Edge case: empty input
-	test('returns empty string for empty input', () => {
-		expect(reverseComplement('')).toBe('');
+	test('throws error for empty input', () => {
+		expect(() => reverseComplement('')).toThrow('Invalid DNA sequence');
 	});
 
 	// Case sensitivity (should throw on non-uppercase)
