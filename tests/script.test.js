@@ -1516,6 +1516,7 @@ describe('revCompSNV()', () => {
 		expect(() => revCompSNV(42, 10)).toThrow('Invalid SNV object');
 	});
 
+	// SNV object has missing or extra keys
 	test('throws if snvSite is missing keys or has extra keys', () => {
 		expect(() => revCompSNV({ index: 5 }, 10)).toThrow(
 			'Invalid SNV object'
@@ -1531,35 +1532,47 @@ describe('revCompSNV()', () => {
 	// Invalid index
 	test('throws for invalid index values', () => {
 		expect(() => revCompSNV({ index: -1, variantBase: 'A' }, 10)).toThrow(
-			'Invalid SNV index'
-		);
-		expect(() => revCompSNV({ index: 10, variantBase: 'T' }, 10)).toThrow(
-			'Invalid SNV index'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: 5.5, variantBase: 'C' }, 10)).toThrow(
-			'Invalid SNV index'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: '5', variantBase: 'G' }, 10)).toThrow(
-			'Invalid SNV index'
+			'Invalid SNV object'
 		);
 	});
 
 	// Invalid base
 	test('throws for invalid variantBase', () => {
 		expect(() => revCompSNV({ index: 5, variantBase: 'X' }, 10)).toThrow(
-			'Invalid variant base'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 'g' }, 10)).toThrow(
-			'Invalid variant base'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: '' }, 10)).toThrow(
-			'Invalid variant base'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 'AA' }, 10)).toThrow(
-			'Invalid variant base'
+			'Invalid SNV object'
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 1 }, 10)).toThrow(
-			'Invalid variant base'
+			'Invalid SNV object'
+		);
+	});
+
+	test('throws for index out of range', () => {
+		expect(() => revCompSNV({ index: 2, variantBase: 'A' }, 1)).toThrow(
+			/is out of bounds/
+		);
+		expect(() => revCompSNV({ index: 10, variantBase: 'T' }, 10)).toThrow(
+			/is out of bounds/
+		);
+		expect(() => revCompSNV({ index: 5000, variantBase: 'C' }, 38)).toThrow(
+			/is out of bounds/
+		);
+		expect(() => revCompSNV({ index: 5, variantBase: 'G' }, 5)).toThrow(
+			/is out of bounds/
 		);
 	});
 });

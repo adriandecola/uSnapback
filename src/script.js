@@ -1722,74 +1722,63 @@ function isValidSNVObject(snv) {
 }
 
 /**
- * Returns the reverse complement for a mismatch site.
- * That is, it returns the complement base and and location, corrected for the
- * complement sequence's orientation, that also is indexed 0 at the 5' end.
- *
+ * Returns the reverse complement SNV site.
+ * That is, it transforms the SNV's index and base to be correct
+ * for the reverse complement strand.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Assumptions
  * ──────────────────────────────────────────────────────────────────────────
- *
- * - Assumes the variant bases are all valid (elements of {"C", "G", "A", "T"}).
- * - Assumes the snvSite is a proper SNVSite objext with correct index and
- *   variant base
- * - Assumes the index is not out of length of the seqence length
+ * - `snvSite` must be a valid SNVSite object, verified by isValidSNVObject().
+ * - `seqLen` must be a positive integer ≥ 1.
+ * - `snvSite.index` must be in the range [0, seqLen - 1].
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
  * ──────────────────────────────────────────────────────────────────────────
+ * @param   {SNVSite} snvSite     Object with properties:
+ *                                { index: number, variantBase: "A"|"T"|"C"|"G" }
  *
- * Typedefs:
- * @typedef {Object} SNVSite
- * @property {number} index - The index in the sequence where the variant occurs.
- * @property {string} variantBase - A one character string representing the variant base.
+ * @param   {number}  seqLen      Length of the DNA sequence the SNV belongs to.
  *
+ * @returns {SNVSite}             SNV object mapped to the reverse complement strand:
+ *                                {
+ *                                  index: number,
+ *                                  variantBase: string
+ *                                }
  *
- * @param {SNVSite} snvSite - An object representing the single nucleotide variant site.
- * @param {number} seqLen - The length of the target sequence.
- *
- * @returns {SNVSite} - An object representing the single nucleotide variant site for the reverse complement sequence.
+ * @throws  {Error}               If snvSite is invalid or index is out of bounds,
+ *                                or if seqLen is not a valid positive integer.
  */
-
 function revCompSNV(snvSite, seqLen) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
-	// Ensure snvSite is an object with exactly two keys: 'index' and 'variantBase'
-	if (
-		typeof snvSite !== 'object' ||
-		snvSite == null ||
-		Array.isArray(snvSite) || // an array is also an object, but snvSite can't be an array
-		Object.keys(snvSite).length !== 2 ||
-		!('index' in snvSite) ||
-		!('variantBase' in snvSite)
-	) {
+
+	// 1. Validate SNV object structure
+	if (!isValidSNVObject(snvSite)) {
 		throw new Error(
-			'Invalid SNV object: must contain only { index: number, variantBase: string }'
+			`Invalid SNV object: must be { index: number, variantBase: "A"|"T"|"C"|"G" }. Received: ${JSON.stringify(
+				snvSite
+			)}`
 		);
 	}
-	// Validate index: must be an integer in [0, seqLen - 1]
+
+	// 2. Validate seqLen
 	if (
-		typeof snvSite.index !== 'number' ||
-		!Number.isInteger(snvSite.index) ||
-		snvSite.index < 0 ||
-		snvSite.index >= seqLen
+		typeof seqLen !== 'number' ||
+		!Number.isInteger(seqLen) ||
+		seqLen <= 0
 	) {
 		throw new Error(
-			`Invalid SNV index: ${
-				snvSite.index
-			} (must be an integer from 0 to ${seqLen - 1}(seqLen -1))`
+			`seqLen must be a positive integer. Received: ${seqLen}`
 		);
 	}
-	// Validate variantBase: must be a valid base (A, T, C, G), case-sensitive
-	if (
-		typeof snvSite.variantBase !== 'string' ||
-		snvSite.variantBase.length !== 1 ||
-		!VALID_BASES.has(snvSite.variantBase)
-	) {
+
+	// 3. Ensure index is within sequence bounds
+	if (snvSite.index >= seqLen) {
 		throw new Error(
-			`Invalid variant base: "${snvSite.variantBase}" (must be one of 'A', 'T', 'C', or 'G')`
+			`snvSite.index (${snvSite.index}) is out of bounds for sequence length ${seqLen}`
 		);
 	}
 
@@ -1797,14 +1786,16 @@ function revCompSNV(snvSite, seqLen) {
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// Since revComplement sequence starts with 5' end and both are indexed starting at 0
+	// 1. Compute reverse complement index
 	const revCompIndex = seqLen - snvSite.index - 1;
 
-	const revCompVariantBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
+	// 2. Convert variant base to its complement
+	const revCompBase = NUCLEOTIDE_COMPLEMENT[snvSite.variantBase];
 
+	// 3. Return updated SNV object
 	return {
 		index: revCompIndex,
-		variantBase: revCompVariantBase,
+		variantBase: revCompBase,
 	};
 }
 
