@@ -32,6 +32,7 @@ const LIMITING_CONC = 0.5;
 /*****************************************************************************************/
 /************************************ Primary Function ***********************************/
 /*****************************************************************************************/
+
 /**
  * Creates a snapback primer by:
  *  1. Evaluating both strands to decide which primer receives the tail and
@@ -87,10 +88,10 @@ const LIMITING_CONC = 0.5;
  * @typedef {Object} SnapbackPrimerResult
  * @property {string}				snapbackSeq			Entire snapback primer written 5' → 3'
  *                                                   	(tail → primer).
- * @property {boolean}				isOnTargetPrimer	true if tail is appended to the forward primer, i.e. the
- * 														primer on `targetSeqStrand`; false if it is appended
- * 														to the reverse primer.
- * @property {boolean}				matchesWild			true if the snapback base at the SNV matches
+ * @property {boolean}				tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
+ * 														primer represented by `targetSeqStrand`; false if it is
+ * 														appended to the reverse primer.
+ * @property {boolean}				matchesWild			true if the snapback base at the SNV matches on is tail
  *                                       				the wild-type allele
  * @property {SnapbackMeltingTm}	snapbackMeltingTm	Object holding wild/variant snapback Tm values.
  *
@@ -98,12 +99,12 @@ const LIMITING_CONC = 0.5;
  * Parameters, Returns, and Errors
  * ──────────────────────────────────────────────────────────────────────────
  * @param {string}				targetSeqStrand					A strand of the full DNA sequence to design the snapback primer for.
- * @param {number}				primerLen						The length of the forward primer, primer that shares the nucleotides with the
- * 																strand denoted by the `targetSeqStrand`
- * @param {number}				compPrimerLen					The length of the complementary primer on the complementary strand to
- * 																`targetSeqStrand`
+ * 																(5'->3')
+ * @param {number}				primerLen						The length of the forward primer (has the same bases as the beginning of
+ * 																`targetSeqStrand`)
+ * @param {number}				compPrimerLen					The length of the reverse primer
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
- * @param {number}				targetSnapMeltTemp	The desired snapback melting temperature for the wild type allele
+ * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
  *
  * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer and is specification
  *
@@ -118,88 +119,65 @@ async function createSnapback(
 	targetSnapMeltTemp
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	// Parameter Checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1. targetSeqStrand
+	// 1. Validate the target sequence
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(
-			`Invalid DNA sequence: ${targetSeqStrand}. ` +
-				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G..`
+			`Invalid DNA sequence: "${targetSeqStrand}". Must be non-empty and contain only A, T, C, or G.`
 		);
 	}
 
-	// Validate targetSnapMeltTemp is a positive number
+	// 2. Validate the desired snapback melting temperature
 	if (
 		typeof targetSnapMeltTemp !== 'number' ||
 		!Number.isFinite(targetSnapMeltTemp) ||
-		targetSnapMeltTemp < 0
+		targetSnapMeltTemp <= 0
 	) {
-		throw new Error(`targetSnapMeltTemp must be a positive, finite number`);
+		throw new Error(
+			'targetSnapMeltTemp must be a positive, finite number.'
+		);
 	}
 
-	// Validate primerLen and compPrimerLen are positive integers
-	for (const [name, val] of [
+	// 3. Validate primer lengths
+	for (const [name, len] of [
 		['primerLen', primerLen],
 		['compPrimerLen', compPrimerLen],
 	]) {
-		if (typeof val !== 'number' || !Number.isFinite(val)) {
-			throw new Error(`${name} must be a finite number`);
+		if (typeof len !== 'number' || !Number.isInteger(len) || len < 0) {
+			throw new Error(`${name} must be a non-negative integer.`);
 		}
-		if (val < 0) {
-			throw new Error(`${name} must be non-negative`);
-		}
-		if (!Number.isInteger(val)) {
-			throw new Error(`${name} must be an integer`);
-		}
-		if (val < MIN_PRIMER_LEN) {
-			throw new Error(`${name} must be at lease ${MIN_PRIMER_LEN}`);
+		if (len < MIN_PRIMER_LEN) {
+			throw new Error(
+				`${name} must be at least ${MIN_PRIMER_LEN} bases.`
+			);
 		}
 	}
 
-	// Validate snvSite structure and values
-	if (
-		typeof snvSite !== 'object' ||
-		snvSite == null ||
-		Array.isArray(snvSite)
-	) {
-		throw new Error(`snvSite must be a non-null object`);
-	}
-	const expectedKeys = new Set(['index', 'variantBase']);
-	for (const key of Object.keys(snvSite)) {
-		if (!expectedKeys.has(key)) {
-			throw new Error(`Unexpected key in snvSite: "${key}"`);
-		}
-	}
-	if (!('index' in snvSite) || !('variantBase' in snvSite)) {
-		throw new Error(`snvSite must contain both "index" and "variantBase"`);
-	}
-	if (
-		typeof snvSite.index !== 'number' ||
-		!Number.isInteger(snvSite.index) ||
-		snvSite.index < 0 ||
-		snvSite.index >= targetSeqStrand.length
-	) {
+	// 3a. Ensure primers can actually fit on the sequence
+	if (primerLen + compPrimerLen >= targetSeqStrand.length) {
 		throw new Error(
-			`snvSite.index must be an integer from 0 to ${
-				targetSeqStrand.length - 1
-			}`
+			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) ` +
+				`cannot equal or exceed sequence length (${targetSeqStrand.length}).`
 		);
 	}
-	if (
-		typeof snvSite.variantBase !== 'string' ||
-		snvSite.variantBase.length !== 1 ||
-		!VALID_BASES.has(snvSite.variantBase)
-	) {
-		throw new Error(
-			`snvSite.variantBase must be a single character: A, T, C, or G`
-		);
-	}
-	//──────────────────────────────────────────────────────────────────────────//
-	//								Function Logic								//
-	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1) Make sure the SNV is not too close to either end of the primer that a proper stem cannot be formed
+	// 4. Validate the SNV object
+	if (!isValidSNVObject(snvSite)) {
+		throw new Error(
+			`Invalid snvSite: ${JSON.stringify(
+				snvSite
+			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`
+		);
+	}
+	if (snvSite.index >= targetSeqStrand.length) {
+		throw new Error(
+			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`
+		);
+	}
+
+	// 5. Ensure the SNV is sufficiently distant from both primers
 	if (
 		snvTooCloseToPrimer(
 			snvSite.index,
@@ -209,16 +187,19 @@ async function createSnapback(
 		)
 	) {
 		throw new Error(
-			`SNV at index ${snvSite.index} is too close to one of the primers. ` +
-				`There must be at least 3 bases on each side of the SNV that do not ` +
-				`over lap with either primer location to form a valid stem.`
+			`SNV at index ${snvSite.index} is too close to a primer; ` +
+				`it must be at least ${SNV_BASE_BUFFER} bases away from both primer binding regions.`
 		);
 	}
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
 
-	// 2) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild)
-	//	  with the largest differnce as snapback
+	// 2) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild),
+	//	  with the largest difference, as the snapback primer.
+	//
 	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
-	//	  snapback with the greatest temperature difference will remain the same
+	//	  snapback choice with the greatest temperature difference will remain the same
 	const { useTargetStrand, snapbackBaseAtSNV, matchesWild } =
 		await useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite);
 
