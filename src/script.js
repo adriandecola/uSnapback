@@ -1288,82 +1288,59 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
  *   seq=... 'A' ...
  *   mmseq=... 'C' ... (the complement of 'G') at that same position.
  *
- * @typedef {Object} Mismatch
- * @property {number} position - The index in `seq` where the mismatch occurs.
- * @property {string} type     - The base you'll have on the opposite strand (e.g. "G") (mismatch).
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `seq` is a valid, non-empty, uppercase DNA string (A/T/C/G).
+ * - `mismatch` passes `isValidMismatchObject`, meaning:
+ *     • `mismatch.position` is a non-negative integer < `seq.length`.
+ *     • `mismatch.type` is one of "A", "T", "C", or "G".
  *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string}   seq       Reference (matched) sequence, 5'→3'.
+ * @param {Mismatch} mismatch  { position: number, type: string }
  *
- * @param {string} seq - Original matched sequence (5'→3').
- * @param {Mismatch} mismatch - The mismatch specification.
+ * @returns {string}           The `mmseq` string to supply to the API.
  *
- * @throws {Error} If the sequence or mismatch is invalid.
- * @returns {string} The mmseq string for the Tm service.
+ * @throws {Error}             If inputs are invalid or out of bounds.
  */
 function buildMismatchSequenceForAPI(seq, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	//     Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────────//
-	// Sequence must be a valid DNA string
+
+	// 1. Validate the sequence
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Invalid input sequence: "${seq}". Must only contain A, T, C, or G and be a string.`
+			`Invalid DNA sequence: "${seq}". Must contain only A, T, C, or G.`
 		);
 	}
-	// Mismatch must be a javascript object with position and type keys
-	if (
-		typeof mismatch !== 'object' ||
-		mismatch == null ||
-		Array.isArray(mismatch) ||
-		!('position' in mismatch) ||
-		!('type' in mismatch)
-	) {
-		throw new Error(
-			`Invalid mismatch object. Expected { position: number, type: string }. Received: ${JSON.stringify(
-				mismatch
-			)}`
-		);
+
+	// 2. Validate the mismatch object
+	if (!isValidMismatchObject(mismatch)) {
+		throw new Error(`Invalid mismatch object: ${JSON.stringify(mismatch)}`);
 	}
-	// mismatch.position must be an integer in [0, seqLen-1]
-	if (
-		typeof mismatch.position !== 'number' ||
-		!Number.isInteger(mismatch.position) ||
-		mismatch.position < 0 ||
-		mismatch.position >= seq.length
-	) {
+
+	// 3. Ensure the mismatch position is within sequence bounds
+	if (mismatch.position >= seq.length) {
 		throw new Error(
-			`Mismatch position ${mismatch.position} is not an integer or out of bounds for sequence of length ${seq.length}`
-		);
-	}
-	// mismatch.type must be a string with one character: 'A', 'C', 'T', or 'G'
-	if (
-		typeof mismatch.type !== 'string' ||
-		mismatch.type.length !== 1 ||
-		!VALID_BASES.has(mismatch.type)
-	) {
-		throw new Error(
-			`Mismatch type "${mismatch.type}" must be a single character: A, T, C, or G`
+			`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
 		);
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//
-	//								Function Logic								//
+	//     Function Logic                                                       //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// Get the complement base
-	// Should never throw this error as parameters were already checked but can leave in, in case
-	// code structure changes in the future
-	const complementBase = NUCLEOTIDE_COMPLEMENT[mismatch.type];
-	if (!complementBase) {
-		throw new Error(
-			`Unexpected error: unable to determine complement for mismatch base "${mismatch.type}". Error shouldn't be 
-			thrown as parameters are checked.`
-		);
-	}
+	// 1. Get the complement of the intended mismatch base
+	const compBase = NUCLEOTIDE_COMPLEMENT[mismatch.type];
 
-	// Replace that position with the mismatch complement's in the original sequence, this is what the API wants
+	// 2. Replace that base in `seq` to produce the mmseq string
 	return (
 		seq.slice(0, mismatch.position) +
-		complementBase +
+		compBase +
 		seq.slice(mismatch.position + 1)
 	);
 }

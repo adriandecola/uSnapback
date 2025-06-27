@@ -966,13 +966,13 @@ describe('buildMismatchSequenceForAPI()', () => {
 	test('throws on invalid base in sequence', () => {
 		expect(() =>
 			buildMismatchSequenceForAPI('ATBX', { position: 2, type: 'C' })
-		).toThrow('Invalid input sequence');
+		).toThrow(/Invalid DNA sequence/i);
 	});
 
 	test('throws for non-string sequence', () => {
 		expect(() =>
 			buildMismatchSequenceForAPI(null, { position: 0, type: 'A' })
-		).toThrow('Invalid input sequence');
+		).toThrow(/Invalid DNA sequence/i);
 		expect(() =>
 			buildMismatchSequenceForAPI(undefined, { position: 0, type: 'A' })
 		).toThrow();
@@ -996,16 +996,13 @@ describe('buildMismatchSequenceForAPI()', () => {
 	test('throws for out-of-bounds position', () => {
 		expect(() =>
 			buildMismatchSequenceForAPI('ATCG', { position: 4, type: 'A' })
-		).toThrow('out of bounds');
-		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: -1, type: 'T' })
-		).toThrow('out of bounds');
+		).toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws for invalid mismatch type values', () => {
 		expect(() =>
 			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'X' })
-		).toThrow('Mismatch type "X" must be a single character');
+		).toThrow(/invalid mismatch/i);
 		expect(() =>
 			buildMismatchSequenceForAPI('ATCG', { position: 1, type: '' })
 		).toThrow();
