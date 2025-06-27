@@ -557,130 +557,103 @@ async function evaluateSnapbackMatchingOptions(
 }
 
 /**
- * Calculates the melting temperature of a snapback stem via server API (dna-utah.org).
- *If the mismatch object is passed in, it calculates the mismatch Tm
+ * Retrieves the melting temperature (Tm) of a snapback stem by querying
+ * the dna-utah.org API. If a mismatch is supplied, the request returns the
+ * mismatch Tm (`<mmtm>` in the response) instead of the perfectly matched Tm.
  *
- * @typedef {Object} Mismatch
- * @property {number} position - Index in the sequence where the mismatch occurs.
- * @property {string} type     - The base on the opposite strand (e.g. "A") for the mismatch.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `seq` is a valid uppercase DNA sequence verified with `isValidDNASequence`.
+ * - If `mismatch` is provided it must satisfy `isValidMismatchObject`.
  *
- * @param {string}  seq             - The reference (matched) sequence (5'→3').
- * @param {Mismatch} [mismatch]     - Optional mismatch specification.
- * @returns {Promise<number>}       - The Tm value in °C.
- * @throws {Error}                  - If inputs are invalid, or the response can’t be parsed.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @typedef  {Object}  Mismatch
+ * @property {number}  position   Zero-based index of the mismatch in `seq`.
+ * @property {string}  type       Base on the opposite strand (A/T/C/G).
+ *
+ * @param {string}     seq        Reference (matched) sequence, 5'→3'.
+ * @param {Mismatch}  [mismatch]  Optional mismatch specification.
+ *
+ * @returns {Promise<number>}     Melting temperature in °C.
+ *
+ * @throws {Error}                If inputs are invalid or the API response
+ *                                cannot be parsed.
  */
 async function getStemTm(seq, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	// Parameter Checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. Validate the reference sequence
 	if (!isValidDNASequence(seq)) {
-		throw new Error(`Invalid, empty, or non-string DNA sequence: "${seq}"`);
+		throw new Error(
+			`Invalid DNA sequence: "${seq}". Expected non-empty A/T/C/G string.`
+		);
 	}
+
+	// 2. Validate the mismatch object (if provided)
 	if (mismatch !== undefined && mismatch !== null) {
-		// it could be passed in as null and we'll ignore it
-		if (typeof mismatch !== 'object' || Array.isArray(mismatch)) {
+		// 2.1 Ensure it passes the dedicated validator
+		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
-				`Mismatch must be an object. Received: ${typeof mismatch}`
+				`Invalid mismatch object: ${JSON.stringify(mismatch)}`
 			);
 		}
-		// Check for extra keys in mismatch object
-		const allowedMismatchKeys = new Set(['position', 'type']);
-		for (const key of Object.keys(mismatch)) {
-			if (!allowedMismatchKeys.has(key)) {
-				throw new Error(
-					`Mismatch object contains unexpected key: "${key}"`
-				);
-			}
-		}
-		if (!('position' in mismatch) || !('type' in mismatch)) {
+
+		// 2.2 Ensure the position lies within the sequence bounds
+		if (mismatch.position >= seq.length) {
 			throw new Error(
-				`Mismatch object missing required keys "position" and/or "type". Received: ${JSON.stringify(
-					mismatch
-				)}`
-			);
-		}
-		if (
-			typeof mismatch.position !== 'number' ||
-			!Number.isInteger(mismatch.position) ||
-			mismatch.position < 0 ||
-			mismatch.position >= seq.length
-		) {
-			throw new Error(
-				`Mismatch position ${mismatch.position} is invalid or out of bounds for sequence of length ${seq.length}`
-			);
-		}
-		if (
-			typeof mismatch.type !== 'string' ||
-			mismatch.type.length !== 1 ||
-			!VALID_BASES.has(mismatch.type)
-		) {
-			throw new Error(
-				`Mismatch type "${mismatch.type}" must be one of "A", "T", "C", "G"`
+				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
 			);
 		}
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//
-	//								Function Logic								//
+	// Function Logic                                                          //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 2) Build the mismatch sequence the way the API endpoint wants it, if its provided
-	let mismatchSeq = null;
+	// 1. Build the mmseq string if a mismatch is present
+	let mmSeq = null;
 	if (mismatch) {
-		try {
-			mismatchSeq = buildMismatchSequenceForAPI(seq, mismatch);
-		} catch (err) {
-			// Re-throw error
-			throw new Error(
-				`Failed to build mismatch sequence: ${err.message}`
-			);
-		}
+		mmSeq = buildMismatchSequenceForAPI(seq, mismatch);
 	}
 
-	// 3) Build query URL
-	let baseUrl = 'https://dna-utah.org/tm/snaprequest.php';
-	baseUrl += `?mg=${MG}`;
-	baseUrl += `&mono=${MONO}`;
-	baseUrl += `&seq=${seq.toLowerCase()}`;
-	baseUrl += `&tparam=${T_PARAM}`;
-	baseUrl += `&saltcalctype=${SALT_CALC_TYPE}`;
-	baseUrl += `&otype=${O_TYPE}`;
-	baseUrl += `&concentration=${CONC}`;
-	baseUrl += `&limitingconc=${LIMITING_CONC}`;
-	baseUrl += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	baseUrl += `&token=${API_TOKEN}`;
-	// If a mismatch is passed in this will add the correct mismatch sequence
-	if (mismatch) {
-		baseUrl += `&mmseq=${mismatchSeq}`;
+	// 2. Assemble the query URL
+	let url = 'https://dna-utah.org/tm/snaprequest.php';
+	url += `?mg=${MG}`;
+	url += `&mono=${MONO}`;
+	url += `&seq=${seq.toLowerCase()}`;
+	url += `&tparam=${T_PARAM}`;
+	url += `&saltcalctype=${SALT_CALC_TYPE}`;
+	url += `&otype=${O_TYPE}`;
+	url += `&concentration=${CONC}`;
+	url += `&limitingconc=${LIMITING_CONC}`;
+	url += `&decimalplaces=${TM_DECIMAL_PLACES}`;
+	url += `&token=${API_TOKEN}`;
+	if (mmSeq) {
+		url += `&mmseq=${mmSeq}`;
 	}
 
-	// 5) Fetch and parse response
-	const response = await fetch(baseUrl);
-	if (!response.ok) {
-		throw new Error(
-			`Network error: ${response.status} - ${response.statusText}`
-		);
+	// 3. Fetch the response
+	const res = await fetch(url);
+	if (!res.ok) {
+		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
 	}
-	// Parses the body of the response as text
-	const rawHtml = await response.text();
+	const rawHtml = await res.text();
 
-	// Parsing the correct tm value (tm or mmtm)
-	let tmValue;
-	if (!mismatch) {
-		tmValue = parseTmFromResponse(rawHtml);
-	} else {
-		tmValue = parseTmFromResponse(rawHtml, true);
+	// 4. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
+	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
+
+	// 5. Validate that a numeric Tm was found
+	if (tmVal === null) {
+		throw new Error('Tm value not found or unparsable in server response.');
 	}
 
-	// Throw error if tmValue is not found
-	if (tmValue === null) {
-		throw new Error(
-			'No <tm> element found or invalid numeric value in server response.'
-		);
-	}
-
-	// 6) Return the numeric Tm
-	return tmValue;
+	// 6. Return the temperature
+	return tmVal;
 }
 
 /**

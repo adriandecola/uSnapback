@@ -309,82 +309,68 @@ describe('getStemTm()', () => {
 	// Invalid parameters
 	test('throws if sequence is not a string', async () => {
 		await expect(() => getStemTm(12345)).rejects.toThrow(
-			'Invalid, empty, or non-string DNA sequence: "12345"'
+			/invalid dna sequence/i
 		);
 	});
 
 	test('throws if sequence has invalid characters', async () => {
 		await expect(() => getStemTm('GAXXXC')).rejects.toThrow(
-			'Invalid, empty, or non-string DNA sequence: "GAXXXC"'
+			/invalid dna sequence/i
 		);
 	});
 
 	test('throws if mismatch is not an object', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', 'not-an-object')
-		).rejects.toThrow('Mismatch must be an object. Received: string');
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is an array', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }])
-		).rejects.toThrow('Mismatch must be an object. Received: object');
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "position"', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { type: 'G' })
-		).rejects.toThrow(
-			'Mismatch object missing required keys "position" and/or "type". Received: {"type":"G"}'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "type"', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: 3 })
-		).rejects.toThrow(
-			'Mismatch object missing required keys "position" and/or "type". Received: {"position":3}'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is out of bounds', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: 100, type: 'G' })
-		).rejects.toThrow(
-			'Mismatch position 100 is invalid or out of bounds for sequence of length 12'
-		);
+		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws if mismatch.position is negative', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: -1, type: 'G' })
-		).rejects.toThrow(
-			'Mismatch position -1 is invalid or out of bounds for sequence of length 12'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is not an integer', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' })
-		).rejects.toThrow(
-			'Mismatch position 2.5 is invalid or out of bounds for sequence of length 12'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is invalid base', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'X' })
-		).rejects.toThrow(
-			'Mismatch type "X" must be one of "A", "T", "C", "G"'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is too long', async () => {
 		await expect(() =>
 			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'GA' })
-		).rejects.toThrow(
-			'Mismatch type "GA" must be one of "A", "T", "C", "G"'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch has extra keys', async () => {
@@ -394,9 +380,7 @@ describe('getStemTm()', () => {
 				type: 'A',
 				unexpected: true,
 			})
-		).rejects.toThrow(
-			'Mismatch object contains unexpected key: "unexpected"'
-		);
+		).rejects.toThrow(/invalid mismatch object/i);
 	});
 });
 
