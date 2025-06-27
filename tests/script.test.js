@@ -890,7 +890,7 @@ describe('snvTooCloseToPrimer()', () => {
 
 	test('throws if snvIndex is equal to seqLen', () => {
 		expect(() => snvTooCloseToPrimer(50, 5, 5, 50)).toThrow(
-			/snvIndex \(50\) cannot exceed or equal/
+			/out of bounds/
 		);
 	});
 
@@ -900,9 +900,11 @@ describe('snvTooCloseToPrimer()', () => {
 
 	test('throws if total primer lengths exceed sequence length', () => {
 		expect(() => snvTooCloseToPrimer(10, 25, 25, 50)).toThrow(
-			/Primer lengths.*exceed or match/
+			/exceed seqLen/
 		);
-		expect(() => snvTooCloseToPrimer(10, 30, 30, 60)).toThrow();
+		expect(() => snvTooCloseToPrimer(10, 30, 30, 60)).toThrow(
+			/exceed seqLen/
+		);
 	});
 
 	// Edge cases (can change to throw errors if I want to implement differently)

@@ -1217,26 +1217,38 @@ function buildFinalSnapback(
 /*****************************************************************************************/
 
 /**
- * Checks if the SNV is too close to the ends of the primers to form 3 base buffer on either end.
+ * Determines whether a single-nucleotide variant (SNV) lies too close to the
+ * primers for a snapback stem to include the required `SNV_BASE_BUFFER`
+ * matched bases on either side.
  *
- * Assumptions:
- * - The target sequence strand starts at the 5' end
- * - Primer corresponds to primer that binds to the target sequence strand given
- * - Complementary primer corresponds to the complement of target sequence strand given
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - The sequence given by `seqLen` represents the target strand (5'→3').
+ * - `primerLen` is the length of the primer binding to that strand.
+ * - `compPrimerLen` is the length of the primer on the complementary strand.
  *
- * @param {number} snvIndex - Index of the SNV in the target sequence strand(starting at 0).
- * @param {number} primerLen - Length of the primer on the same strand as the target sequence.
- * @param {number} compPrimerLen - Length of the complementary primer on the opposite strand.
- * @param {number} seqLen - The total length of the target sequence.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {number} snvIndex       0-based index of the SNV on the target strand.
+ * @param {number} primerLen      Length of the primer on the target strand.
+ * @param {number} compPrimerLen  Length of the primer on the complementary strand.
+ * @param {number} seqLen         Full length of the target sequence.
  *
- * @returns {boolean} - True if SNV is within 3 bases of either primer (i.e. too close), otherwise false.
- * @throws {Error} - If any argument is missing, invalid, or out of bounds.
+ * @returns {boolean}             `true`  → SNV is within `SNV_BASE_BUFFER`
+ *                                          of a primer (too close)
+ *                                `false` → SNV is safely distant.
+ *
+ * @throws {Error}                If any argument is missing, non-numeric,
+ *                                negative, or out of bounds.
  */
 function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	// Parameter Checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
-	// Check for missing or non-numeric inputs
+
+	// 1. Validating all inputs
 	for (const [name, val] of [
 		['snvIndex', snvIndex],
 		['primerLen', primerLen],
@@ -1244,39 +1256,39 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 		['seqLen', seqLen],
 	]) {
 		if (typeof val !== 'number' || !Number.isFinite(val)) {
-			throw new Error(`${name} must be a finite number`);
+			throw new Error(`${name} must be a finite number.`);
 		}
 		if (!Number.isInteger(val)) {
-			throw new Error(`${name} must be an integer`);
+			throw new Error(`${name} must be an integer.`);
 		}
 		if (val < 0) {
-			throw new Error(`${name} must be non-negative`);
+			throw new Error(`${name} must be non-negative.`);
 		}
 	}
-	// Validate SNV index is in bounds
+
 	if (snvIndex >= seqLen) {
 		throw new Error(
-			`snvIndex (${snvIndex}) cannot exceed or equal sequence length (${
-				seqLen - 1
-			})`
+			`snvIndex (${snvIndex}) is out of bounds for sequence length ${seqLen}.`
 		);
 	}
-	// Validate primer lengths are feasible (or there was a bigger mistake)
+
 	if (primerLen + compPrimerLen >= seqLen) {
 		throw new Error(
-			`Primer lengths (${primerLen} + ${compPrimerLen}) exceed or match sequence length (${seqLen})`
+			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) ` +
+				`cannot equal or exceed seqLen (${seqLen}).`
 		);
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//
-	//								Function Logic								//
+	// Function Logic                                                          //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// Must be at least {SNV_BASE_BUFFER} bases away from either primer
-	const lowerBoundIndex = primerLen + SNV_BASE_BUFFER;
-	const upperBoundIndex = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
+	// 1. Calculate the allowable SNV range
+	const lowerBound = primerLen + SNV_BASE_BUFFER;
+	const upperBound = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
 
-	return snvIndex < lowerBoundIndex || snvIndex > upperBoundIndex;
+	// 2. Return whether the SNV violates either bound
+	return snvIndex < lowerBound || snvIndex > upperBound;
 }
 
 /**
