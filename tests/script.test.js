@@ -19,6 +19,7 @@ import {
 	// DNA utility functions
 	isValidDNASequence,
 	isValidSNVObject,
+	isValidMismatchObject,
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
@@ -1812,4 +1813,101 @@ describe('calculateSnapbackTm()', () => {
 			).rejects.toThrow(/mismatch/i);
 		});
 	}
+});
+
+describe('isValidMismatchObject()', () => {
+	// ─────────────────────────────────────────────────────────────────────────
+	// Valid cases
+	// ─────────────────────────────────────────────────────────────────────────
+	test('returns true for a valid mismatch object with A', () => {
+		expect(isValidMismatchObject({ position: 0, type: 'A' })).toBe(true);
+	});
+
+	test('returns true for a valid mismatch object with G', () => {
+		expect(isValidMismatchObject({ position: 12, type: 'G' })).toBe(true);
+	});
+
+	test('returns true for large valid position', () => {
+		expect(isValidMismatchObject({ position: 999999, type: 'C' })).toBe(
+			true
+		);
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Invalid: wrong types
+	// ─────────────────────────────────────────────────────────────────────────
+	test('returns false if mismatch is null', () => {
+		expect(isValidMismatchObject(null)).toBe(false);
+	});
+
+	test('returns false if mismatch is an array', () => {
+		expect(isValidMismatchObject([1, 2])).toBe(false);
+	});
+
+	test('returns false if mismatch is a string', () => {
+		expect(isValidMismatchObject('not an object')).toBe(false);
+	});
+
+	test('returns false if mismatch is a number', () => {
+		expect(isValidMismatchObject(42)).toBe(false);
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Invalid: extra or missing keys
+	// ─────────────────────────────────────────────────────────────────────────
+	test('returns false if object is missing "position"', () => {
+		expect(isValidMismatchObject({ type: 'A' })).toBe(false);
+	});
+
+	test('returns false if object is missing "type"', () => {
+		expect(isValidMismatchObject({ position: 0 })).toBe(false);
+	});
+
+	test('returns false if object has extra key', () => {
+		expect(
+			isValidMismatchObject({ position: 0, type: 'T', foo: 'bar' })
+		).toBe(false);
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Invalid: invalid position
+	// ─────────────────────────────────────────────────────────────────────────
+	test('returns false if position is negative', () => {
+		expect(isValidMismatchObject({ position: -1, type: 'T' })).toBe(false);
+	});
+
+	test('returns false if position is a float', () => {
+		expect(isValidMismatchObject({ position: 2.5, type: 'C' })).toBe(false);
+	});
+
+	test('returns false if position is a string', () => {
+		expect(isValidMismatchObject({ position: '5', type: 'G' })).toBe(false);
+	});
+
+	test('returns false if position is NaN', () => {
+		expect(isValidMismatchObject({ position: NaN, type: 'G' })).toBe(false);
+	});
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Invalid: invalid type base
+	// ─────────────────────────────────────────────────────────────────────────
+	test('returns false if type is a lowercase base', () => {
+		expect(isValidMismatchObject({ position: 0, type: 'a' })).toBe(false);
+	});
+
+	test('returns false if type is not a valid base', () => {
+		expect(isValidMismatchObject({ position: 0, type: 'B' })).toBe(false);
+	});
+
+	test('returns false if type is an empty string', () => {
+		expect(isValidMismatchObject({ position: 0, type: '' })).toBe(false);
+	});
+
+	test('returns false if type is longer than 1 character', () => {
+		expect(isValidMismatchObject({ position: 0, type: 'AG' })).toBe(false);
+	});
+
+	test('returns false if type is not a string', () => {
+		expect(isValidMismatchObject({ position: 0, type: 3 })).toBe(false);
+	});
 });

@@ -1756,6 +1756,76 @@ function isValidSNVObject(snv) {
 }
 
 /**
+ * Determines whether a given object is a valid mismatch specification.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - Mismatch must be a plain object (not null or an array).
+ * - Must contain exactly two keys: `position` and `type`.
+ * - `position` must be a non-negative integer.
+ * - `type` must be a valid DNA base: "A", "T", "C", or "G".
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {Object}  mismatch     Object to validate as a mismatch spec.
+ *
+ * @returns {boolean}              true  → valid mismatch object
+ *                                 false → otherwise
+ */
+function isValidMismatchObject(mismatch) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. Type check: Must be a non-null object and not an array
+	if (
+		typeof mismatch !== 'object' ||
+		mismatch === null ||
+		Array.isArray(mismatch)
+	) {
+		return false;
+	}
+
+	// 2. Key check: Must contain exactly 'position' and 'type'
+	const expectedKeys = new Set(['position', 'type']);
+	const actualKeys = Object.keys(mismatch);
+	if (actualKeys.length !== expectedKeys.size) {
+		return false;
+	}
+	for (const key of actualKeys) {
+		if (!expectedKeys.has(key)) {
+			return false;
+		}
+	}
+
+	// 3. Validate `position`: must be a non-negative integer
+	if (
+		typeof mismatch.position !== 'number' ||
+		!Number.isInteger(mismatch.position) ||
+		mismatch.position < 0
+	) {
+		return false;
+	}
+
+	// 4. Validate `type`: must be a valid base
+	if (
+		typeof mismatch.type !== 'string' ||
+		mismatch.type.length !== 1 ||
+		!VALID_BASES.has(mismatch.type)
+	) {
+		return false;
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Validation Passed							//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	return true;
+}
+
+/**
  * Returns the reverse complement SNV site.
  * That is, it transforms the SNV's index and base to be correct
  * for the reverse complement strand.
@@ -1898,6 +1968,7 @@ export {
 	// DNA utility functions
 	isValidDNASequence,
 	isValidSNVObject,
+	isValidMismatchObject,
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
