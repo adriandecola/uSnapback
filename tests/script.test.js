@@ -1105,10 +1105,40 @@ describe('parseTmFromResponse()', () => {
 		expect(parseTmFromResponse('', false)).toBeNull();
 	});
 
-	test('returns null for malformed HTML', () => {
-		const html = `<<tm>>`;
-		expect(parseTmFromResponse(html)).toBeNull();
-	});
+	// 1. Invalid rawHtml values (should all throw)
+	const badRawHtmls = [
+		['null', null],
+		['undefined', undefined],
+		['number', 123],
+		['object', { html: '<tm>50</tm>' }],
+		['array', ['<tm>50</tm>']],
+		['boolean', true],
+		['function', () => '<tm>50</tm>'],
+	];
+
+	for (const [label, badHtml] of badRawHtmls) {
+		test(`throws for invalid rawHtml (${label})`, () => {
+			expect(() => parseTmFromResponse(badHtml)).toThrow(/rawHtml/i);
+		});
+	}
+
+	// 2. Invalid mismatch values (should all throw)
+	const badMismatches = [
+		['string', 'true'],
+		['number', 1],
+		['object', { mismatch: true }],
+		['array', [true]],
+		['function', () => true],
+	];
+
+	for (const [label, badMismatch] of badMismatches) {
+		test(`throws for invalid mismatch (${label})`, () => {
+			const html = '<tm>50</tm>';
+			expect(() => parseTmFromResponse(html, badMismatch)).toThrow(
+				/mismatch/i
+			);
+		});
+	}
 });
 
 /****************************************************************/

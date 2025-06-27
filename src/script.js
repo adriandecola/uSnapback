@@ -1369,27 +1369,59 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 }
 
 /**
- * Simple parser to extract the numeric Tm from the raw HTML:
- * e.g. <html><head></head><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
+ * Parses a raw HTML string to extract a melting temperature (Tm).
  *
- * @param {string} rawHtml - The raw string returned by .cgi file
- * @param {boolean} [mismatch] - Optional specification denoting if we want to parse out the mismatched tm
- * @returns {number|null}  - The Tm if found, otherwise null
+ * The input string should include either a <tm> or <mmtm> tag.
+ *
+ * Example input:
+ *   <html><body><seq>...</seq><tm>47.27</tm><mmtm>37.54</mmtm></body></html>
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - The HTML contains only one <tm> or <mmtm> tag.
+ * - The <tm> tag is used for wild-type; <mmtm> is for mismatched variant.
+ * - The mismatch flag is optional, but if present, must be a boolean.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters and Returns
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string} rawHtml - Raw HTML string returned from the .cgi file.
+ * @param {boolean} [mismatch] - If truthy, extract <mmtm>; otherwise extract <tm>.
+ *
+ * @returns {number|null} - The extracted Tm as a float, or null if invalid or not found.
+ *
+ * @throws {Error} - If rawHtml is not a string or mismatch is not a boolean.
  */
 function parseTmFromResponse(rawHtml, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	//							1. Parameter Checking							//
 	//──────────────────────────────────────────────────────────────────────────//
 
+	// 1. Validate rawHTML is a string
+	if (typeof rawHtml !== 'string') {
+		throw new Error(
+			`rawHtml must be a string. Received: ${typeof rawHtml}`
+		);
+	}
+
+	// 2. Validate mismatch, if it is passed
+	if (mismatch !== undefined && typeof mismatch !== 'boolean') {
+		throw new Error(
+			`mismatch must be a boolean if provided. Received: ${typeof mismatch}`
+		);
+	}
+
 	//──────────────────────────────────────────────────────────────────────────//
-	//								Function Logic								//
+	//							2. Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
+
 	try {
-		// Parse the text into a DOM (there might be a better way to do this with functionality built into Node too)
+		// 1. Parse the text into a DOM (there might be a better way to do this with functionality built into Node too)
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
-		// Getting the <tm> or <mmtm> element
+		// 2. Getting the <tm> or <mmtm> element
 		var tmElement;
 		if (!mismatch) {
 			// Look for a <tm> element
@@ -1398,15 +1430,18 @@ function parseTmFromResponse(rawHtml, mismatch) {
 			tmElement = doc.querySelector('mmtm');
 		}
 
-		// Returns null if correct tm is not found
+		// 3. Returns null if correct tm is not found
 		if (!tmElement) {
 			return null;
 		}
 
-		// Convert the text inside element to a float
+		// 4. Convert the text inside element to a float
 		const tmValue = parseFloat(tmElement.textContent.trim());
+
+		// 5. Return parsed Tm, or null if NaN
 		return isNaN(tmValue) ? null : tmValue;
 	} catch (err) {
+		// 6. Fallback: return null on DOM parsing failure
 		console.error('parseTmFromResponse error:', err);
 		return null;
 	}
