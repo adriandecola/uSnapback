@@ -1655,6 +1655,73 @@ function reverseComplement(seqStrand) {
 }
 
 /**
+ * Determines whether a given object is a valid SNVSite object.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - An SNV object must have exactly two keys:
+ *     1. `index`: a non-negative integer (0 or greater)
+ *     2. `variantBase`: one of the characters "A", "T", "C", or "G"
+ * - The object must not contain any other keys.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {Object}  snv    Object to validate as an SNVSite.
+ *
+ * @returns {boolean}        true  → if object is a valid SNVSite
+ *                           false → otherwise
+ */
+function isValidSNVObject(snv) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. Type check: Must be a non-null object (and not an array)
+	if (typeof snv !== 'object' || snv === null || Array.isArray(snv)) {
+		return false;
+	}
+
+	// 2. Key check: Must contain exactly 'index' and 'variantBase'
+	const expectedKeys = new Set(['index', 'variantBase']);
+	const actualKeys = Object.keys(snv);
+
+	if (actualKeys.length !== expectedKeys.size) {
+		return false;
+	}
+	for (const key of actualKeys) {
+		if (!expectedKeys.has(key)) {
+			return false;
+		}
+	}
+
+	// 3. Validate `index` is a non-negative integer
+	if (
+		typeof snv.index !== 'number' ||
+		!Number.isInteger(snv.index) ||
+		snv.index < 0
+	) {
+		return false;
+	}
+
+	// 4. Validate `variantBase` is a valid uppercase base
+	if (
+		typeof snv.variantBase !== 'string' ||
+		snv.variantBase.length !== 1 ||
+		!VALID_BASES.has(snv.variantBase)
+	) {
+		return false;
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Validation Passed							//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	return true;
+}
+
+/**
  * Returns the reverse complement for a mismatch site.
  * That is, it returns the complement base and and location, corrected for the
  * complement sequence's orientation, that also is indexed 0 at the 5' end.
@@ -1805,6 +1872,7 @@ export {
 
 	// DNA utility functions
 	isValidDNASequence,
+	isValidSNVObject,
 	complementSequence,
 	reverseComplement,
 	revCompSNV,

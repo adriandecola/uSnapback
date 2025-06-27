@@ -18,6 +18,7 @@ import {
 
 	// DNA utility functions
 	isValidDNASequence,
+	isValidSNVObject,
 	complementSequence,
 	reverseComplement,
 	revCompSNV,
@@ -1182,6 +1183,74 @@ describe('isValidDNASequence()', () => {
 		expect(isValidDNASequence(undefined)).toBe(false);
 		expect(isValidDNASequence(true)).toBe(false);
 		expect(isValidDNASequence(['A', 'T', 'C', 'G'])).toBe(false);
+	});
+});
+
+describe('isValidSNVObject', () => {
+	// Valid cases
+	it('returns true for a valid SNV object', () => {
+		expect(isValidSNVObject({ index: 5, variantBase: 'A' })).toBe(true);
+		expect(isValidSNVObject({ index: 0, variantBase: 'T' })).toBe(true);
+		expect(isValidSNVObject({ index: 123456, variantBase: 'C' })).toBe(
+			true
+		);
+	});
+
+	// Invalid structure
+	it('returns false for null, undefined, or non-object values', () => {
+		expect(isValidSNVObject(null)).toBe(false);
+		expect(isValidSNVObject(undefined)).toBe(false);
+		expect(isValidSNVObject(42)).toBe(false);
+		expect(isValidSNVObject('A')).toBe(false);
+		expect(isValidSNVObject(['index', 5, 'variantBase', 'G'])).toBe(false);
+	});
+
+	// Invalid key cases
+	it('returns false for missing keys', () => {
+		expect(isValidSNVObject({ index: 5 })).toBe(false);
+		expect(isValidSNVObject({ variantBase: 'G' })).toBe(false);
+		expect(isValidSNVObject({})).toBe(false);
+	});
+
+	it('returns false for extra keys', () => {
+		expect(
+			isValidSNVObject({ index: 5, variantBase: 'C', note: 'extra' })
+		).toBe(false);
+		expect(isValidSNVObject({ index: 5, variantBase: 'C', pos: 6 })).toBe(
+			false
+		);
+	});
+
+	// Invalid index
+	it('returns false for non-integer or negative index values', () => {
+		expect(isValidSNVObject({ index: -1, variantBase: 'A' })).toBe(false);
+		expect(isValidSNVObject({ index: 1.5, variantBase: 'A' })).toBe(false);
+		expect(isValidSNVObject({ index: '5', variantBase: 'G' })).toBe(false);
+		expect(isValidSNVObject({ index: NaN, variantBase: 'T' })).toBe(false);
+		expect(isValidSNVObject({ index: Infinity, variantBase: 'T' })).toBe(
+			false
+		);
+	});
+
+	// Invalid variantBase
+	it('returns false for invalid variantBase characters', () => {
+		expect(isValidSNVObject({ index: 3, variantBase: 'U' })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: 'X' })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: 'AT' })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: '' })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: 5 })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: null })).toBe(false);
+	});
+
+	it('returns false for lowercase variantBase (must be uppercase)', () => {
+		expect(isValidSNVObject({ index: 3, variantBase: 'a' })).toBe(false);
+		expect(isValidSNVObject({ index: 3, variantBase: 'g' })).toBe(false);
+	});
+
+	// Validity depends on exact key match
+	it('returns false when keys are correct but order is wrong in object literal (JS doesn’t care, but test anyway)', () => {
+		const snv = { variantBase: 'G', index: 7 }; // order swapped
+		expect(isValidSNVObject(snv)).toBe(true); // should still pass
 	});
 });
 
