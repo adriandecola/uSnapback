@@ -1413,101 +1413,100 @@ function parseTmFromResponse(rawHtml, mismatch) {
 }
 
 /**
- * Estimates the melting temperature of a snapback structure using the formula:
+ * Estimates the melting temperature (Tm) of a snapback structure using:
  *
  *     Tm = -5.25 * ln(loopLen) + 0.837 * stemTm + 32.9
  *
- * stemTm is calculated via `getStemTm()`.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `stemSeq` is a valid DNA sequence (uppercase A/C/G/T), 5'→3' direction.
+ * - `loopLen` is a number ≥ MIN_LOOP_LEN.
+ * - `mismatch` is optional, and if provided:
+ *     - Must be an object with shape { position: number, type: string }
+ *     - mismatch.position ∈ [SNV_BASE_BUFFER, stemSeq.length - SNV_BASE_BUFFER - 1]
+ *     - mismatch.type ∈ { A, T, C, G }
+ * - The returned Tm is in degrees Celsius.
+ * - getStemTm(stemSeq, mismatch) returns a numeric Tm.
  *
- * Assumptions:
- * - The stem sequence is 5'→3' and corresponds to the strand containing the SNV, not the
- *   snapback tail strand.
- * - The mismatch position is within bounds of the stem.
- * - The snapback base is the one used in the snapback at the SNV position.
- * - The loopLen is at least {MIN_LOOP_LEN} bases long
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters and Returns
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {string}    stemSeq     DNA stem sequence (5'→3')
+ * @param   {number}    loopLen     Loop length in nucleotides
+ * @param   {Mismatch} [mismatch]   Optional mismatch object:
+ *                                  { position: number, type: string }
  *
- * @typedef {Object} Mismatch
- * @property {number} position - Index in the stem where mismatch occurs.
- * @property {string} type     - Base on the opposite strand at the mismatch site
- * 								 This would be the snapback base at the SNV location, on the tail,
- * 								 if the wild type does not match the snapback tail.
+ * @returns {Promise<number>}       Estimated melting temperature (Tm)
  *
- * @param {string} stemSeq - The stem sequence (5'→3'), which includes the SNV.
- * @param {number} loopLen - The length (in nucleotides) of the snapback loop (unpaired region).
- * @param {Mismatch} [mismatch] - Optional mismatch object specifying the mismatch position and base.
- *
- * @returns {Promise<number>} - The estimated melting temperature (Tm) in degrees Celsius.
- *
- * @throws {Error} - If any input is missing or invalid.
+ * @throws  {Error}                 If parameters are invalid
  */
 async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
-	// Checking the stemSeq parameter
+
+	// 1. Validate DNA sequence
 	if (!isValidDNASequence(stemSeq)) {
-		throw new Error(`Invalid DNA sequence passed to stemSeq: "${stemSeq}"`);
+		throw new Error(`Invalid DNA sequence: "${stemSeq}"`);
 	}
-	// Checking the loopLen parameter
+
+	// 2. Validate loopLen
 	if (
 		typeof loopLen !== 'number' ||
 		!Number.isFinite(loopLen) ||
 		loopLen < MIN_LOOP_LEN
 	) {
 		throw new Error(
-			`loopLen must be a positive, finite number greater than or equal to ${MIN_LOOP_LEN}`
+			`loopLen must be a finite number ≥ ${MIN_LOOP_LEN}. Received: ${loopLen}`
 		);
 	}
-	// Checking the mismatch parameter, if it is passed
+
+	// 3. Validate mismatch object if provided
 	if (mismatch !== undefined && mismatch !== null) {
-		// Check its a JavaScript object
+		// 3.1 Must be a plain object
 		if (typeof mismatch !== 'object' || Array.isArray(mismatch)) {
 			throw new Error(
-				`Mismatch must be an object if provided. Received: ${typeof mismatch}`
+				`Mismatch must be an object. Received: ${typeof mismatch}`
 			);
 		}
-		// Check that it contains the right keys
-		const allowedKeys = new Set(['position', 'type']);
-		const actualKeys = Object.keys(mismatch);
-		for (const key of actualKeys) {
-			if (!allowedKeys.has(key)) {
-				throw new Error(
-					`Mismatch object contains unexpected key: "${key}"`
-				);
+
+		// 3.2 Must contain only 'position' and 'type'
+		const allowed = new Set(['position', 'type']);
+		for (const key of Object.keys(mismatch)) {
+			if (!allowed.has(key)) {
+				throw new Error(`Mismatch contains unexpected key: "${key}"`);
 			}
 		}
 		if (!('position' in mismatch) || !('type' in mismatch)) {
 			throw new Error(
-				`Mismatch object must include both "position" and "type". Got: ${JSON.stringify(
-					mismatch
-				)}`
+				`Mismatch must have both 'position' and 'type' keys.`
 			);
 		}
-		//// Check the key values
-		// Validate position type
+
+		// 3.3 Validate mismatch.position
 		if (
 			typeof mismatch.position !== 'number' ||
 			!Number.isInteger(mismatch.position)
 		) {
 			throw new Error(`Mismatch.position must be an integer.`);
 		}
-		// Ensure mismatch is not too close to ends of the stem
-		if (
-			mismatch.position < SNV_BASE_BUFFER ||
-			mismatch.position > stemSeq.length - SNV_BASE_BUFFER - 1
-		) {
+		const min = SNV_BASE_BUFFER;
+		const max = stemSeq.length - SNV_BASE_BUFFER - 1;
+		if (mismatch.position < min || mismatch.position > max) {
 			throw new Error(
-				`Mismatch.position (${mismatch.position}) must be at least ${SNV_BASE_BUFFER} bases from both ends of the stem (length: ${stemSeq.length})`
+				`Mismatch.position (${mismatch.position}) must be between ${min} and ${max} (stem length: ${stemSeq.length})`
 			);
 		}
-		// Validate mismatch type is a nucleotide
+
+		// 3.4 Validate mismatch.type
 		if (
 			typeof mismatch.type !== 'string' ||
 			mismatch.type.length !== 1 ||
 			!VALID_BASES.has(mismatch.type)
 		) {
 			throw new Error(
-				`Mismatch.type must be a single character: A, T, C, or G. Got: "${mismatch.type}"`
+				`Mismatch.type must be one of A, T, C, G. Received: "${mismatch.type}"`
 			);
 		}
 	}
@@ -1516,13 +1515,13 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// Calculate the wild type's stem melting temperature, only pass the mismatch if it was passed
-	const stemTM = await getStemTm(stemSeq, mismatch ?? undefined);
+	// 1. Calculate stem Tm from external method
+	const stemTm = await getStemTm(stemSeq, mismatch ?? undefined);
 
-	// Plug into the Tm formula
-	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTM + 32.9;
+	// 2. Apply snapback Tm formula
+	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTm + 32.9;
 
-	// Return rounded to {TM_DECIMAL_PLACES} decimal place(s)
+	// 3. Round result
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
 }
 

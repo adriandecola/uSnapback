@@ -1757,7 +1757,7 @@ describe('calculateSnapbackTm()', () => {
 		test(`throws for invalid stemSeq (${label})`, async () => {
 			await expect(
 				calculateSnapbackTm(badStem, validLoopLen, validMismatch)
-			).rejects.toThrow(/stemSeq/i);
+			).rejects.toThrow(/invalid dna sequence/i);
 		});
 	}
 
