@@ -1467,7 +1467,9 @@ function parseTmFromResponse(rawHtml, mismatch) {
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters and Returns
  * ──────────────────────────────────────────────────────────────────────────
- * @param   {string}    stemSeq     DNA stem sequence (5'→3')
+ * @param   {string}    stemSeq     DNA stem sequence (5'->3')
+ * 									(could be either strand just as long as its
+ * 									5'->3')
  * @param   {number}    loopLen     Loop length in nucleotides
  * @param   {Mismatch} [mismatch]   Optional mismatch object:
  *                                  { position: number, type: string }
@@ -1499,49 +1501,19 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 
 	// 3. Validate mismatch object if provided
 	if (mismatch !== undefined && mismatch !== null) {
-		// 3.1 Must be a plain object
-		if (typeof mismatch !== 'object' || Array.isArray(mismatch)) {
+		// 3.1 Validate shape and content
+		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
-				`Mismatch must be an object. Received: ${typeof mismatch}`
+				`Invalid mismatch object: ${JSON.stringify(mismatch)}`
 			);
 		}
 
-		// 3.2 Must contain only 'position' and 'type'
-		const allowed = new Set(['position', 'type']);
-		for (const key of Object.keys(mismatch)) {
-			if (!allowed.has(key)) {
-				throw new Error(`Mismatch contains unexpected key: "${key}"`);
-			}
-		}
-		if (!('position' in mismatch) || !('type' in mismatch)) {
-			throw new Error(
-				`Mismatch must have both 'position' and 'type' keys.`
-			);
-		}
-
-		// 3.3 Validate mismatch.position
-		if (
-			typeof mismatch.position !== 'number' ||
-			!Number.isInteger(mismatch.position)
-		) {
-			throw new Error(`Mismatch.position must be an integer.`);
-		}
+		// 3.2 Validate mismatch.position bounds
 		const min = SNV_BASE_BUFFER;
 		const max = stemSeq.length - SNV_BASE_BUFFER - 1;
 		if (mismatch.position < min || mismatch.position > max) {
 			throw new Error(
 				`Mismatch.position (${mismatch.position}) must be between ${min} and ${max} (stem length: ${stemSeq.length})`
-			);
-		}
-
-		// 3.4 Validate mismatch.type
-		if (
-			typeof mismatch.type !== 'string' ||
-			mismatch.type.length !== 1 ||
-			!VALID_BASES.has(mismatch.type)
-		) {
-			throw new Error(
-				`Mismatch.type must be one of A, T, C, G. Received: "${mismatch.type}"`
 			);
 		}
 	}

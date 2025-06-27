@@ -1733,29 +1733,6 @@ describe('calculateSnapbackTm()', () => {
 		['less than MIN_LOOP_LEN', MIN_LOOP_LEN - 1],
 	];
 
-	const badMismatches = [
-		['non-object', 'mismatch'],
-		['array', [2, 'A']],
-		['missing position', { type: 'T' }],
-		['missing type', { position: 3 }],
-		['extra key', { position: 3, type: 'T', extra: 1 }],
-		['position not number', { position: '3', type: 'T' }],
-		['position not integer', { position: 3.2, type: 'T' }],
-		['position negative', { position: -1, type: 'T' }],
-		['position out of bounds', { position: 20, type: 'T' }],
-		['type invalid base', { position: 2, type: 'Z' }],
-		['type wrong type', { position: 2, type: 3 }],
-		['type too long', { position: 2, type: 'AG' }],
-		[
-			'not SNV_BASE_BUFFER from start',
-			{ position: SNV_BASE_BUFFER - 1, type: 'A' },
-		],
-		[
-			'not SNV_BASE_BUFFER from end',
-			{ position: validStem.length - SNV_BASE_BUFFER, type: 'T' },
-		],
-	];
-
 	//////////////////////
 	// Valid Input Test //
 	//////////////////////
@@ -1806,11 +1783,80 @@ describe('calculateSnapbackTm()', () => {
 	////////////////////////////
 	// Invalid Mismatch Tests //
 	////////////////////////////
-	for (const [label, badMismatch] of badMismatches) {
+
+	// ────────────────────────────────
+	// 1. Wrong Types (not an object)
+	// ────────────────────────────────
+	const badMismatchTypes = [
+		['non-object', 'mismatch'],
+		['array', [2, 'A']],
+	];
+
+	// ──────────────────────────────────────────────
+	// 2. Invalid Shape (missing or extra keys)
+	// ──────────────────────────────────────────────
+	const badMismatchShapes = [
+		['missing position', { type: 'T' }],
+		['missing type', { position: 3 }],
+		['extra key', { position: 3, type: 'T', extra: 1 }],
+	];
+
+	// ─────────────────────────────────────────
+	// 3. Invalid Position Field (not valid int)
+	// ─────────────────────────────────────────
+	const badMismatchPositions = [
+		['position not number', { position: '3', type: 'T' }],
+		['position not integer', { position: 3.2, type: 'T' }],
+		['position negative', { position: -1, type: 'T' }],
+	];
+
+	// ──────────────────────────────────────
+	// 4. Out-of-bounds Position (SNV rules)
+	// ──────────────────────────────────────
+	const badMismatchPositionBounds = [
+		['position out of bounds', { position: 20, type: 'T' }],
+		[
+			'not SNV_BASE_BUFFER from start',
+			{ position: SNV_BASE_BUFFER - 1, type: 'A' },
+		],
+		[
+			'not SNV_BASE_BUFFER from end',
+			{ position: validStem.length - SNV_BASE_BUFFER, type: 'T' },
+		],
+	];
+
+	// ──────────────────────────────────
+	// 5. Invalid Type Field (bad base)
+	// ──────────────────────────────────
+	const badMismatchTypesOfType = [
+		['type invalid base', { position: 2, type: 'Z' }],
+		['type wrong type', { position: 2, type: 3 }],
+		['type too long', { position: 2, type: 'AG' }],
+	];
+
+	// ─────────────────────────────────────
+	// Combine and run each sub-category
+	// ─────────────────────────────────────
+	const badMismatchGroups = [
+		...badMismatchTypes,
+		...badMismatchShapes,
+		...badMismatchPositions,
+		...badMismatchTypesOfType,
+	];
+
+	for (const [label, badMismatch] of badMismatchGroups) {
 		test(`throws for invalid mismatch (${label})`, async () => {
 			await expect(
 				calculateSnapbackTm(validStem, validLoopLen, badMismatch)
 			).rejects.toThrow(/mismatch/i);
+		});
+	}
+
+	for (const [label, badMismatch] of badMismatchPositionBounds) {
+		test(`throws for out-of-bounds mismatch (${label})`, async () => {
+			await expect(
+				calculateSnapbackTm(validStem, validLoopLen, badMismatch)
+			).rejects.toThrow(/position/i);
 		});
 	}
 });
