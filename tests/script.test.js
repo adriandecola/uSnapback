@@ -52,9 +52,9 @@ describe('useForwardPrimer()', () => {
 		const result = await useForwardPrimer(targetSeqStrand, snvSite);
 
 		expect(result).toEqual({
-			useTargetStrand: false,
-			snapbackBaseAtSNV: 'C',
-			matchesWild: true,
+			tailOnForwardPrimer: false,
+			bestSnapbackTailBaseAtSNV: 'C',
+			snapbackTailMatchesWild: true,
 		});
 	});
 
@@ -111,7 +111,7 @@ describe('useForwardPrimer()', () => {
 		for (let i = 0; i < SNV_BUFFER; i++) {
 			const snv = { index: i, variantBase: 'A' };
 			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
-				/too close to the ends of the sequence/
+				/is too close to a sequence end/i
 			);
 		}
 	});
@@ -122,7 +122,7 @@ describe('useForwardPrimer()', () => {
 		for (let i = limit + 1; i < seq.length; i++) {
 			const snv = { index: i, variantBase: 'A' };
 			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
-				/too close to the ends of the sequence/
+				/is too close to a sequence end/i
 			);
 		}
 	});

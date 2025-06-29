@@ -238,84 +238,65 @@ async function createSnapback(
 /*****************************************************************************************/
 
 /**
- * Decides which strand (target vs. complementary) should get the snapback primer,
- * and whether the snapback should match the wild-type base or the single variant base at the SNV.
+ * Decide whether the snapback tail should be appended to the forward primer
+ * (target-sequence strand) or to the reverse primer, and which base at the SNV
+ * position, on the snapback tail, maximizes the absolute melting-temperature
+ * difference between the wild-type and variant stems in the initial stem region
+ * (length 2 × SNV_BASE_BUFFER + 1).
  *
- * @typedef {Object} snapbackDecision
- *    @property {boolean} useForwardPrimer - True if the snapback tail should be added to the forward primer.
- * 											 AKA it will be complementary to a portion of the target sequence strand
- *    @property {string} snapbackBaseAtSNV - The base (e.g., "A", "G") used in the snapback at the SNV site.
- *    @property {boolean} snapbackTailMatchesWild - True if the snapback matches the wild-type base.
+ * Assumptions:
+ * - targetSeqStrand is a valid uppercase DNA string (A, T, C, G) written 5'→3'.
+ * - snvSite passes isValidSNVObject and its index is at least SNV_BASE_BUFFER
+ *   bases from both sequence ends.
  *
- * @param {string} targetSeqStrand     - Full target strand (5'→3')
- * @param {Object} snvSite             - { index: number, variantBase: string }
+ * Parameters:
+ * @param {string}   targetSeqStrand  The strand to which the forward primer binds.
+ * @param {SNVSite}  snvSite          { index: number, variantBase: "A"|"T"|"C"|"G" }
  *
- * @returns {Promise<{ snapbackDecision}>} - The decision object for which primer should be the snapback and what it should match
- * 											 (wild or variant type)
+ * @returns {Promise<{
+ *   tailOnForwardPrimer   : boolean,
+ *   snapbackBaseAtSNV     : string,
+ *   snapbackTailMatchesWild: boolean
+ * }>}
+ *
+ * @throws {Error} If inputs are malformed or violate positional constraints.
  */
 async function useForwardPrimer(targetSeqStrand, snvSite) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	// Parameter checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
+
 	// 1. Validate targetSeqStrand
 	if (!isValidDNASequence(targetSeqStrand)) {
-		throw new Error(`Invalid targetSeqStrand: "${targetSeqStrand}"`);
-	}
-
-	// 2. Validate SNV site object
-	// Checks that SNV sites are JavaScript objects
-	if (
-		typeof snvSite !== 'object' ||
-		snvSite == null ||
-		Array.isArray(snvSite)
-	) {
 		throw new Error(
-			`snvSite must be an object with 'index' and 'variantBase' fields.`
-		);
-	}
-	// Checks proper keys, and only proper keys are part of SNV site Javascript objects
-	const expectedKeys = new Set(['index', 'variantBase']);
-	const actualKeys = new Set(Object.keys(snvSite));
-	for (const key of actualKeys) {
-		if (!expectedKeys.has(key)) {
-			throw new Error(`snvSite contains unexpected key: "${key}"`);
-		}
-	}
-	if (!('index' in snvSite) || !('variantBase' in snvSite)) {
-		throw new Error(
-			`snvSite must include both "index" and "variantBase" keys.`
-		);
-	}
-	// Validate values of keys
-	if (
-		!Number.isInteger(snvSite.index) ||
-		snvSite.index < 0 ||
-		snvSite.index >= targetSeqStrand.length
-	) {
-		throw new Error(
-			`snvSite.index must be a valid integer from 0 to ${
-				targetSeqStrand.length - 1
-			}`
-		);
-	}
-	if (
-		typeof snvSite.variantBase !== 'string' ||
-		snvSite.variantBase.length !== 1 ||
-		!VALID_BASES.has(snvSite.variantBase)
-	) {
-		throw new Error(
-			`snvSite.variantBase must be a single character: A, T, C, or G`
+			'targetSeqStrand must be a non-empty uppercase DNA string containing only A, T, C, or G.'
 		);
 	}
 
-	// 3) Ensure the sequence is long enough around the SNV site to accommodate the initial stem
+	// 2. Validate snvSite structure and content
+	if (!isValidSNVObject(snvSite)) {
+		throw new Error(
+			`snvSite is invalid: ${JSON.stringify(
+				snvSite
+			)}. Expected { index: non-negative integer, variantBase: "A"|"T"|"C"|"G" }.`
+		);
+	}
+
+	// 3. Ensure snvSite.index is within sequence bounds
+	if (snvSite.index >= targetSeqStrand.length) {
+		throw new Error(
+			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`
+		);
+	}
+
+	// 4. Ensure the SNV is sufficiently distant from both sequence ends
 	if (
 		snvSite.index < SNV_BASE_BUFFER ||
 		snvSite.index > targetSeqStrand.length - SNV_BASE_BUFFER - 1
 	) {
 		throw new Error(
-			`Cannot create initial stem: SNV at index ${snvSite.index} is too close to the ends of the sequence. ` +
-				`Need ${SNV_BASE_BUFFER} matched bases on both sides. Sequence length is ${targetSeqStrand.length}.`
+			`SNV at index ${snvSite.index} is too close to a sequence end; ` +
+				`need at least ${SNV_BASE_BUFFER} perfectly matched bases flanking it.`
 		);
 	}
 
@@ -384,7 +365,8 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	} else {
 		return {
 			tailOnForwardPrimer: false,
-			snapbackBaseAtSNV: tailOnReversePrimerScenario.bestSnapbackBase,
+			bestSnapbackTailBaseAtSNV:
+				tailOnReversePrimerScenario.bestSnapbackTailBaseAtSNV,
 			snapbackTailMatchesWild:
 				tailOnReversePrimerScenario.snapbackTailMatchesWild,
 		};
@@ -413,9 +395,9 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
  *                               strand (A/T/C/G).
  *
  * @returns {Promise<{
- *   bestSnapbackBase        : string,  // Base to place in the tail
- *   bestDifference          : number,  // Larger |ΔTm| in °C
- *   snapbackTailMatchesWild : boolean  // true → tail matches wild base
+ *   bestSnapbackTailBaseAtSNV        	: string,  // Base to place in the tail
+ *   bestDifference          			: number,  // Larger |ΔTm| in °C
+ *   snapbackTailMatchesWild 			: boolean  // true → tail matches wild base
  * }>}
  *
  * @throws {Error} If any argument is invalid.
