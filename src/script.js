@@ -200,13 +200,13 @@ async function createSnapback(
 	//
 	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
 	//	  snapback choice with the greatest temperature difference will remain the same
-	const { useTargetStrand, snapbackBaseAtSNV, matchesWild } =
-		await useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite);
+	const { tailOnForwardPrimer, snapbackBaseAtSNV, matchesWild } =
+		await useForwardPrimer(targetSeqStrand, snvSite);
 
 	// 3) Assigning variables in terms of the primer strand to use as the snapback
 	var targetStrandSeqSnapPrimerRefPoint;
 	var snvSiteSnapPrimerRefPoint;
-	if (useTargetStrand) {
+	if (tailOnForwardPrimer) {
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
 	} else {
@@ -242,9 +242,10 @@ async function createSnapback(
  * and whether the snapback should match the wild-type base or the single variant base at the SNV.
  *
  * @typedef {Object} snapbackDecision
- *    @property {boolean} useTargetStrand - True if the snapback tail should be added to the target strand.
+ *    @property {boolean} useForwardPrimer - True if the snapback tail should be added to the forward primer.
+ * 											 AKA it will be complementary to a portion of the target sequence strand
  *    @property {string} snapbackBaseAtSNV - The base (e.g., "A", "G") used in the snapback at the SNV site.
- *    @property {boolean} matchesWild - True if the snapback matches the wild-type base.
+ *    @property {boolean} snapbackTailMatchesWild - True if the snapback matches the wild-type base.
  *
  * @param {string} targetSeqStrand     - Full target strand (5'→3')
  * @param {Object} snvSite             - { index: number, variantBase: string }
@@ -252,7 +253,7 @@ async function createSnapback(
  * @returns {Promise<{ snapbackDecision}>} - The decision object for which primer should be the snapback and what it should match
  * 											 (wild or variant type)
  */
-async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
+async function useForwardPrimer(targetSeqStrand, snvSite) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
@@ -338,7 +339,8 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 		end: revCompSnvSite.index + SNV_BASE_BUFFER,
 	};
 
-	// 4) Slice out the "init stem" region from each strand
+	// 4) Slice out the "init stem" region from each strand. Target corresponds to the
+	//	  target
 	const targetInitStem = targetSeqStrand.slice(
 		initStemLoc.start,
 		initStemLoc.end + 1
@@ -348,84 +350,91 @@ async function useTargetStrandsPrimerForComplement(targetSeqStrand, snvSite) {
 		compInitStemLoc.end + 1
 	);
 
-	// 5) Identify the wild-type base on each strand
-	//    Should be complementary
-	const targetWildBase = targetSeqStrand[snvSite.index];
-	const compWildBase = revCompTargetSeqStrand[revCompSnvSite.index];
-
 	// 6) SNV is at position {SNV_BASE_BUFFER} in these 2*{SNV_BASE_BUFFER}+1 slices
 	const mismatchPos = SNV_BASE_BUFFER;
 
 	// 7) Evaluate Tm differences for snapback tail on target strand
-	const targetScenario = await evaluateSnapbackMatchingOptions(
-		targetInitStem,
-		mismatchPos,
-		targetWildBase,
-		snvSite.variantBase
-	);
+	const tailOnFowardPrimerScenario =
+		await evaluateSnapbackTailMatchingOptions(
+			targetInitStem,
+			mismatchPos,
+			snvSite.variantBase
+		);
 
 	// 8) Evaluate Tm differences for snapback tail on complementary strand
-	const compScenario = await evaluateSnapbackMatchingOptions(
-		compInitStem,
-		mismatchPos,
-		compWildBase,
-		revCompSnvSite.variantBase
-	);
+	const tailOnReversePrimerScenario =
+		await evaluateSnapbackTailMatchingOptions(
+			compInitStem,
+			mismatchPos,
+			revCompSnvSite.variantBase
+		);
 
 	// 9) Compare which scenario yields the bigger Tm difference
-	if (targetScenario.bestDifference > compScenario.bestDifference) {
+	if (
+		tailOnFowardPrimerScenario.bestDifference >
+		tailOnReversePrimerScenario.bestDifference
+	) {
 		return {
-			useTargetStrand: true,
-			snapbackBaseAtSNV: targetScenario.bestSnapbackBase,
-			matchesWild: targetScenario.matchesWild,
+			tailOnForwardPrimer: true,
+			bestSnapbackTailBaseAtSNV:
+				tailOnFowardPrimerScenario.bestSnapbackTailBaseAtSNV,
+			snapbackTailMatchesWild:
+				tailOnFowardPrimerScenario.snapbackTailMatchesWild,
 		};
 	} else {
 		return {
-			useTargetStrand: false,
-			snapbackBaseAtSNV: compScenario.bestSnapbackBase,
-			matchesWild: compScenario.matchesWild,
+			tailOnForwardPrimer: false,
+			snapbackBaseAtSNV: tailOnReversePrimerScenario.bestSnapbackBase,
+			snapbackTailMatchesWild:
+				tailOnReversePrimerScenario.snapbackTailMatchesWild,
 		};
 	}
 }
 
 /**
- * Evaluates the potential snapback Tm differences for a given stem slice
- * when there's only a single variant base.
+ * Evaluates which snapback-tail base (wild-matching vs. variant-matching)
+ * maximises the Tm difference between wild-type and variant stems in the
+ * initial “seed” slice.
  *
- * We consider two scenarios:
- *  1) Snapback matches the wild base => the variant is the mismatch.
- *  2) Snapback matches the variant base => the wild base is the mismatch.
+ * Two cases are compared:
+ *  1. Tail matches the wild base → variant stem contains the mismatch.
+ *  2. Tail matches the variant base → wild stem contains the mismatch.
  *
- * Returns whichever scenario yields the largest absolute difference from the
- * “matched wild” Tm.
+ * The scenario with the larger |ΔTm| wins.
  *
- * @param {string} initStem     - The sub-sequence {2*SNV_BASE_BUFFER+1} nucleotides long, containing the SNV at position `mismatchPos`
- * 								  assumed to be passed in with the wild base.
- * @param {number} mismatchPos  - Usually {SNV_BASE_BUFFER} (SNV in center)
- * @param {string} wildBase     - The wild-type base at that SNV
- * @param {string} variantBase  - The single variant base
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string} initStem      Slice of length (2·SNV_BASE_BUFFER + 1) with
+ *                               the wild base at `mismatchPos`.
+ * @param {number} mismatchPos   Index of the SNV within `initStem`
+ *                               (normally SNV_BASE_BUFFER).
+ * @param {string} variantBase   Variant base as it appears on the target
+ *                               strand (A/T/C/G).
  *
- * @returns {Promise<{ bestSnapbackBase: string, bestDifference: number, matchesWild: boolean }>}
- *   bestSnapbackBase => the base to use in the snapback (either complementary to the wild or variant base)
- *   bestDifference => the numeric Tm difference from the wild scenario
- *   matchesWild => true if the snapback tail matches the wild type at the SNV location
+ * @returns {Promise<{
+ *   bestSnapbackBase        : string,  // Base to place in the tail
+ *   bestDifference          : number,  // Larger |ΔTm| in °C
+ *   snapbackTailMatchesWild : boolean  // true → tail matches wild base
+ * }>}
+ *
+ * @throws {Error} If any argument is invalid.
  */
-async function evaluateSnapbackMatchingOptions(
+async function evaluateSnapbackTailMatchingOptions(
 	initStem,
 	mismatchPos,
-	wildBase,
 	variantBase
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1. Validate initStem
+	// 1. initStem must be a valid DNA sequence
 	if (!isValidDNASequence(initStem)) {
-		throw new Error(`Invalid initStem sequence: "${initStem}"`);
+		throw new Error(`initStem must be a non-empty A/T/C/G string.`);
 	}
 
-	// 2. Validate mismatchPos
+	// 2. mismatchPos must be a valid index inside initStem
 	if (
 		typeof mismatchPos !== 'number' ||
 		!Number.isInteger(mismatchPos) ||
@@ -433,45 +442,28 @@ async function evaluateSnapbackMatchingOptions(
 		mismatchPos >= initStem.length
 	) {
 		throw new Error(
-			`mismatchPos must be an integer in range [0, ${
+			`mismatchPos (${mismatchPos}) must be an integer between 0 and ${
 				initStem.length - 1
-			}]. Received: ${mismatchPos}`
+			}.`
 		);
 	}
 
-	// 3. Validate wildBase
-	if (
-		typeof wildBase !== 'string' ||
-		wildBase.length !== 1 ||
-		!VALID_BASES.has(wildBase)
-	) {
-		throw new Error(
-			`wildBase must be a single character from "A", "T", "C", or "G". Received: "${wildBase}"`
-		);
-	}
-	// Check that initStem[mismatchPos] === wildBase
-	if (initStem[mismatchPos] !== wildBase) {
-		throw new Error(
-			`Mismatch position ${mismatchPos} in initStem does not contain wildBase. ` +
-				`Found "${initStem[mismatchPos]}", expected "${wildBase}".`
-		);
-	}
-
-	// 4. Validate variantBase
+	// 3. variantBase must be a single valid nucleotide
 	if (
 		typeof variantBase !== 'string' ||
 		variantBase.length !== 1 ||
 		!VALID_BASES.has(variantBase)
 	) {
 		throw new Error(
-			`variantBase must be a single character from "A", "T", "C", or "G". Received: "${variantBase}"`
+			`variantBase must be one character A, T, C, or G. Received "${variantBase}".`
 		);
 	}
 
-	// 5. Ensure variantBase differs from wildBase
+	// 4. variantBase must differ from the wild base at mismatchPos
+	const wildBase = initStem[mismatchPos];
 	if (variantBase === wildBase) {
 		throw new Error(
-			`variantBase and wildBase must differ to represent a true SNV. Both were "${wildBase}".`
+			`variantBase must differ from wild base "${wildBase}" at mismatchPos.`
 		);
 	}
 
@@ -479,60 +471,71 @@ async function evaluateSnapbackMatchingOptions(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1) Tm with wild base, matched
-	const wildMatchTm = await getStemTm(initStem);
+	// 1) Get Tm for a stem with the wild base where the snapback tail matches it
+	const wildMatchTmPromise = await getStemTm(initStem);
 
-	// 2) Tm with variant base, matched
-	// Creating initial stem for the variant sequence
+	// 2) Get Tm for a stem with the variant allele where the snapback tail matches it
 	const variantInitStem =
 		initStem.slice(0, mismatchPos) +
 		variantBase +
 		initStem.slice(mismatchPos + 1);
 
-	const variantMatchTm = await getStemTm(variantInitStem);
+	const variantMatchTmPromise = await getStemTm(variantInitStem);
 
-	// 2) Scenario A: Wild-matching snapback (mis)matched to the variant target sequence
-	const wildSnapbacktoVariantMismatchObj = {
+	// 3) Resolve both promises
+	//    I did this to learn more about aynchronous code, I could do it more
+	//    throughout my project, but it won't speed things up much.
+	const [wildMatchTm, variantMatchTm] = await Promise.all([
+		wildMatchTmPromise,
+		variantMatchTmPromise,
+	]);
+
+	// 2) Scenario A: Wild-matching snapback tail is mismatched when forward primer
+	//    part anneals to complement sequence with variant type base
+	const wildMatchingSnapbackTailToVariantMismatchObj = {
 		position: mismatchPos,
-		// At the mismatch, the snapback nucleotide will be the complement of the wild type base
+		// At the mismatch location, the snapback tail matches the wild type base
 		type: NUCLEOTIDE_COMPLEMENT[wildBase],
 	};
-	const wildSnapbacktoVariantTm = await getStemTm(
+	const wildMatchingSnapbackTailToVariantTm = await getStemTm(
 		variantInitStem,
-		wildSnapbacktoVariantMismatchObj
+		wildMatchingSnapbackTailToVariantMismatchObj
 	);
-	const wildSnapbackTmDiff = Math.abs(wildMatchTm - wildSnapbacktoVariantTm);
+	const wildMatchingSnapbackTailTmDiff = Math.abs(
+		wildMatchTm - wildMatchingSnapbackTailToVariantTm
+	);
 
-	// 3) Scenario B: Variant-matching snapback (mis)matches to the wild target sequence
-	const variantSnapbacktoWildMismatchObj = {
+	// 3) Scenario B: Variant-matching snapback tail
+	//    (mis)matches when forward primer anneals to complement sequend with wild type base
+	const variantMatchingSnapbackTailToWildMismatchObj = {
 		position: mismatchPos,
 		// At the mismatch, the snapback nucleotide will be the complement of the variant type base
 		type: NUCLEOTIDE_COMPLEMENT[variantBase],
 	};
-	const variantSnapbacktoWildTm = await getStemTm(
+	const variantMatchingSnapbackTailToWildTm = await getStemTm(
 		initStem,
-		variantSnapbacktoWildMismatchObj
+		variantMatchingSnapbackTailToWildMismatchObj
 	);
-	const variantSnapbackTmDiff = Math.abs(
-		variantMatchTm - variantSnapbacktoWildTm
+	const variantMatchingSnapbackTailTmDiff = Math.abs(
+		variantMatchTm - variantMatchingSnapbackTailToWildTm
 	);
 
 	// 4) Pick whichever scenario yields the larger difference
-	if (wildSnapbackTmDiff > variantSnapbackTmDiff) {
+	if (wildMatchingSnapbackTailTmDiff > variantMatchingSnapbackTailTmDiff) {
 		// Scenario A wins
-		// Snapback should match wild
+		// Snapback tail should match wild
 		return {
-			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[wildBase],
-			bestDifference: wildSnapbackTmDiff,
-			matchesWild: true, // <-- ADDED
+			bestSnapbackTailBaseAtSNV: NUCLEOTIDE_COMPLEMENT[wildBase],
+			bestTmDifference: wildMatchingSnapbackTailTmDiff,
+			snapbackTailMatchesWild: true,
 		};
 	} else {
 		// Scenario B wins
-		// Snapback should match variant
+		// Snapback tail should match variant
 		return {
-			bestSnapbackBase: NUCLEOTIDE_COMPLEMENT[variantBase],
-			bestDifference: variantSnapbackTmDiff,
-			matchesWild: false,
+			bestSnapbackTailBaseAtSNV: NUCLEOTIDE_COMPLEMENT[variantBase],
+			bestTmDifference: variantMatchingSnapbackTailTmDiff,
+			snapbackTailMatchesWild: false,
 		};
 	}
 }
@@ -1249,8 +1252,9 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
  * Constructs the mmseq string needed by the Tm service so it sees the intended
  * mismatch in the final double-stranded structure.
  *
- * For example, if mismatch.type = 'G', that means you want an A↔G mismatch in
- * the final pairing. The Tm service expects to see the difference as:
+ * For example, if mismatch.type = 'G' and the sequence has an A at that location,
+ * that means you want an A↔G mismatch in the final pairing. The Tm service expects
+ * to see the difference as:
  *   seq=... 'A' ...
  *   mmseq=... 'C' ... (the complement of 'G') at that same position.
  *
@@ -1868,8 +1872,8 @@ export {
 	createSnapback,
 
 	// Secondary functions
-	useTargetStrandsPrimerForComplement,
-	evaluateSnapbackMatchingOptions,
+	useForwardPrimer,
+	evaluateSnapbackTailMatchingOptions,
 	getStemTm,
 	createStem,
 	buildFinalSnapback,

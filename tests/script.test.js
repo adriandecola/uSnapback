@@ -5,8 +5,8 @@ import {
 	createSnapback,
 
 	// Secondary functions
-	useTargetStrandsPrimerForComplement,
-	evaluateSnapbackMatchingOptions,
+	useForwardPrimer,
+	evaluateSnapbackTailMatchingOptions,
 	getStemTm,
 	createStem,
 	buildFinalSnapback,
@@ -42,17 +42,14 @@ import {
 /********************* Secondary Functions **********************/
 /****************************************************************/
 
-describe('useTargetStrandsPrimerForComplement()', () => {
+describe('useForwardPrimer()', () => {
 	////////////// Logic Test ///////////////
 	test('returns correct strand and snapback base for known Tm-diff scenario', async () => {
 		const targetSeqStrand =
 			'ATATTCAGAATAACTAATGTTTGGAAGTTGTTTTGTTTTGCTAAAACAAAGTTTTAGCAAACGATTTTTTTTTTCAAATTTGTGTCTTCTGTTCTCAAAGCATCTCTGATGTAAGAGATAATGCGCCACGATGGGCATCAGAAGACCTCAGCTCAAATCCCAGTTCTGCCAGCTATGAGCTGTGTGGCACCAACAGGTGTC';
 		const snvSite = { index: 100, variantBase: 'T' };
 
-		const result = await useTargetStrandsPrimerForComplement(
-			targetSeqStrand,
-			snvSite
-		);
+		const result = await useForwardPrimer(targetSeqStrand, snvSite);
 
 		expect(result).toEqual({
 			useTargetStrand: false,
@@ -91,17 +88,17 @@ describe('useTargetStrandsPrimerForComplement()', () => {
 
 	for (const [label, badTarget] of badTargets) {
 		test(`throws for invalid targetSeqStrand (${label})`, async () => {
-			await expect(
-				useTargetStrandsPrimerForComplement(badTarget, validSNV)
-			).rejects.toThrow(/targetSeqStrand/);
+			await expect(useForwardPrimer(badTarget, validSNV)).rejects.toThrow(
+				/targetSeqStrand/
+			);
 		});
 	}
 
 	for (const [label, badSnv] of badSnvs) {
 		test(`throws for invalid snvSite (${label})`, async () => {
-			await expect(
-				useTargetStrandsPrimerForComplement(validTarget, badSnv)
-			).rejects.toThrow(/snvSite|index|variantBase/);
+			await expect(useForwardPrimer(validTarget, badSnv)).rejects.toThrow(
+				/snvSite|index|variantBase/
+			);
 		});
 	}
 
@@ -113,9 +110,9 @@ describe('useTargetStrandsPrimerForComplement()', () => {
 		const seq = makeSeq(30);
 		for (let i = 0; i < SNV_BUFFER; i++) {
 			const snv = { index: i, variantBase: 'A' };
-			await expect(
-				useTargetStrandsPrimerForComplement(seq, snv)
-			).rejects.toThrow(/too close to the ends of the sequence/);
+			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
+				/too close to the ends of the sequence/
+			);
 		}
 	});
 
@@ -124,56 +121,51 @@ describe('useTargetStrandsPrimerForComplement()', () => {
 		const limit = seq.length - SNV_BUFFER - 1;
 		for (let i = limit + 1; i < seq.length; i++) {
 			const snv = { index: i, variantBase: 'A' };
-			await expect(
-				useTargetStrandsPrimerForComplement(seq, snv)
-			).rejects.toThrow(/too close to the ends of the sequence/);
+			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
+				/too close to the ends of the sequence/
+			);
 		}
 	});
 });
 
-describe('evaluateSnapbackMatchingOptions()', () => {
+describe('evaluateSnapbackTailMatchingOptions()', () => {
 	////////////// Logic Testing ///////////////
-	test('returns correct snapback base and temperature difference for rs12248560, with an SNV base buffer of 4, on the target sequence strand', async () => {
+	test('returns correct snapback tail base and temperature difference for rs12248560, with an SNV base buffer of 4, on the target sequence strand', async () => {
 		const initStem = 'AAAGCATCT';
 		const mismatchPos = 4;
-		const wildBase = 'C';
 		const variantBase = 'T';
 
-		const result = await evaluateSnapbackMatchingOptions(
+		const result = await evaluateSnapbackTailMatchingOptions(
 			initStem,
 			mismatchPos,
-			wildBase,
 			variantBase
 		);
 
 		expect(result).toEqual({
-			bestSnapbackBase: 'A',
-			bestDifference: 31.54,
-			matchesWild: false,
+			bestSnapbackTailBaseAtSNV: 'A',
+			bestTmDifference: 31.54,
+			snapbackTailMatchesWild: false,
 		});
 	});
 	test('returns correct snapback base and temperature difference for rs12248560, with an SNV base buffer of 4, on the complement strand', async () => {
 		const initStem = 'AAAGCATCT';
 		const mismatchPos = 4;
-		const wildBase = 'C';
 		const variantBase = 'T';
 		// Getting the complements for all variables
 		const revCompInitStem = reverseComplement(initStem);
 		const compMismatchPos = initStem.length - mismatchPos - 1;
-		const compWildBase = NUCLEOTIDE_COMPLEMENT[wildBase];
 		const compVariantBase = NUCLEOTIDE_COMPLEMENT[variantBase];
 
-		const result = await evaluateSnapbackMatchingOptions(
+		const result = await evaluateSnapbackTailMatchingOptions(
 			revCompInitStem,
 			compMismatchPos,
-			compWildBase,
 			compVariantBase
 		);
 
 		expect(result).toEqual({
-			bestSnapbackBase: 'C',
-			bestDifference: 39.99,
-			matchesWild: true,
+			bestSnapbackTailBaseAtSNV: 'C',
+			bestTmDifference: 39.99, // New Tm tool implies it should be 40.00 but thats because thousandth place is rounded
+			snapbackTailMatchesWild: true,
 		});
 	});
 
@@ -185,102 +177,54 @@ describe('evaluateSnapbackMatchingOptions()', () => {
 
 	test('throws if initStem is not a string', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(12345, mismatchPos, wild, variant)
-		).rejects.toThrow(/Invalid initStem/);
+			evaluateSnapbackTailMatchingOptions(12345, mismatchPos, variant)
+		).rejects.toThrow(/initStem must be/i);
 	});
 
 	test('throws if initStem contains invalid characters', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(
+			evaluateSnapbackTailMatchingOptions(
 				'GAAXXGAG',
 				mismatchPos,
-				wild,
 				variant
 			)
-		).rejects.toThrow(/Invalid initStem/);
+		).rejects.toThrow(/initStem must be/i);
 	});
 
 	test('throws if mismatchPos is not a number', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, 'notNum', wild, variant)
-		).rejects.toThrow(/mismatchPos must be an integer/);
+			evaluateSnapbackTailMatchingOptions(validSeq, 'notNum', variant)
+		).rejects.toThrow(/must be an integer/i);
 	});
 
 	test('throws if mismatchPos is negative', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, -1, wild, variant)
-		).rejects.toThrow(/mismatchPos must be an integer/);
+			evaluateSnapbackTailMatchingOptions(validSeq, -1, variant)
+		).rejects.toThrow(/must be an integer/i);
 	});
 
 	test('throws if mismatchPos >= seq.length', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, 99, wild, variant)
-		).rejects.toThrow(/mismatchPos must be an integer/);
-	});
-
-	test('throws if wildBase is not a string', async () => {
-		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, 55, variant)
-		).rejects.toThrow(/wildBase must be a single character/);
-	});
-
-	test('throws if wildBase is longer than 1 char', async () => {
-		await expect(() =>
-			evaluateSnapbackMatchingOptions(
-				validSeq,
-				mismatchPos,
-				'AG',
-				variant
-			)
-		).rejects.toThrow(/wildBase must be a single character/);
-	});
-
-	test('throws if wildBase is not A/T/C/G', async () => {
-		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, 'Z', variant)
-		).rejects.toThrow(/wildBase must be a single character/);
+			evaluateSnapbackTailMatchingOptions(validSeq, 99, variant)
+		).rejects.toThrow(/must be an integer between/i);
 	});
 
 	test('throws if variantBase is not a string', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, wild, 55)
-		).rejects.toThrow(/variantBase must be a single character/);
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 55)
+		).rejects.toThrow(/variantBase must be/i);
 	});
 
 	test('throws if variantBase is longer than 1 char', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, wild, 'TT')
-		).rejects.toThrow(/variantBase must be a single character/);
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'TT')
+		).rejects.toThrow(/variantBase must be/i);
 	});
 
 	test('throws if variantBase is not A/T/C/G', async () => {
 		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, wild, 'Z')
-		).rejects.toThrow(/variantBase must be a single character/);
-	});
-
-	test('throws if variantBase === wildBase', async () => {
-		await expect(() =>
-			evaluateSnapbackMatchingOptions(validSeq, mismatchPos, 'A', 'A')
-		).rejects.toThrow(/variantBase and wildBase must differ/);
-	});
-
-	test('throws if base at mismatchPos does not match wildBase', async () => {
-		const invalidInitStem = 'ATCGATCGG'; // length 9
-		const mismatchPos = 4;
-		const wildBase = 'T'; // mismatchPos=4 is 'A'
-		const variantBase = 'G';
-
-		await expect(
-			evaluateSnapbackMatchingOptions(
-				invalidInitStem,
-				mismatchPos,
-				wildBase,
-				variantBase
-			)
-		).rejects.toThrow(
-			/Mismatch position 4 in initStem does not contain wildBase/
-		);
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'Z')
+		).rejects.toThrow(/variantBase must be/i);
 	});
 });
 
