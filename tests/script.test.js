@@ -328,6 +328,42 @@ describe('getStemTm()', () => {
 	});
 });
 
+describe('createStem() – logic test', () => {
+	test('returns correct stem location, Tm values, and snapback base for the given sequence', async () => {
+		/* ------------------------------------------------------------------
+		     Inputs
+		   ------------------------------------------------------------------ */
+		const targetSeqStrand =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+
+		const snvSite = { index: 100, variantBase: 'A' }; // the “G”→“A” SNV
+		const primerLens = { primerLen: 20, compPrimerLen: 20 };
+		const snapbackTailBaseAtSNV = 'C'; // matches wild (complement of G)
+		const matchesWild = true;
+		const targetSnapMeltTemp = 60;
+
+		/* ------------------------------------------------------------------
+		     Call
+		   ------------------------------------------------------------------ */
+		const result = await createStem(
+			targetSeqStrand,
+			snvSite,
+			primerLens,
+			snapbackTailBaseAtSNV,
+			matchesWild,
+			targetSnapMeltTemp
+		);
+
+		/* ------------------------------------------------------------------
+		     Expectations
+		   ------------------------------------------------------------------ */
+		expect(result.bestStemLoc).toEqual({ start: 90, end: 111 });
+
+		expect(result.meltingTemps.wildTm).toBeCloseTo(60.45, 2);
+		expect(result.meltingTemps.variantTm).toBeCloseTo(52.508, 2);
+	});
+});
+
 describe('createStem() parameter validation', () => {
 	const validSeq = 'ATCGATCGATCGATCGAACGCGCGCGCTCGATCGATCGATCGACTATATA';
 	const validSNV = { index: 25, variantBase: 'C' };
@@ -350,27 +386,27 @@ describe('createStem() parameter validation', () => {
 		[
 			'snvSite is null',
 			{ snvSiteSnapPrimerRefPoint: null },
-			'snvSiteSnapPrimerRefPoint',
+			'snvSiteSnapPrimerRefPoint is invalid',
 		],
 		[
 			'snvSite is missing index',
 			{ snvSiteSnapPrimerRefPoint: { variantBase: 'A' } },
-			'Missing key',
+			'snvSiteSnapPrimerRefPoint is invalid',
 		],
 		[
 			'snvSite index wrong type',
 			{ snvSiteSnapPrimerRefPoint: { index: 'a', variantBase: 'A' } },
-			'index must be an integer',
+			'snvSiteSnapPrimerRefPoint is invalid',
 		],
 		[
 			'snvSite index out of range',
 			{ snvSiteSnapPrimerRefPoint: { index: 999, variantBase: 'A' } },
-			'index must be an integer',
+			'exceeds sequence length',
 		],
 		[
 			'snvSite variantBase invalid',
 			{ snvSiteSnapPrimerRefPoint: { index: 10, variantBase: 'Z' } },
-			'variantBase must be',
+			'snvSiteSnapPrimerRefPoint is invalid',
 		],
 
 		// primerLensSnapPrimerRefPoint
@@ -382,12 +418,12 @@ describe('createStem() parameter validation', () => {
 		[
 			'primerLen missing',
 			{ primerLensSnapPrimerRefPoint: { compPrimerLen: 12 } },
-			'Missing key',
+			'primerLensSnapPrimerRefPoint must be an object with integer properties',
 		],
 		[
 			'compPrimerLen missing',
 			{ primerLensSnapPrimerRefPoint: { primerLen: 12 } },
-			'Missing key',
+			'primerLensSnapPrimerRefPoint must be an object with integer properties',
 		],
 		[
 			'primerLen < MIN_PRIMER_LEN',
@@ -450,11 +486,11 @@ describe('createStem() parameter validation', () => {
 			'compPrimerLen must be an integer',
 		],
 
-		// snapbackBaseAtSNV
+		// snapbackTailBaseAtSNV
 		[
-			'snapbackBaseAtSNV invalid base',
+			'snapbackTailBaseAtSNV invalid base',
 			{ snapbackBaseAtSNV: 'Z' },
-			'snapbackBaseAtSNV',
+			'snapbackTailBaseAtSNV',
 		],
 
 		// matchesWild
@@ -464,12 +500,12 @@ describe('createStem() parameter validation', () => {
 		[
 			'desiredSnapbackMeltTempWildType < 0',
 			{ desiredSnapbackMeltTempWildType: -5 },
-			'must be a positive finite number',
+			'must be a positive, finite number',
 		],
 		[
 			'desiredSnapbackMeltTempWildType not a number',
 			{ desiredSnapbackMeltTempWildType: 'hot' },
-			'must be a positive finite number',
+			'must be a positive, finite number',
 		],
 
 		// SNV on primer

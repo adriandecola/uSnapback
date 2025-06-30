@@ -523,53 +523,59 @@ async function evaluateSnapbackTailMatchingOptions(
 }
 
 /**
- * Retrieves the melting temperature (Tm) of a snapback stem by querying
- * the dna-utah.org API. If a mismatch is supplied, the request returns the
- * mismatch Tm (`<mmtm>` in the response) instead of the perfectly matched Tm.
+ * Retrieves the melting temperature (Tm) of a perfectly matched or
+ * single-mismatch DNA stem by querying the dna-utah.org Santa Lucia CGI.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Assumptions
  * ──────────────────────────────────────────────────────────────────────────
- * - `seq` is a valid uppercase DNA sequence verified with `isValidDNASequence`.
- * - If `mismatch` is provided it must satisfy `isValidMismatchObject`.
+ * – `seq` is an uppercase DNA string (A/T/C/G) validated by `isValidDNASequence`.
+ * – If `mismatch` is supplied it must pass `isValidMismatchObject`.
+ * – Global constants (MG, MONO, etc.) are defined in module scope.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Type definitions
+ * ──────────────────────────────────────────────────────────────────────────
+ * @typedef {Object} Mismatch
+ * @property {number} position   Zero-based index within `seq`
+ * @property {string} type       Intended base on the opposite strand (A/T/C/G)
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
  * ──────────────────────────────────────────────────────────────────────────
- * @typedef  {Object}  Mismatch
- * @property {number}  position   Zero-based index of the mismatch in `seq`.
- * @property {string}  type       Base on the opposite strand (A/T/C/G).
+ * @param  {string}    seq              Fully matched reference sequence (5'→3')
+ * @param  {Mismatch} [mismatch]        Optional mismatch specification
  *
- * @param {string}     seq        Reference (matched) sequence, 5'→3'.
- * @param {Mismatch}  [mismatch]  Optional mismatch specification.
+ * @returns {Promise<number>}           Melting temperature (°C) rounded to
+ *                                      `TM_DECIMAL_PLACES`
  *
- * @returns {Promise<number>}     Melting temperature in °C.
- *
- * @throws {Error}                If inputs are invalid or the API response
- *                                cannot be parsed.
+ * @throws {Error}                      If inputs are invalid, the network
+ *                                      request fails, or the CGI response
+ *                                      cannot be parsed
  */
 async function getStemTm(seq, mismatch) {
-	//──────────────────────────────────────────────────────────────────────────//
-	// Parameter Checking                                                      //
-	//──────────────────────────────────────────────────────────────────────────//
+	//──────────────────────────────────────────────────────────────────────//
+	// Parameter Checking                                                   //
+	//──────────────────────────────────────────────────────────────────────//
 
-	// 1. Validate the reference sequence
+	// 1. Validate the DNA sequence
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Invalid DNA sequence: "${seq}". Expected non-empty A/T/C/G string.`
+			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`
 		);
 	}
 
 	// 2. Validate the mismatch object (if provided)
 	if (mismatch !== undefined && mismatch !== null) {
-		// 2.1 Ensure it passes the dedicated validator
+		// 2.a  Shape and content
 		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
-				`Invalid mismatch object: ${JSON.stringify(mismatch)}`
+				`Invalid mismatch object: ${JSON.stringify(
+					mismatch
+				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`
 			);
 		}
-
-		// 2.2 Ensure the position lies within the sequence bounds
+		// 2.b  Position must lie within sequence bounds
 		if (mismatch.position >= seq.length) {
 			throw new Error(
 				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
@@ -623,184 +629,188 @@ async function getStemTm(seq, mismatch) {
 }
 
 /**
- * Constructs the snapback stem on the chosen strand/primer so that
- * the melting temperature of the wild type allele gets as close as possible
- * to the desired snapback melting temperature. It does this while keeping the loop length
- * mimimized to the primer length plus the number of strong inner loop mismatches required.
+ * Constructs a snapback stem on the selected primer-bearing strand so that the
+ * wild-type melting temperature (Tm) approaches `targetSnapMeltTemp`.  Growth
+ * proceeds symmetrically (right, then left, repeating) while:
+ *   • Maintaining ≥ SNV_BASE_BUFFER perfectly matched bases between the SNV
+ *     and each primer binding site.
+ *   • Keeping the loop as short as possible
+ *       (primerLen + INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED).
+ *   • Leaving the SNV centred (or as near-centred as sequence boundaries allow)
+ *     within the final stem.
  *
+ * Extension stops when either primer boundaries are reached or the computed
+ * wild-type Tm meets/exceeds `targetSnapMeltTemp`.  If the resulting Tm is
+ * still below MINIMUM_TARGET_SNAPBACK_MELTING_TEMP an error is thrown.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * – `targetStrandSeqSnapPrimerRefPoint` is a valid uppercase DNA string (5'→3').
+ * – `primerLensSnapPrimerRefPoint.primerLen` and `.compPrimerLen` ≥ MIN_PRIMER_LEN.
+ * – The SNV lies ≥ SNV_BASE_BUFFER bases away from both primers.
+ * – `snapbackTailBaseAtSNV` is the complement of either the wild or variant base
+ *   (chosen earlier for maximal |ΔTm| in the seed stem).
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Type definitions
+ * ──────────────────────────────────────────────────────────────────────────
  * @typedef {Object} SNVSiteRefPoint
- * @property {number} index - The 0-based index of the SNV on this strand's coordinate system.
- * @property {string} variantBase - The variant base at this position (must be "A", "T", "C", or "G").
+ *         @property {number} index        0-based SNV position on this strand
+ *         @property {string} variantBase  "A" | "T" | "C" | "G"
  *
  * @typedef {Object} PrimerLensRefPoint
- * @property {number} primerLen - The length of the primer on this strand (snapback primers complementary strand)
- * @property {number} compPrimerLen - The length of the complementary primer on the opposite strand
+ *         @property {number} primerLen      Length of primer on this strand
+ *         @property {number} compPrimerLen  Length of complementary primer
  *
  * @typedef {Object} MeltingTemp
- * @property {number} wildTm - The snapback's melting temperature for the wild type allele
- * @property {number} variantTm - The snapback's melting temperature for the variant type allele
+ *         @property {number} wildTm     Snapback Tm on wild-type allele (°C)
+ *         @property {number} variantTm  Snapback Tm on variant allele (°C)
  *
  * @typedef {Object} StemLoc
- * @property {number} start - The start index (inclusive) of the stem in the strand (0-based).
- * @property {number} end - The end index (inclusive) of the stem in the strand (0-based).
+ *         @property {number} start  Inclusive 0-based start index of stem
+ *         @property {number} end    Inclusive 0-based end   index of stem
  *
  * @typedef {Object} CreateStemReturn
- * @property {StemLoc} stemLoc - The finalized stem location for the snapback.
- * @property {MeltingTemp} meltingTemps - Calculated Tm values for both wild-type and variant.
- * @property {string} snapbackBaseAtSNV - The base (complement of wild or variant) to use in the snapback at SNV site.
+ *         @property {StemLoc}   bestStemLoc               Finalised stem location
+ *         @property {MeltingTemp} meltingTemps        Wild / variant Tm values
  *
- * @param {string} targetStrandSeqSnapPrimerRefPoint - DNA sequence (5'→3') of the strand used for the snapback.
- * @param {SNVSiteRefPoint} snvSiteSnapPrimerRefPoint - SNV information referenced in this strand's frame.
- * @param {PrimerLensRefPoint} primerLensSnapPrimerRefPoint - Object containing both the primer and complementary primer lengths.
- * @param {string} snapbackBaseAtSNV - The base to place in the snapback tail at the SNV position.
- * @param {boolean} matchesWild - Whether the snapback tail matches the wild-type allele.
- * @param {number} targetSnapMeltTemp - Desired melting temperature (°C) for the wild-type stem.
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string}              targetStrandSeqSnapPrimerRefPoint
+ *                                  DNA sequence (5'→3') of the strand that
+ *                                  will receive the snapback tail.
+ * @param {SNVSiteRefPoint}     snvSiteSnapPrimerRefPoint
+ *                                  SNV description in this strand’s coordinates.
+ * @param {PrimerLensRefPoint}  primerLensSnapPrimerRefPoint
+ *                                  Object holding `primerLen` and `compPrimerLen`.
+ * @param {string}              snapbackTailBaseAtSNV
+ *                                  Complement base inserted at SNV in the tail.
+ * @param {boolean}             matchesWild
+ *                                  true → tail complements wild allele,
+ *                                  false → tail complements variant allele.
+ * @param {number}              targetSnapMeltTemp
+ *                                  Desired wild-type stem Tm (°C).
  *
- * @returns {CreateStemReturn} Finalized stem location and melting temperature information.
+ * @returns {CreateStemReturn}  Object containing stem location and the Tm data.
+ *
+ * @throws {Error}  If any argument is malformed, the SNV is too close to a
+ *                  primer, or a stem meeting temperature/length constraints
+ *                  cannot be constructed.
  */
 async function createStem(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
 	primerLensSnapPrimerRefPoint,
-	snapbackBaseAtSNV,
+	snapbackTailBaseAtSNV,
 	matchesWild,
 	targetSnapMeltTemp
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	//                          Parameter Checking                              //
 	//──────────────────────────────────────────────────────────────────────────//
-	// 1. targetStrandSeqSnapPrimerRefPoint
+
+	// 1. Validate the target strand sequence
 	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
 		throw new Error(
-			`Invalid targetStrandSeqSnapPrimerRefPoint: "${targetStrandSeqSnapPrimerRefPoint}". Must be a valid DNA sequence.`
+			'Invalid targetStrandSeqSnapPrimerRefPoint: must be a non-empty A/T/C/G string.'
 		);
 	}
 
-	// 2. snvSiteSnapPrimerRefPoint
-	if (
-		typeof snvSiteSnapPrimerRefPoint !== 'object' ||
-		snvSiteSnapPrimerRefPoint == null ||
-		Array.isArray(snvSiteSnapPrimerRefPoint)
-	) {
+	// 2. Validate the SNV object
+	if (!isValidSNVObject(snvSiteSnapPrimerRefPoint)) {
 		throw new Error(
-			`snvSiteSnapPrimerRefPoint must be a non-null object with "index" and "variantBase" keys.`
+			`snvSiteSnapPrimerRefPoint is invalid: ${JSON.stringify(
+				snvSiteSnapPrimerRefPoint
+			)}`
 		);
 	}
-	const snvKeys = Object.keys(snvSiteSnapPrimerRefPoint);
-	const validSNVKeys = new Set(['index', 'variantBase']);
-	for (const key of snvKeys) {
-		if (!validSNVKeys.has(key)) {
-			throw new Error(
-				`Unexpected key in snvSiteSnapPrimerRefPoint: "${key}"`
-			);
-		}
-	}
-	for (const expectedKey of validSNVKeys) {
-		if (!(expectedKey in snvSiteSnapPrimerRefPoint)) {
-			throw new Error(
-				`Missing key in snvSiteSnapPrimerRefPoint: "${expectedKey}"`
-			);
-		}
-	}
+	// 2a. Ensure SNV index is within sequence bounds
 	if (
-		typeof snvSiteSnapPrimerRefPoint.index !== 'number' ||
-		!Number.isInteger(snvSiteSnapPrimerRefPoint.index) ||
-		snvSiteSnapPrimerRefPoint.index < 0 ||
 		snvSiteSnapPrimerRefPoint.index >=
-			targetStrandSeqSnapPrimerRefPoint.length
+		targetStrandSeqSnapPrimerRefPoint.length
 	) {
 		throw new Error(
-			`snvSiteSnapPrimerRefPoint.index must be an integer in range [0, ${
-				targetStrandSeqSnapPrimerRefPoint.length - 1
-			}].`
-		);
-	}
-	if (
-		typeof snvSiteSnapPrimerRefPoint.variantBase !== 'string' ||
-		snvSiteSnapPrimerRefPoint.variantBase.length !== 1 ||
-		!VALID_BASES.has(snvSiteSnapPrimerRefPoint.variantBase)
-	) {
-		throw new Error(
-			`snvSiteSnapPrimerRefPoint.variantBase must be one of "A", "T", "C", or "G".`
+			`snvSiteSnapPrimerRefPoint.index (${snvSiteSnapPrimerRefPoint.index}) exceeds sequence length ${targetStrandSeqSnapPrimerRefPoint.length}.`
 		);
 	}
 
-	// 3. snapbackBaseAtSNV
+	// 3. Validate snapbackTailBaseAtSNV
 	if (
-		typeof snapbackBaseAtSNV !== 'string' ||
-		snapbackBaseAtSNV.length !== 1 ||
-		!VALID_BASES.has(snapbackBaseAtSNV)
+		typeof snapbackTailBaseAtSNV !== 'string' ||
+		snapbackTailBaseAtSNV.length !== 1 ||
+		!VALID_BASES.has(snapbackTailBaseAtSNV)
 	) {
 		throw new Error(
-			`snapbackBaseAtSNV must be a single character base: "A", "T", "C", or "G".`
+			`snapbackTailBaseAtSNV ("${snapbackTailBaseAtSNV}") must be one of "A", "T", "C", or "G".`
 		);
 	}
 
-	// 4. matchesWild
+	// 4. Validate matchesWild flag
 	if (typeof matchesWild !== 'boolean') {
-		throw new Error(`matchesWild must be a boolean.`);
+		throw new Error('matchesWild must be a boolean.');
 	}
 
-	// 5. primerLensSnapPrimerRefPoint
+	// 5. Validate primerLensSnapPrimerRefPoint structure
 	if (
 		typeof primerLensSnapPrimerRefPoint !== 'object' ||
-		primerLensSnapPrimerRefPoint == null ||
-		Array.isArray(primerLensSnapPrimerRefPoint)
+		primerLensSnapPrimerRefPoint === null ||
+		Array.isArray(primerLensSnapPrimerRefPoint) ||
+		!('primerLen' in primerLensSnapPrimerRefPoint) ||
+		!('compPrimerLen' in primerLensSnapPrimerRefPoint)
 	) {
 		throw new Error(
-			`primerLensSnapPrimerRefPoint must be an object with "primerLen" and "compPrimerLen" keys.`
+			'primerLensSnapPrimerRefPoint must be an object with integer properties "primerLen" and "compPrimerLen".'
 		);
 	}
-	const primerKeys = Object.keys(primerLensSnapPrimerRefPoint);
-	const validPrimerKeys = new Set(['primerLen', 'compPrimerLen']);
-	for (const key of primerKeys) {
-		if (!validPrimerKeys.has(key)) {
-			throw new Error(
-				`Unexpected key in primerLensSnapPrimerRefPoint: "${key}"`
-			);
-		}
-	}
-	for (const expectedKey of validPrimerKeys) {
-		if (!(expectedKey in primerLensSnapPrimerRefPoint)) {
-			throw new Error(
-				`Missing key in primerLensSnapPrimerRefPoint: "${expectedKey}"`
-			);
-		}
-	}
-	for (const [key, val] of Object.entries(primerLensSnapPrimerRefPoint)) {
+
+	const { primerLen, compPrimerLen } = primerLensSnapPrimerRefPoint;
+	for (const [name, len] of [
+		['primerLen', primerLen],
+		['compPrimerLen', compPrimerLen],
+	]) {
 		if (
-			typeof val !== 'number' ||
-			!Number.isInteger(val) ||
-			val < MIN_PRIMER_LEN
+			typeof len !== 'number' ||
+			!Number.isInteger(len) ||
+			len < MIN_PRIMER_LEN
 		) {
 			throw new Error(
-				`${key} must be an integer >= MIN_PRIMER_LEN (${MIN_PRIMER_LEN}). Got: ${val}`
+				`${name} must be an integer ≥ ${MIN_PRIMER_LEN}. Received ${len}.`
 			);
 		}
 	}
 
-	// 6. SNV must be at least SNV_BASE_BUFFER away from both primers
-	const { index: snvIndex } = snvSiteSnapPrimerRefPoint;
-	const { primerLen, compPrimerLen } = primerLensSnapPrimerRefPoint;
+	// 6. Ensure primer regions fit within the sequence
 	const seqLen = targetStrandSeqSnapPrimerRefPoint.length;
-
-	if (
-		snvIndex < primerLen + SNV_BASE_BUFFER ||
-		snvIndex > seqLen - compPrimerLen - SNV_BASE_BUFFER - 1
-	) {
+	if (primerLen + compPrimerLen >= seqLen) {
 		throw new Error(
-			`SNV at index ${snvIndex} is too close to one of the primers. Must be at least ${SNV_BASE_BUFFER} bases away from both.`
+			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) cannot equal or exceed sequence length (${seqLen}).`
 		);
 	}
 
-	// 7. targetSnapMeltTemp
+	// 7. Ensure the SNV is sufficiently distant from both primers
+	if (
+		snvTooCloseToPrimer(
+			snvSiteSnapPrimerRefPoint.index,
+			primerLen,
+			compPrimerLen,
+			seqLen
+		)
+	) {
+		throw new Error(
+			`SNV at index ${snvSiteSnapPrimerRefPoint.index} is within ${SNV_BASE_BUFFER} bases of a primer binding site.`
+		);
+	}
+
+	// 8. Validate the targetSnapMeltTemp
 	if (
 		typeof targetSnapMeltTemp !== 'number' ||
 		!Number.isFinite(targetSnapMeltTemp) ||
 		targetSnapMeltTemp <= 0
 	) {
 		throw new Error(
-			`targetSnapMeltTemp must be a positive finite number. Got: ${targetSnapMeltTemp}`
+			`targetSnapMeltTemp must be a positive, finite number. Received ${targetSnapMeltTemp}.`
 		);
 	}
 
@@ -812,21 +822,37 @@ async function createStem(
 	//// track of the melting temperature of the snapback for the wild-type allele, until we go over the desired meling
 	//// temperature or we run out of viable stem location
 
-	// Initialize variable to hold the snapback melting temperature for the wild and variant type alleles that is closest to the desired
-	// snapback melting temperature for the wild type allele
+	// Initialize variable to hold the snapback melting temperature for the wild type allele that is closest to the desired
+	// snapback melting temperature for the wild type allele. Also initialize a variable for the corresponding melting
+	// temperature of the variant snapback melting temperature
 	let bestWildTm = null;
-	let bestVariantTm = null;
+	let correspondingVariantStemTm = null;
 	// Initialize the variable for the corresponding stem locations
-	let bestStemLocation = { start: null, end: null };
+	let bestStemLoc = { start: null, end: null };
 
 	// Initialize stem region
+	const snvIndex = snvSiteSnapPrimerRefPoint.index;
 	let stemStart = snvIndex - SNV_BASE_BUFFER;
 	let stemEnd = snvIndex + SNV_BASE_BUFFER;
 
 	// Loop to grow stem until we go above desired Tm OR we've come up against both primers
 	while (true) {
 		// Slice current stem
-		const currentStem = seq.slice(stemStart, stemEnd + 1);
+		const currentStem = targetStrandSeqSnapPrimerRefPoint.slice(
+			stemStart,
+			stemEnd + 1
+		);
+		// Get the currentVariantStem
+		const currentVariantStem =
+			targetStrandSeqSnapPrimerRefPoint.slice(
+				stemStart,
+				snvSiteSnapPrimerRefPoint.index
+			) +
+			snvSiteSnapPrimerRefPoint.variantBase +
+			targetStrandSeqSnapPrimerRefPoint.slice(
+				snvSiteSnapPrimerRefPoint.index + 1,
+				stemEnd + 1
+			);
 		// Calculating the loop length
 		const loopLen =
 			stemStart + INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
@@ -837,12 +863,12 @@ async function createStem(
 		if (!matchesWild) {
 			wildMismatch = {
 				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
-				type: snapbackBaseAtSNV,
+				type: snapbackTailBaseAtSNV,
 			};
 		} else {
 			variantMismatch = {
 				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
-				type: snapbackBaseAtSNV,
+				type: snapbackTailBaseAtSNV,
 			};
 		}
 
@@ -854,19 +880,25 @@ async function createStem(
 		);
 
 		// Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
+		console.log(
+			`bestWildTm: ${bestWildTm} \n wildTm: ${wildTm} \n start: ${stemStart} \n end: ${stemEnd} \n currentStem: ${currentStem} \n currentVariantStem=${currentVariantStem} \n loopLen: ${loopLen} \n wildMismatch: ${wildMismatch} \n variantMismatch.position: ${variantMismatch.position} \n variantMismatch.type: ${variantMismatch.type} \n\n\n`
+		);
 		if (
 			!bestWildTm ||
 			Math.abs(wildTm - targetSnapMeltTemp) <
 				Math.abs(bestWildTm - targetSnapMeltTemp)
 		) {
 			bestWildTm = wildTm;
-			bestStemLocation.start = stemStart;
-			bestStemLocation.end = stemEnd;
+			bestStemLoc.start = stemStart;
+			bestStemLoc.end = stemEnd;
 			// Compute and save the corresponding best variant type snapback temperature
-			variantStemTm = await calculateSnapbackTm(
-				currentStem,
+			correspondingVariantStemTm = await calculateSnapbackTm(
+				currentVariantStem,
 				loopLen,
 				variantMismatch
+			);
+			console.log(
+				`currentVariantStem=${currentVariantStem} \n loopLen: ${loopLen} \n variantMismatch.position: ${variantMismatch.position} \n variantMismatch.type: ${variantMismatch.type} \n correspondingVariantStemTm: ${correspondingVariantStemTm}\n\n\n`
 			);
 		}
 
@@ -896,21 +928,22 @@ async function createStem(
 	}
 
 	// Final check if final stem doesn’t meet minimum melting temperature requirement
-	if (finalWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
+	if (bestWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
 		throw new Error(
-			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${finalWildTm.toFixed(
+			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${bestWildTm.toFixed(
 				2
 			)}°C. Please consider moving primers farther out so a larger, more stable snapback stem can be created. `
 		);
 	}
 
 	return {
-		bestStemLocation,
+		bestStemLoc: bestStemLoc,
 		meltingTemps: {
 			wildTm: parseFloat(bestWildTm.toFixed(TM_DECIMAL_PLACES)),
-			variantTm: parseFloat(finalVariantTm.toFixed(TM_DECIMAL_PLACES)),
+			variantTm: parseFloat(
+				correspondingVariantStemTm.toFixed(TM_DECIMAL_PLACES)
+			),
 		},
-		snapbackBaseAtSNV,
 	};
 }
 
@@ -1396,6 +1429,12 @@ function parseTmFromResponse(rawHtml, mismatch) {
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters and Returns
  * ──────────────────────────────────────────────────────────────────────────
+ * @typedef {Object} Mismatch
+ * 		@property {number} position   Zero-based index within `seq`
+ * 		@property {string} type       Intended base on the opposite strand (A/T/C/G)
+ *
+ *
+ *
  * @param   {string}    stemSeq     DNA stem sequence (5'->3')
  * 									(could be either strand just as long as its
  * 									5'->3')
@@ -1454,8 +1493,21 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 	// 1. Calculate stem Tm from external method
 	const stemTm = await getStemTm(stemSeq, mismatch ?? undefined);
 
+	console.log(
+		`stemSeq: ${stemSeq}
+		looplen: ${loopLen}
+		${
+			mismatch && Number.isInteger(mismatch.position)
+				? `mismatch.position: ${mismatch.position}\n mismatch.type: ${mismatch.type}\n`
+				: ''
+		}
+		stemTm: ${stemTm}\n`
+	);
+
 	// 2. Apply snapback Tm formula
 	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTm + 32.9;
+
+	console.log(`totalTm: ${tm}`);
 
 	// 3. Round result
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
