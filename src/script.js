@@ -93,7 +93,7 @@ const LIMITING_CONC = 0.5;
  * 														appended to the reverse primer.
  * @property {boolean}				matchesWild			true if the snapback base at the SNV matches on is tail
  *                                       				the wild-type allele
- * @property {SnapbackMeltingTm}	snapbackMeltingTm	Object holding wild/variant snapback Tm values.
+ * @property {SnapbackMeltingTm}	snapbackMeltingTms	Object holding wild/variant snapback Tm values.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
@@ -225,13 +225,20 @@ async function createSnapback(
 	);
 
 	// 5) Create a final snapback primer (in its reference point)
-	const snapbackPrimer = buildFinalSnapback(
+	const snapback = buildFinalSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
 		bestStemLoc,
 		snapbackTailBaseAtSNV
 	);
+
+	return {
+		snapbackSeq: snapback,
+		tailOnForwardPrimer: tailOnForwardPrimer,
+		matchesWild: matchesWild,
+		snapbackMeltingTms: meltingTemps,
+	};
 }
 
 /*****************************************************************************************/
