@@ -362,6 +362,106 @@ describe('createStem() – logic test', () => {
 		expect(result.meltingTemps.wildTm).toBeCloseTo(60.45, 2);
 		expect(result.meltingTemps.variantTm).toBeCloseTo(52.508, 2);
 	});
+
+	test('returns correct stem location, Tm values, and snapback base when the stem has to move right', async () => {
+		/* ------------------------------------------------------------------
+		     Inputs
+		   ------------------------------------------------------------------ */
+		const targetSeqStrand =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+
+		const snvSite = { index: 100, variantBase: 'A' }; // the “G”→“A” SNV
+		const primerLens = { primerLen: 95, compPrimerLen: 20 };
+		const snapbackTailBaseAtSNV = 'C'; // matches wild (complement of G)
+		const matchesWild = true;
+		const targetSnapMeltTemp = 60;
+
+		/* ------------------------------------------------------------------
+		     Call
+		   ------------------------------------------------------------------ */
+		const result = await createStem(
+			targetSeqStrand,
+			snvSite,
+			primerLens,
+			snapbackTailBaseAtSNV,
+			matchesWild,
+			targetSnapMeltTemp
+		);
+
+		/* ------------------------------------------------------------------
+		     Expectations
+		   ------------------------------------------------------------------ */
+		expect(result.bestStemLoc.start).toEqual(95);
+		// 1. Ensure stem end is greater than 106
+		expect(result.bestStemLoc.end).toBeGreaterThan(106);
+		// 2. Ensure melt temp is within 2°C of 60
+		expect(result.meltingTemps.wildTm).toBeGreaterThanOrEqual(58);
+		expect(result.meltingTemps.wildTm).toBeLessThanOrEqual(62);
+	});
+
+	test('returns correct stem location, Tm values, and snapback base when the stem has to move left', async () => {
+		/* ------------------------------------------------------------------
+		     Inputs
+		   ------------------------------------------------------------------ */
+		const targetSeqStrand =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+
+		const snvSite = { index: 100, variantBase: 'A' }; // the “G”→“A” SNV
+		const primerLens = { primerLen: 20, compPrimerLen: 95 };
+		const snapbackTailBaseAtSNV = 'C'; // matches wild (complement of G)
+		const matchesWild = true;
+		const targetSnapMeltTemp = 60;
+
+		/* ------------------------------------------------------------------
+		     Call
+		   ------------------------------------------------------------------ */
+		const result = await createStem(
+			targetSeqStrand,
+			snvSite,
+			primerLens,
+			snapbackTailBaseAtSNV,
+			matchesWild,
+			targetSnapMeltTemp
+		);
+
+		/* ------------------------------------------------------------------
+		     Expectations
+		   ------------------------------------------------------------------ */
+		expect(result.bestStemLoc.end).toEqual(105);
+		// 1. Ensure stem start is less than 94
+		expect(result.bestStemLoc.start).toBeLessThan(94);
+		// 2. Ensure melt temp is within 2°C of 60
+		expect(result.meltingTemps.wildTm).toBeGreaterThanOrEqual(58);
+		expect(result.meltingTemps.wildTm).toBeLessThanOrEqual(62);
+	});
+
+	test('throws error when it cant reach the min snapback melting temperature', async () => {
+		/* ------------------------------------------------------------------
+		     Inputs
+		   ------------------------------------------------------------------ */
+		const targetSeqStrand =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+
+		const snvSite = { index: 100, variantBase: 'A' }; // the “G”→“A” SNV
+		const primerLens = { primerLen: 96, compPrimerLen: 96 };
+		const snapbackTailBaseAtSNV = 'C'; // matches wild (complement of G)
+		const matchesWild = true;
+		const targetSnapMeltTemp = 60;
+
+		/* ------------------------------------------------------------------
+		     Call
+		   ------------------------------------------------------------------ */
+		await expect(
+			createStem(
+				targetSeqStrand,
+				snvSite,
+				primerLens,
+				snapbackTailBaseAtSNV,
+				matchesWild,
+				targetSnapMeltTemp
+			)
+		).rejects.toThrow(/Could not meet minimum snapback melting temp/i);
+	});
 });
 
 describe('createStem() parameter validation', () => {

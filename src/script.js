@@ -822,27 +822,26 @@ async function createStem(
 	//// track of the melting temperature of the snapback for the wild-type allele, until we go over the desired meling
 	//// temperature or we run out of viable stem location
 
-	// Initialize variable to hold the snapback melting temperature for the wild type allele that is closest to the desired
+	// 1. Initialize variable to hold the snapback melting temperature for the wild type allele that is closest to the desired
 	// snapback melting temperature for the wild type allele. Also initialize a variable for the corresponding melting
-	// temperature of the variant snapback melting temperature
+	// temperature of the variant snapback melting temperature. Finally, initialize the variable for the corresponding stem locations
 	let bestWildTm = null;
 	let correspondingVariantStemTm = null;
-	// Initialize the variable for the corresponding stem locations
 	let bestStemLoc = { start: null, end: null };
 
-	// Initialize stem region
+	// 2. Initialize stem region
 	const snvIndex = snvSiteSnapPrimerRefPoint.index;
 	let stemStart = snvIndex - SNV_BASE_BUFFER;
 	let stemEnd = snvIndex + SNV_BASE_BUFFER;
 
-	// Loop to grow stem until we go above desired Tm OR we've come up against both primers
+	// 3. Loop to grow stem until we go above desired Tm OR we've come up against both primers
 	while (true) {
-		// Slice current stem
+		// 3a. Slice current stem
 		const currentStem = targetStrandSeqSnapPrimerRefPoint.slice(
 			stemStart,
 			stemEnd + 1
 		);
-		// Get the currentVariantStem
+		// 3b. Get the currentVariantStem
 		const currentVariantStem =
 			targetStrandSeqSnapPrimerRefPoint.slice(
 				stemStart,
@@ -853,11 +852,11 @@ async function createStem(
 				snvSiteSnapPrimerRefPoint.index + 1,
 				stemEnd + 1
 			);
-		// Calculating the loop length
+		// 3c. Calculating the loop length
 		const loopLen =
 			stemStart + INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
 
-		// Build mismatch object for wild and variant type, if needed, for stem Tm calculation
+		// 3d. Build mismatch object for wild and variant type, if needed, for stem Tm calculation
 		let wildMismatch = null;
 		let variantMismatch = null;
 		if (!matchesWild) {
@@ -872,17 +871,14 @@ async function createStem(
 			};
 		}
 
-		// Compute the wild type allele melting temperature of the snapback
+		// 3e. Compute the wild type allele melting temperature of the snapback
 		const wildTm = await calculateSnapbackTm(
 			currentStem,
 			loopLen,
 			wildMismatch
 		);
 
-		// Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
-		console.log(
-			`bestWildTm: ${bestWildTm} \n wildTm: ${wildTm} \n start: ${stemStart} \n end: ${stemEnd} \n currentStem: ${currentStem} \n currentVariantStem=${currentVariantStem} \n loopLen: ${loopLen} \n wildMismatch: ${wildMismatch} \n variantMismatch.position: ${variantMismatch.position} \n variantMismatch.type: ${variantMismatch.type} \n\n\n`
-		);
+		// 3f. Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
 		if (
 			!bestWildTm ||
 			Math.abs(wildTm - targetSnapMeltTemp) <
@@ -897,37 +893,38 @@ async function createStem(
 				loopLen,
 				variantMismatch
 			);
-			console.log(
-				`currentVariantStem=${currentVariantStem} \n loopLen: ${loopLen} \n variantMismatch.position: ${variantMismatch.position} \n variantMismatch.type: ${variantMismatch.type} \n correspondingVariantStemTm: ${correspondingVariantStemTm}\n\n\n`
-			);
 		}
 
-		// Loop Temination if wildTm has become larger than the desired snapback melting temperature
+		// 3g. Loop temination if wildTm has become larger than the desired snapback melting temperature
 		// for the wild type allele
 		if (wildTm >= targetSnapMeltTemp) {
 			break;
 		}
 
-		// Grow the stem in the appropriate direction (if it can be grown without overlapping a primer location)
+		// 3h. Grow the stem in the appropriate direction (if it can be grown without overlapping a primer location)
 		if (
-			snvIndex - stemStart < stemEnd - snvIndex &&
-			stemStart > primerLen
+			stemStart > primerLen &&
+			(snvIndex - stemStart < stemEnd - snvIndex ||
+				!(stemEnd < seqLen - compPrimerLen - 1))
 		) {
-			// We should push the start of the stem one nucleotide to the left
+			// 3hI. Push the start of the stem one nucleotide to the left only if (the stem is not going to overlap with
+			// the primer attachment location) AND [(the beginning of the stem is closer to the SNV that the end of
+			// the stem) OR (the end of the stem is up against the reverse primers attachment location (in this frame
+			// of reference))]
 			stemStart -= 1;
-		} else if (
-			stemEnd - snvIndex <= snvIndex - stemStart &&
-			stemEnd < seqLen - compPrimerLen - 1
-		) {
+		} else if (stemEnd < seqLen - compPrimerLen - 1) {
+			// 3hII. Otherwise we push the end of the stem one nucleotide if (the end of the stem is not up against the
+			// reverse primer attachment location)
 			// We should push the start of the stem one nucleotide to the left
 			stemEnd += 1;
 		} else {
-			// stem is up against both primers and we need to terminate the loop
+			// 3hIII. If we can do neither, we break out of the loop as the stem as grown as large as it can without
+			// interfering with primer attachment locations
 			break;
 		}
 	}
 
-	// Final check if final stem doesn’t meet minimum melting temperature requirement
+	// 4. Final check if final stem doesn’t meet minimum melting temperature requirement
 	if (bestWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
 		throw new Error(
 			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${bestWildTm.toFixed(
@@ -936,6 +933,7 @@ async function createStem(
 		);
 	}
 
+	// 5. Return the created stem, with its wild and variant allele snapback melting temperatures.
 	return {
 		bestStemLoc: bestStemLoc,
 		meltingTemps: {
@@ -1493,21 +1491,8 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 	// 1. Calculate stem Tm from external method
 	const stemTm = await getStemTm(stemSeq, mismatch ?? undefined);
 
-	console.log(
-		`stemSeq: ${stemSeq}
-		looplen: ${loopLen}
-		${
-			mismatch && Number.isInteger(mismatch.position)
-				? `mismatch.position: ${mismatch.position}\n mismatch.type: ${mismatch.type}\n`
-				: ''
-		}
-		stemTm: ${stemTm}\n`
-	);
-
 	// 2. Apply snapback Tm formula
 	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTm + 32.9;
-
-	console.log(`totalTm: ${tm}`);
 
 	// 3. Round result
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
