@@ -214,8 +214,8 @@ async function createSnapback(
 		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite);
 	}
 
-	// 4) Calculating the stem
-	const { stemLoc, meltingTemps } = createStem(
+	// 3) Calculating the stem in the snapback primers reference point
+	const { bestStemLoc, meltingTemps } = createStem(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
@@ -224,11 +224,12 @@ async function createSnapback(
 		targetSnapMeltTemp
 	);
 
-	// 5) Create a final snapback.
-	const snapback = buildFinalSnapback(
+	// 5) Create a final snapback primer (in its reference point)
+	const snapbackPrimer = buildFinalSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
-		primerLenstemLoc,
+		primerLensSnapPrimerRefPoint,
+		bestStemLoc,
 		snapbackTailBaseAtSNV
 	);
 }
@@ -946,239 +947,199 @@ async function createStem(
 }
 
 /**
- * Produces the final snapback primer by:
- *   1. Taking the primer region on the chosen strand.
- *   2. Appending the reverse-complement of the stem (with the designated
- *      snapback base at the SNV position).
- *   3. Reversing the entire string so the resulting sequence is written 3'→5'.
+ * Constructs the final snapback primer in the reference frame of the primer
+ * receiving the snapback tail.
  *
- * The returned string is exactly what is synthesized: snapback tail (3' end)
- * followed by the primer (5' end when annealed to the template).
+ * The final sequence is composed of (from the 5' end to the 3' end):
+ *   1. Strong mismatches at the stem end, these keep the complement snapback 
+ *      from extending on its end. The strong mismatches are therefore complements
+ *      to the strong mismatches on the complement strand at the stems end
+ *   2. The stem region of the snapbacks tail
+ *   3. Stron inner-loop mismatchs to prevent the snapback loop from hybridizing
+ * 	 4. The primer
  *
- * @typedef {Object} SNVSiteRefPoint
- * @property {number} index        0-based SNV index
- * @property {string} variantBase  Variant base at that position ("A", "T", "C", or "G").
+ * Again, the final string is returned 5' → 3'
  *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - All DNA strings and objects are in the frame of the primer that recieves the
+ *   snapback tail and are passed as 5' to 3'.
+ * - The primerLen and compPrimerLen refer to the primer and limiting primer
+ *   lengths on this strand and its complement, respectively.
+ * 
+ * - The SNV lies within the stem
+ * - Additional strong mismatches can be appended without exceeding sequence bounds.
+ * 		- This is not tested for as it is possible if the minimum primer length 
+ * 		  exceeds the number of required inner loop mismatches and end of stem 
+ *        mismatches. 
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
  * @typedef {Object} PrimerLensRefPoint
- * @property {number} primerLen        Length of the primer on this strand.
- * @property {number} compPrimerLen    Length of the complementary/limiting primer.
- *
+ * @property {number} primerLen      Length of the primer on this strand.
+ * @property {number} compPrimerLen  Length of the complementary primer.
+
  * @typedef {Object} StemLoc
- * @property {number} start  Inclusive start index of the stem.
- * @property {number} end    Inclusive end index of the stem.
+ * @property {number} start          Inclusive start index of the stem.
+ * @property {number} end            Inclusive end index of the stem.
+
+ * @typedef {Object} SNVSite
+ * @property {number} index          0-based position of the SNV on the sequence.
+ * @property {string} variantBase    Variant base at that position ("A", "T", "C", or "G").
+ * 
+ * 
+ * @param {string}         seq            Full sequence of the snapback primer strand (5' → 3')
+ * @param {SNVSite}        snv            SNV in this strand’s frame
+ * @param {PrimerLensRefPoint} primers    Object with primerLen and compPrimerLen
+ * @param {StemLoc}        stem           { start: number, end: number } in this strand
+ * @param {string}         tailBaseAtSNV       Complement base on the snapback primers tail at the SNV
  *
- * @param {string} targetStrandSeqSnapPrimerRefPoint - DNA sequence (5'→3') for the strand that receives the snapback.
- * @param {SNVSiteRefPoint} snvSiteSnapPrimerRefPoint - SNV description in reference to the target strand
- * @param {PrimerLensRefPoint} primerLensSnapPrimerRefPoint - Object holding the primer length and the limiting primer length
- * @param {StemLoc} stemLoc - Location of the stem on this strand.
- * @param {string} snapbackTailBaseAtSNV - Base placed in the snapback tail at the SNV site.
+ * @returns {string}                      Final snapback primer (3' → 5')
  *
- * @returns {string}  Final snapback primer sequence written 3'→5'.
+ * @throws {Error}                        If inputs are malformed or out of bounds.
  */
-function buildFinalSnapback(
-	targetStrandSeqSnapPrimerRefPoint,
-	snvSiteSnapPrimerRefPoint,
-	primerLensSnapPrimerRefPoint,
-	stemLoc,
-	snapbackTailBaseAtSNV
-) {
+function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 	//──────────────────────────────────────────────────────────────────────────//
-	//							Parameter Checking								//
+	//                            Parameter Checking                            //
 	//──────────────────────────────────────────────────────────────────────────//
-	// 1. targetStrandSeqSnapPrimerRefPoint
-	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
+
+	// 1. Validate sequence
+	if (!isValidDNASequence(seq)) {
+		throw new Error(`Invalid sequence: must be uppercase A/T/C/G string.`);
+	}
+
+	// 2. Validate SNV object
+	if (!isValidSNVObject(snv)) {
 		throw new Error(
-			`Invalid targetStrandSeqSnapPrimerRefPoint: "${targetStrandSeqSnapPrimerRefPoint}". Must be a valid DNA sequence.`
+			`Invalid SNV object: must be { index: int, variantBase: A/T/C/G }. Received: ${JSON.stringify(
+				snv
+			)}`
+		);
+	}
+	if (snv.index >= seq.length) {
+		throw new Error(
+			`SNV index (${snv.index}) exceeds sequence length (${seq.length}).`
 		);
 	}
 
-	// 2. snvSiteSnapPrimerRefPoint
+	// 3. Validate primer lengths
 	if (
-		typeof snvSiteSnapPrimerRefPoint !== 'object' ||
-		snvSiteSnapPrimerRefPoint == null ||
-		Array.isArray(snvSiteSnapPrimerRefPoint)
+		typeof primers !== 'object' ||
+		primers === null ||
+		!Number.isInteger(primers.primerLen) ||
+		!Number.isInteger(primers.compPrimerLen) ||
+		primers.primerLen < MIN_PRIMER_LEN ||
+		primers.compPrimerLen < MIN_PRIMER_LEN
 	) {
 		throw new Error(
-			`snvSiteSnapPrimerRefPoint must be a non-null object with "index" and "variantBase" keys.`
+			`primers must be an object with integer primerLen and compPrimerLen ≥ ${MIN_PRIMER_LEN}. Received: ${JSON.stringify(
+				primers
+			)}`
 		);
 	}
-	const snvKeys = Object.keys(snvSiteSnapPrimerRefPoint);
-	const validSNVKeys = new Set(['index', 'variantBase']);
-	for (const key of snvKeys) {
-		if (!validSNVKeys.has(key)) {
-			throw new Error(
-				`Unexpected key in snvSiteSnapPrimerRefPoint: "${key}"`
-			);
-		}
-	}
-	for (const expectedKey of validSNVKeys) {
-		if (!(expectedKey in snvSiteSnapPrimerRefPoint)) {
-			throw new Error(
-				`Missing key in snvSiteSnapPrimerRefPoint: "${expectedKey}"`
-			);
-		}
-	}
-	if (
-		typeof snvSiteSnapPrimerRefPoint.index !== 'number' ||
-		!Number.isInteger(snvSiteSnapPrimerRefPoint.index) ||
-		snvSiteSnapPrimerRefPoint.index < 0 ||
-		snvSiteSnapPrimerRefPoint.index >=
-			targetStrandSeqSnapPrimerRefPoint.length
-	) {
+	if (primers.primerLen + primers.compPrimerLen >= seq.length) {
 		throw new Error(
-			`snvSiteSnapPrimerRefPoint.index must be an integer in range [0, ${
-				targetStrandSeqSnapPrimerRefPoint.length - 1
-			}].`
-		);
-	}
-	if (
-		typeof snvSiteSnapPrimerRefPoint.variantBase !== 'string' ||
-		snvSiteSnapPrimerRefPoint.variantBase.length !== 1 ||
-		!VALID_BASES.has(snvSiteSnapPrimerRefPoint.variantBase)
-	) {
-		throw new Error(
-			`snvSiteSnapPrimerRefPoint.variantBase must be one of "A", "T", "C", or "G".`
+			`Primer lengths (${primers.primerLen} + ${primers.compPrimerLen}) cannot equal/exceed sequence length (${seq.length}).`
 		);
 	}
 
-	// 3. snapbackTailBaseAtSNV
+	// 4. Validate tail base
 	if (
-		typeof snapbackTailBaseAtSNV !== 'string' ||
-		snapbackTailBaseAtSNV.length !== 1 ||
-		!VALID_BASES.has(snapbackTailBaseAtSNV)
+		typeof tailBaseAtSNV !== 'string' ||
+		tailBaseAtSNV.length !== 1 ||
+		!VALID_BASES.has(tailBaseAtSNV)
 	) {
 		throw new Error(
-			`snapbackTailBaseAtSNV must be a single character base: "A", "T", "C", or "G".`
+			`tailBaseAtSNV must be a single base "A", "T", "C", or "G". Received: "${tailBaseAtSNV}".`
 		);
 	}
 
-	// 5. primerLensSnapPrimerRefPoint
+	// 5. Validate stem location
 	if (
-		typeof primerLensSnapPrimerRefPoint !== 'object' ||
-		primerLensSnapPrimerRefPoint == null ||
-		Array.isArray(primerLensSnapPrimerRefPoint)
+		typeof stem !== 'object' ||
+		stem === null ||
+		!Number.isInteger(stem.start) ||
+		!Number.isInteger(stem.end) ||
+		stem.start < 0 ||
+		stem.end < 0 ||
+		stem.start > stem.end ||
+		stem.end >= seq.length
 	) {
 		throw new Error(
-			`primerLensSnapPrimerRefPoint must be an object with "primerLen" and "compPrimerLen" keys.`
-		);
-	}
-	const primerKeys = Object.keys(primerLensSnapPrimerRefPoint);
-	const validPrimerKeys = new Set(['primerLen', 'compPrimerLen']);
-	for (const key of primerKeys) {
-		if (!validPrimerKeys.has(key)) {
-			throw new Error(
-				`Unexpected key in primerLensSnapPrimerRefPoint: "${key}"`
-			);
-		}
-	}
-	for (const expectedKey of validPrimerKeys) {
-		if (!(expectedKey in primerLensSnapPrimerRefPoint)) {
-			throw new Error(
-				`Missing key in primerLensSnapPrimerRefPoint: "${expectedKey}"`
-			);
-		}
-	}
-	for (const [key, val] of Object.entries(primerLensSnapPrimerRefPoint)) {
-		if (
-			typeof val !== 'number' ||
-			!Number.isInteger(val) ||
-			val < MIN_PRIMER_LEN
-		) {
-			throw new Error(
-				`${key} must be an integer >= MIN_PRIMER_LEN (${MIN_PRIMER_LEN}). Got: ${val}`
-			);
-		}
-	}
-
-	// 6) stemLoc
-	if (
-		typeof stemLoc !== 'object' ||
-		stemLoc == null ||
-		Array.isArray(stemLoc) ||
-		!('start' in stemLoc) ||
-		!('end' in stemLoc)
-	) {
-		throw new Error(
-			`stemLoc must be an object with "start" and "end" properties.`
-		);
-	}
-	{
-		const validStemKeys = new Set(['start', 'end']);
-		for (const key of Object.keys(stemLoc)) {
-			if (!validStemKeys.has(key)) {
-				throw new Error(`Unexpected key in stemLoc: "${key}"`);
-			}
-		}
-	}
-	if (
-		typeof stemLoc.start !== 'number' ||
-		typeof stemLoc.end !== 'number' ||
-		!Number.isInteger(stemLoc.start) ||
-		!Number.isInteger(stemLoc.end) ||
-		stemLoc.start < 0 ||
-		stemLoc.end < 0 ||
-		stemLoc.start >= targetStrandSeqSnapPrimerRefPoint.length ||
-		stemLoc.end >= targetStrandSeqSnapPrimerRefPoint.length ||
-		stemLoc.start > stemLoc.end
-	) {
-		throw new Error(
-			`stemLoc.start and stemLoc.end must be valid indices within sequence bounds and start ≤ end.`
-		);
-	}
-
-	// 7) make sure we can still add the required strong-mismatch bases
-	//    without falling off the end of the sequence
-	const maxIndexNeeded =
-		stemLoc.end + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-
-	if (maxIndexNeeded >= targetStrandSeqSnapPrimerRefPoint.length) {
-		throw new Error(
-			`stemLoc.end (${stemLoc.end}) + ${END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED} strong-mismatch bases exceeds sequence length ` +
-				`(${targetStrandSeqSnapPrimerRefPoint.length}).`
+			`stem must be { start: int, end: int } with 0 ≤ start ≤ end < seq.length. Received: ${JSON.stringify(
+				stem
+			)}`
 		);
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
-	// aliases
-	const seq = targetStrandSeqSnapPrimerRefPoint;
-	const primerLen = primerLensSnapPrimerRefPoint.primerLen;
-	const snvIndex = snvSiteSnapPrimerRefPoint.index;
-	const { stemStart, stemEnd } = stemLoc;
 
-	// 1) Start with the primer and add tail to the left of it
-	let snapback = seq.slice(0, primerLen);
+	// 0. Aliases and destructuring
+	const { primerLen } = primers;
+	const { start: stemStart, end: stemEnd } = stem;
+	const snvIndex = snv.index;
 
-	// 2) Add the inner loop strong mismatches to the left of the snapback
+	// 1. Initialize the snapback Primer
+	let snapback = '';
+
+	// 2. Add the strong mismatches that prevent extension on the 3' end of the complement
+	//    snapback primer
 	for (
-		let i =
-			stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-		i < stemStart;
+		let i = stemEnd + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+		i > stemEnd;
 		i--
 	) {
-		snapback = STRONG_NUCLEOTIDE_MISMATCH[seq[i]] + snapback;
+		// 2a. Get the base on the strand of the snapback primer
+		const base = seq[i];
+
+		// 2b. Get the base on the complementary strand
+		const compBase = NUCLEOTIDE_COMPLEMENT[base];
+
+		// 2c. We want to mismatch that base — get a strong mismatch for the complement strand so that
+		// 	   the complement snapback primer does not extend on the 3' end
+		const mismatchAgainstComp = STRONG_NUCLEOTIDE_MISMATCH[compBase];
+
+		// 2d. We insert the COMPLEMENT of the mismatch into the snapback strand
+		const mismatchBaseToInsert = NUCLEOTIDE_COMPLEMENT[mismatchAgainstComp];
+
+		// 2e. Append to the snapback primer (5' → 3')
+		snapback += mismatchBaseToInsert;
 	}
 
-	// 3) Add the stem sequence, from the start to the end, to the beggining of the snapback.
-	//    If the site is the SNV site we add the snapback base chosen for the SNV site
-	for (let i = stemStart; i <= stemEnd; i++) {
-		if (i === snvIndex) {
-			snapback = snapbackTailBaseAtSNV + snapback;
-		} else {
-			snapback = NUCLEOTIDE_COMPLEMENT[seq[i]] + snapback;
-		}
+	// 3. Add the stem region to the snapback primer.
+	//    We are adding the reverse complement of the stem region on the sequence strand in the snapback
+	//    primer's reference point.
+	//    At the SNV site, insert the base chosen earlier (tailBaseAtSNV).
+	for (let i = stemEnd; i >= stemStart; i--) {
+		// If this is the SNV position, insert the selected tail base
+		const baseToInsert =
+			i === snvIndex ? tailBaseAtSNV : NUCLEOTIDE_COMPLEMENT[seq[i]];
+
+		snapback += baseToInsert;
 	}
 
-	// 4) Add the end of stem strong mismatched
+	// 4. Add strong mismatches in the inner-loop region (before the stem).
+	//    These mismatch the snapback prevent intramolecular hybridization
+	//    (the loop zipping).
+
 	for (
-		let i = stemEnd + 1;
-		i <= stemEnd + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-		i++
+		let i = stemStart - 1;
+		i >= stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+		i--
 	) {
-		snapback = STRONG_NUCLEOTIDE_MISMATCH[seq[i]] + snapback;
+		const base = seq[i];
+		const mismatch = STRONG_NUCLEOTIDE_MISMATCH[base];
+		snapback += mismatch;
 	}
 
+	// 5. Append the primer itself
+	snapback += seq.slice(0, primers.primerLen);
+
+	// 6. return the build up snapback primer (5'->3')
 	return snapback;
 }
 
