@@ -195,15 +195,15 @@ async function createSnapback(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 2) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild),
+	// 1) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild),
 	//	  with the largest difference, as the snapback primer.
 	//
 	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
 	//	  snapback choice with the greatest temperature difference will remain the same
-	const { tailOnForwardPrimer, snapbackBaseAtSNV, matchesWild } =
+	const { tailOnForwardPrimer, snapbackTailBaseAtSNV, matchesWild } =
 		await useForwardPrimer(targetSeqStrand, snvSite);
 
-	// 3) Assigning variables in terms of the primer strand to use as the snapback
+	// 2) Assigning variables in terms of the primer strand to use as the snapback
 	var targetStrandSeqSnapPrimerRefPoint;
 	var snvSiteSnapPrimerRefPoint;
 	if (tailOnForwardPrimer) {
@@ -219,7 +219,7 @@ async function createSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
-		snapbackBaseAtSNV,
+		snapbackTailBaseAtSNV,
 		matchesWild,
 		targetSnapMeltTemp
 	);
@@ -229,7 +229,7 @@ async function createSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLenstemLoc,
-		snapbackBaseAtSNV
+		snapbackTailBaseAtSNV
 	);
 }
 
@@ -255,7 +255,7 @@ async function createSnapback(
  *
  * @returns {Promise<{
  *   tailOnForwardPrimer   : boolean,
- *   snapbackBaseAtSNV     : string,
+ *   snapbackTailBaseAtSNV     : string,
  *   snapbackTailMatchesWild: boolean
  * }>}
  *
@@ -971,7 +971,7 @@ async function createStem(
  * @param {SNVSiteRefPoint} snvSiteSnapPrimerRefPoint - SNV description in reference to the target strand
  * @param {PrimerLensRefPoint} primerLensSnapPrimerRefPoint - Object holding the primer length and the limiting primer length
  * @param {StemLoc} stemLoc - Location of the stem on this strand.
- * @param {string} snapbackBaseAtSNV - Base placed in the snapback tail at the SNV site.
+ * @param {string} snapbackTailBaseAtSNV - Base placed in the snapback tail at the SNV site.
  *
  * @returns {string}  Final snapback primer sequence written 3'→5'.
  */
@@ -980,7 +980,7 @@ function buildFinalSnapback(
 	snvSiteSnapPrimerRefPoint,
 	primerLensSnapPrimerRefPoint,
 	stemLoc,
-	snapbackBaseAtSNV
+	snapbackTailBaseAtSNV
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
@@ -1041,14 +1041,14 @@ function buildFinalSnapback(
 		);
 	}
 
-	// 3. snapbackBaseAtSNV
+	// 3. snapbackTailBaseAtSNV
 	if (
-		typeof snapbackBaseAtSNV !== 'string' ||
-		snapbackBaseAtSNV.length !== 1 ||
-		!VALID_BASES.has(snapbackBaseAtSNV)
+		typeof snapbackTailBaseAtSNV !== 'string' ||
+		snapbackTailBaseAtSNV.length !== 1 ||
+		!VALID_BASES.has(snapbackTailBaseAtSNV)
 	) {
 		throw new Error(
-			`snapbackBaseAtSNV must be a single character base: "A", "T", "C", or "G".`
+			`snapbackTailBaseAtSNV must be a single character base: "A", "T", "C", or "G".`
 		);
 	}
 
@@ -1164,7 +1164,7 @@ function buildFinalSnapback(
 	//    If the site is the SNV site we add the snapback base chosen for the SNV site
 	for (let i = stemStart; i <= stemEnd; i++) {
 		if (i === snvIndex) {
-			snapback = snapbackBaseAtSNV + snapback;
+			snapback = snapbackTailBaseAtSNV + snapback;
 		} else {
 			snapback = NUCLEOTIDE_COMPLEMENT[seq[i]] + snapback;
 		}
