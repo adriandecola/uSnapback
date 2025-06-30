@@ -1039,6 +1039,17 @@ function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 			)}`
 		);
 	}
+	// check keys
+	const allowedPrimerKeys = new Set(['primerLen', 'compPrimerLen']);
+	for (const key of Object.keys(primers)) {
+		if (!allowedPrimerKeys.has(key)) {
+			throw new Error(
+				`primerLensSnapPrimerRefPoint contains unexpected key "${key}".`
+			);
+		}
+	}
+
+	// check lengths do not exceed sequence length
 	if (primers.primerLen + primers.compPrimerLen >= seq.length) {
 		throw new Error(
 			`Primer lengths (${primers.primerLen} + ${primers.compPrimerLen}) cannot equal/exceed sequence length (${seq.length}).`
@@ -1072,6 +1083,13 @@ function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 				stem
 			)}`
 		);
+	}
+	// check keys
+	const allowedStemKeys = new Set(['start', 'end']);
+	for (const key of Object.keys(stem)) {
+		if (!allowedStemKeys.has(key)) {
+			throw new Error(`stemLoc contains unexpected key "${key}".`);
+		}
 	}
 
 	//──────────────────────────────────────────────────────────────────────────//

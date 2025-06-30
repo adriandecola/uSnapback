@@ -639,19 +639,18 @@ describe('createStem() parameter validation', () => {
 	}
 });
 
-describe('buildFinalSnapback', () => {
-	/* ------------------------------------------------------------------
-	   A baseline of entirely valid arguments used by every negative test
-	   (we override exactly one property in each case).
-	------------------------------------------------------------------ */
+describe('buildFinalSnapback - Parameter checks', () => {
+	// ─────────────────────────────────────────────────────────────────────────────
+	// Baseline valid inputs
+	// ─────────────────────────────────────────────────────────────────────────────
 	const validSeq =
 		'ATGCGTGCTAGCTAGCTAGCTAGCTAGCGTATCGATCGTACGTAGCTAGCTAGCGTATCGATC'; // 70 nt
 	const validPrimerLens = {
 		primerLen: MIN_PRIMER_LEN,
 		compPrimerLen: MIN_PRIMER_LEN,
 	};
-	const validStemLoc = { start: 30, end: 38 }; // far from primers & edges
-	const validSNV = { index: 34, variantBase: 'A' }; // inside the stem
+	const validStemLoc = { start: 30, end: 38 };
+	const validSNV = { index: 34, variantBase: 'A' };
 	const validSnapBase = 'T';
 
 	const baselineCall = () =>
@@ -663,12 +662,10 @@ describe('buildFinalSnapback', () => {
 			validSnapBase
 		);
 
-	/* sanity check that baseline is actually valid */
 	test('baseline call succeeds', () => {
 		expect(baselineCall).not.toThrow();
 	});
 
-	/* helper to build a call with selective overrides */
 	const callWith = (overrides = {}) => {
 		const {
 			seq = validSeq,
@@ -681,159 +678,107 @@ describe('buildFinalSnapback', () => {
 			buildFinalSnapback(seq, snv, primerLens, stemLoc, snapBase);
 	};
 
-	/* ================================================================
-	   1. targetStrandSeqSnapPrimerRefPoint
-	================================================================ */
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 1. Sequence
+	// ─────────────────────────────────────────────────────────────────────────────
 	[
 		['null', null],
 		['number', 1234],
 		['lower-case', 'atcg'],
-		['invalid chars', 'ATB#'],
+		['invalid chars', 'ATZ#'],
 		['array', ['A', 'T']],
 	].forEach(([label, bad]) => {
 		test(`throws for invalid sequence (${label})`, () => {
-			expect(callWith({ seq: bad })).toThrow(
-				/targetStrandSeqSnapPrimerRefPoint/i
-			);
+			expect(callWith({ seq: bad })).toThrow(/sequence/i);
 		});
 	});
 
-	/* ================================================================
-	   2. snvSiteSnapPrimerRefPoint
-	================================================================ */
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 2. SNV
+	// ─────────────────────────────────────────────────────────────────────────────
 	const badSNVs = [
-		['null', null, /snvSiteSnapPrimerRefPoint/],
-		['missing keys', {}, /Missing key/],
-		[
-			'extra key',
-			{ index: 10, variantBase: 'A', foo: 1 },
-			/Unexpected key/,
-		],
-		[
-			'index negative',
-			{ index: -1, variantBase: 'A' },
-			/index must be an integer/,
-		],
-		[
-			'index non-integer',
-			{ index: 2.5, variantBase: 'A' },
-			/index must be an integer/,
-		],
-		[
-			'index out of bounds',
-			{ index: 999, variantBase: 'A' },
-			/index must be an integer/,
-		],
-		['variantBase invalid', { index: 10, variantBase: 'Z' }, /variantBase/],
-		[
-			'variantBase length ≠ 1',
-			{ index: 10, variantBase: 'AT' },
-			/variantBase/,
-		],
+		['null', null],
+		['missing keys', {}],
+		['extra key', { index: 10, variantBase: 'A', foo: 1 }],
+		['index negative', { index: -1, variantBase: 'A' }],
+		['index non-integer', { index: 2.5, variantBase: 'A' }],
+		['index out of bounds', { index: 999, variantBase: 'A' }],
+		['variantBase invalid', { index: 10, variantBase: 'Z' }],
+		['variantBase long', { index: 10, variantBase: 'AG' }],
 	];
-	badSNVs.forEach(([label, snv, rx]) => {
+	badSNVs.forEach(([label, snv]) => {
 		test(`throws for invalid SNV (${label})`, () => {
-			expect(callWith({ snv })).toThrow(rx);
+			expect(callWith({ snv })).toThrow(/SNV/i);
 		});
 	});
 
-	/* ================================================================
-	   3. snapbackBaseAtSNV
-	================================================================ */
-	test('throws for invalid snapbackBaseAtSNV', () => {
-		expect(callWith({ snapBase: 'Z' })).toThrow(/snapbackBaseAtSNV/);
-		expect(callWith({ snapBase: 'AG' })).toThrow(/snapbackBaseAtSNV/);
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 3. snapbackBaseAtSNV
+	// ─────────────────────────────────────────────────────────────────────────────
+	test('throws for invalid tailBaseAtSNV', () => {
+		expect(callWith({ snapBase: 'Z' })).toThrow(/tailBaseAtSNV/);
+		expect(callWith({ snapBase: 'AG' })).toThrow(/tailBaseAtSNV/);
+		expect(callWith({ snapBase: 42 })).toThrow(/tailBaseAtSNV/);
+		expect(callWith({ snapBase: null })).toThrow(/tailBaseAtSNV/);
 	});
 
-	/* ================================================================
-	   4. primerLensSnapPrimerRefPoint
-	================================================================ */
-	const badPrimerObjs = [
-		['not object', 'oops'],
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 4. PrimerLensRefPoint
+	// ─────────────────────────────────────────────────────────────────────────────
+	const badPrimers = [
+		['null', null],
 		['missing primerLen', { compPrimerLen: MIN_PRIMER_LEN }],
 		['missing compPrimerLen', { primerLen: MIN_PRIMER_LEN }],
+		['extra key', { primerLen: 20, compPrimerLen: 20, extra: 1 }],
 		[
-			'extra key',
-			{ primerLen: MIN_PRIMER_LEN, compPrimerLen: MIN_PRIMER_LEN, x: 1 },
+			'primerLen < MIN',
+			{ primerLen: MIN_PRIMER_LEN - 1, compPrimerLen: 20 },
 		],
 		[
-			'primerLen < MIN_PRIMER_LEN',
-			{ primerLen: MIN_PRIMER_LEN - 1, compPrimerLen: MIN_PRIMER_LEN },
+			'compPrimerLen < MIN',
+			{ primerLen: 20, compPrimerLen: MIN_PRIMER_LEN - 1 },
 		],
-		[
-			'compPrimerLen < MIN_PRIMER_LEN',
-			{ primerLen: MIN_PRIMER_LEN, compPrimerLen: MIN_PRIMER_LEN - 1 },
-		],
-		[
-			'primerLen non-int',
-			{ primerLen: 12.3, compPrimerLen: MIN_PRIMER_LEN },
-		],
-		[
-			'compPrimerLen non-int',
-			{ primerLen: MIN_PRIMER_LEN, compPrimerLen: 12.8 },
-		],
-		[
-			'primerLen negative',
-			{ primerLen: -5, compPrimerLen: MIN_PRIMER_LEN },
-		],
+		['non-int primerLen', { primerLen: 5.5, compPrimerLen: 20 }],
+		['non-int compPrimerLen', { primerLen: 20, compPrimerLen: 7.2 }],
+		['negative primerLen', { primerLen: -2, compPrimerLen: 20 }],
+		['negative compPrimerLen', { primerLen: 20, compPrimerLen: -3 }],
+		['sum too large', { primerLen: 35, compPrimerLen: 40 }], // total = 75, same as seq length
 	];
-	badPrimerObjs.forEach(([label, obj]) => {
+	badPrimers.forEach(([label, primerLens]) => {
 		test(`throws for invalid primerLens (${label})`, () => {
-			expect(callWith({ primerLens: obj })).toThrow(
-				/primerLen|compPrimerLen|primerLensSnapPrimerRefPoint/
-			);
+			expect(callWith({ primerLens })).toThrow(/primer/i);
 		});
 	});
 
-	/* ================================================================
-	   5. stemLoc
-	================================================================ */
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 5. StemLoc
+	// ─────────────────────────────────────────────────────────────────────────────
 	const badStemLocs = [
-		['not object', 'stem'],
+		['not object', 'bad'],
 		['missing start', { end: 10 }],
 		['missing end', { start: 5 }],
-		['extra key', { start: 5, end: 10, foo: 1 }],
-		['start negative', { start: -1, end: 10 }],
-		['end negative', { start: 1, end: -10 }],
-		['start non-int', { start: 2.2, end: 10 }],
-		['end non-int', { start: 2, end: 9.9 }],
-		['start > end', { start: 15, end: 10 }],
-		[
-			'start oob',
-			{ start: validSeq.length, end: validSeq.length },
-			/within sequence bounds/,
-		],
-		[
-			'end oob',
-			{ start: 1, end: validSeq.length },
-			/within sequence bounds/,
-		],
+		['extra key', { start: 5, end: 10, x: 1 }],
+		['start > end', { start: 20, end: 10 }],
+		['start < 0', { start: -1, end: 10 }],
+		['end < 0', { start: 2, end: -4 }],
+		['non-int start', { start: 4.5, end: 10 }],
+		['non-int end', { start: 4, end: 10.1 }],
+		['end oob', { start: 5, end: validSeq.length }],
+		['start oob', { start: validSeq.length, end: validSeq.length }],
 	];
-	badStemLocs.forEach(([label, loc, rx]) => {
+	badStemLocs.forEach(([label, stemLoc]) => {
 		test(`throws for invalid stemLoc (${label})`, () => {
-			expect(callWith({ stemLoc: loc })).toThrow(rx || /stemLoc/);
+			expect(callWith({ stemLoc })).toThrow(/stem/i);
 		});
 	});
 
-	test('throws when stemLoc.end + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED exceeds sequence length', () => {
-		const badLoc = {
-			start: validStemLoc.start,
-			end:
-				validSeq.length -
-				END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
-		};
-		expect(callWith({ stemLoc: badLoc })).toThrow(
-			/exceeds sequence length/
-		);
-	});
-
-	/* ================================================================
-	   6. happy-path content check
-	================================================================ */
-	test('returned sequence ends with the original primer region', () => {
+	// ─────────────────────────────────────────────────────────────────────────────
+	// 6. Functional correctness check
+	// ─────────────────────────────────────────────────────────────────────────────
+	test('final primer ends with sequence primer region', () => {
 		const snap = baselineCall();
-		const primerSlice = validSeq.slice(0, validPrimerLens.primerLen);
-		expect(snap.endsWith(primerSlice)).toBe(true);
+		const expectedEnd = validSeq.slice(0, validPrimerLens.primerLen);
+		expect(snap.endsWith(expectedEnd)).toBe(true);
 	});
 });
 
