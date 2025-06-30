@@ -38,6 +38,168 @@ import {
 /*********************** Primary Function ***********************/
 /****************************************************************/
 
+describe('createSnapback()', () => {
+	test('returns correct snapback sequence, match flags, and Tms for known input case for rs12248560', async () => {
+		const targetSeqStrand =
+			'ATATTCAGAATAACTAATGTTTGGAAGTTGTTTTGTTTTGCTAAAACAAAGTTTTAGCAAACGATTTTTTTTTTCAAATTTGTGTCTTCTGTTCTCAAAGCATCTCTGATGTAAGAGATAATGCGCCACGATGGGCATCAGAAGACCTCAGCTCAAATCCCAGTTCTGCCAGCTATGAGCTGTGTGGCACCAACAGGTGTC';
+
+		const snvSite = { index: 100, variantBase: 'T' };
+		const primerLen = 20;
+		const compPrimerLen = 20;
+		const targetSnapMeltTemp = 60;
+
+		const result = await createSnapback(
+			targetSeqStrand,
+			primerLen,
+			compPrimerLen,
+			snvSite,
+			targetSnapMeltTemp
+		);
+
+		expect(result.tailOnForwardPrimer).toBe(false); // reverse primer
+		expect(result.matchesWild).toBe(true);
+		expect(result.snapbackSeq).toBe(
+			'GAGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
+		);
+		expect(result.snapbackMeltingTms.wildTm).toBeCloseTo(60.45, 2);
+		expect(result.snapbackMeltingTms.variantTm).toBeCloseTo(52.508, 2);
+	});
+
+	//---------------------------------------------------------------------------------------------------------------------------------//
+	const validSeq =
+		'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+	const validSNV = { index: 100, variantBase: 'A' };
+	const validPrimerLen = 20;
+	const validCompPrimerLen = 20;
+	const validTm = 60;
+
+	// Invalid targetSeqStrand
+	const badTargets = [
+		['null', null],
+		['non-string', 1234],
+		['invalid chars', 'AXTGCT'],
+		['lowercase', 'atcg'],
+		['array', ['A', 'T', 'C', 'G']],
+	];
+
+	for (const [label, target] of badTargets) {
+		test(`throws for invalid targetSeqStrand (${label})`, async () => {
+			await expect(
+				createSnapback(
+					target,
+					validPrimerLen,
+					validCompPrimerLen,
+					validSNV,
+					validTm
+				)
+			).rejects.toThrow(/Invalid DNA sequence/i);
+		});
+	}
+
+	// Invalid Tm
+	const badTms = [
+		['null', null],
+		['negative', -1],
+		['zero', 0],
+		['non-number', 'hot'],
+		['NaN', NaN],
+		['Infinity', Infinity],
+	];
+
+	for (const [label, tm] of badTms) {
+		test(`throws for invalid targetSnapMeltTemp (${label})`, async () => {
+			await expect(
+				createSnapback(
+					validSeq,
+					validPrimerLen,
+					validCompPrimerLen,
+					validSNV,
+					tm
+				)
+			).rejects.toThrow(/targetSnapMeltTemp/i);
+		});
+	}
+
+	// Invalid primer lengths
+	const badPrimerPairs = [
+		['primerLen non-int', 12.5, 20],
+		['compPrimerLen non-int', 20, 12.2],
+		['primerLen negative', -1, 20],
+		['compPrimerLen negative', 20, -2],
+		['primerLen too short', MIN_PRIMER_LEN - 1, 20],
+		['compPrimerLen too short', 20, MIN_PRIMER_LEN - 1],
+	];
+
+	for (const [label, primer, compPrimer] of badPrimerPairs) {
+		test(`throws for invalid primer lengths (${label})`, async () => {
+			await expect(
+				createSnapback(validSeq, primer, compPrimer, validSNV, validTm)
+			).rejects.toThrow(/primer/i);
+		});
+	}
+
+	test('throws if total primer lengths exceed sequence length', async () => {
+		const longLen = Math.ceil(validSeq.length / 2);
+		await expect(
+			createSnapback(validSeq, longLen, longLen, validSNV, validTm)
+		).rejects.toThrow(/cannot equal or exceed sequence length/i);
+	});
+
+	// Invalid SNV object
+	const badSNVs = [
+		['null', null],
+		['missing index', { variantBase: 'A' }],
+		['missing variantBase', { index: 5 }],
+		['extra key', { index: 5, variantBase: 'A', extra: 1 }],
+		['index negative', { index: -1, variantBase: 'A' }],
+		['index not integer', { index: 5.5, variantBase: 'A' }],
+		['variantBase invalid', { index: 5, variantBase: 'Z' }],
+		['variantBase lowercase', { index: 5, variantBase: 'g' }],
+		['variantBase too long', { index: 5, variantBase: 'AG' }],
+		['variantBase non-string', { index: 5, variantBase: 42 }],
+	];
+
+	for (const [label, snv] of badSNVs) {
+		test(`throws for invalid snvSite (${label})`, async () => {
+			await expect(
+				createSnapback(
+					validSeq,
+					validPrimerLen,
+					validCompPrimerLen,
+					snv,
+					validTm
+				)
+			).rejects.toThrow(/snvSite|index|variantBase/i);
+		});
+	}
+
+	test('throws if snvSite.index exceeds sequence length', async () => {
+		const snv = { index: validSeq.length + 1, variantBase: 'A' };
+		await expect(
+			createSnapback(
+				validSeq,
+				validPrimerLen,
+				validCompPrimerLen,
+				snv,
+				validTm
+			)
+		).rejects.toThrow(/exceeds sequence length/i);
+	});
+
+	test('throws if SNV is too close to primers', async () => {
+		const snv = { index: SNV_BASE_BUFFER - 1, variantBase: 'A' };
+		await expect(
+			createSnapback(
+				validSeq,
+				validPrimerLen,
+				validCompPrimerLen,
+				snv,
+				validTm
+			)
+		).rejects.toThrow(/too close to a primer/i);
+	});
+});
+
 /****************************************************************/
 /********************* Secondary Functions **********************/
 /****************************************************************/

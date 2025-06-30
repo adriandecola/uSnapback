@@ -199,23 +199,35 @@ async function createSnapback(
 	//	  with the largest difference, as the snapback primer.
 	//
 	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
-	//	  snapback choice with the greatest temperature difference will remain the same
-	const { tailOnForwardPrimer, snapbackTailBaseAtSNV, matchesWild } =
-		await useForwardPrimer(targetSeqStrand, snvSite);
+	//	  snapback choice with the greatest temperature difference will remain the same bestSnapbackTailBaseAtSNV
+	const {
+		tailOnForwardPrimer,
+		bestSnapbackTailBaseAtSNV: snapbackTailBaseAtSNV,
+		snapbackTailMatchesWild: matchesWild,
+	} = await useForwardPrimer(targetSeqStrand, snvSite);
 
 	// 2) Assigning variables in terms of the primer strand to use as the snapback
 	var targetStrandSeqSnapPrimerRefPoint;
 	var snvSiteSnapPrimerRefPoint;
+	var primerLensSnapPrimerRefPoint;
 	if (tailOnForwardPrimer) {
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
+		primerLensSnapPrimerRefPoint = {
+			primerLen: primerLen,
+			compPrimerLen: compPrimerLen,
+		};
 	} else {
 		targetStrandSeqSnapPrimerRefPoint = reverseComplement(targetSeqStrand);
-		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite);
+		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite, targetSeqStrand.length);
+		primerLensSnapPrimerRefPoint = {
+			primerLen: compPrimerLen,
+			compPrimerLen: primerLen,
+		};
 	}
 
 	// 3) Calculating the stem in the snapback primers reference point
-	const { bestStemLoc, meltingTemps } = createStem(
+	const { bestStemLoc, meltingTemps } = await createStem(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
@@ -224,7 +236,7 @@ async function createSnapback(
 		targetSnapMeltTemp
 	);
 
-	// 5) Create a final snapback primer (in its reference point)
+	// 4) Create a final snapback primer (in its reference point)
 	const snapback = buildFinalSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
