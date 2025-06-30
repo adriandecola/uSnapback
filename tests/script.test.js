@@ -639,7 +639,41 @@ describe('createStem() parameter validation', () => {
 	}
 });
 
-describe('buildFinalSnapback - Parameter checks', () => {
+describe('buildFinalSnapback', () => {
+	test('returns correct snapback sequence for known input case', () => {
+		const seq =
+			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
+
+		const primers = {
+			primerLen: 20,
+			compPrimerLen: 20,
+		};
+
+		const snv = {
+			index: 100,
+			variantBase: 'A',
+		};
+
+		const stem = {
+			start: 90,
+			end: 110,
+		};
+
+		const tailBaseAtSNV = 'C';
+
+		const expectedSnapback =
+			'GAGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC';
+
+		const result = buildFinalSnapback(
+			seq,
+			snv,
+			primers,
+			stem,
+			tailBaseAtSNV
+		);
+		expect(result).toBe(expectedSnapback);
+	});
+
 	// ─────────────────────────────────────────────────────────────────────────────
 	// Baseline valid inputs
 	// ─────────────────────────────────────────────────────────────────────────────
