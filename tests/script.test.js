@@ -58,11 +58,11 @@ describe('createSnapback()', () => {
 
 		expect(result.tailOnForwardPrimer).toBe(false); // reverse primer
 		expect(result.matchesWild).toBe(true);
-		expect(result.snapbackSeq).toBe(
-			'GAGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
-		);
 		expect(result.snapbackMeltingTms.wildTm).toBeCloseTo(60.45, 2);
 		expect(result.snapbackMeltingTms.variantTm).toBeCloseTo(52.508, 2);
+		expect(result.snapbackSeq).toBe(
+			'AGTGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
+		);
 	});
 
 	//---------------------------------------------------------------------------------------------------------------------------------//
