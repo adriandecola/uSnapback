@@ -60,10 +60,67 @@
 </head>
 
 <body>
-    <p>Hello world!</p>
-    <!-- Link to JavaScript file -->
-    <script src="./script.js"></script>
+	<!-- Header -->
+	<header class="app-header">
+		<div class="brand">uSnapback</div>
+	</header>
 
+	<!-- Main content -->
+	<main class="app-main">
+
+		<!-- Instructions -->
+		<section class="instructions">
+			<p>Please input the entire amplicon sequence starting with a 5' end. This
+			amplicon sequence includes the forward primer as well as the
+			complementation of the reverse primer.</p>
+		</section>
+
+		<!-- Form -->
+		<form id="ampliconForm" class="amplicon-form" autocomplete="off" novalidate>
+			<label for="ampliconInput" class="field-label">
+				Amplicon Sequence (5'→3')
+			</label>
+
+			<textarea
+				id="ampliconInput"
+				name="ampliconInput"
+				required
+				spellcheck="false"
+				placeholder="Enter only A, C, G, T"
+				pattern="[ACGTacgt\s]+"
+			></textarea>
+		</form>
+
+	</main>
+
+	<!-- Floating NEXT button -->
+	<button type="submit" form="ampliconForm" class="next-btn">Next ➜</button>
+
+	<!-- Inline script: restrict input, store sequence, go to next page -->
+	<script>
+		(function () {
+			const input  = document.getElementById('ampliconInput');
+			const form   = document.getElementById('ampliconForm');
+			const nextPg = 'page2.html';   // update if your second page is named differently
+
+			/* 1. Force uppercase, strip invalid characters in real-time */
+			input.addEventListener('input', () => {
+				input.value = input.value.toUpperCase().replace(/[^ACGT]/g, '');
+			});
+
+			/* 2. On submit, save sequence and navigate forward */
+			form.addEventListener('submit', (e) => {
+				e.preventDefault();
+				const seq = input.value.trim();
+				if (!seq.length) {
+					alert('Please enter a valid amplicon sequence.');
+					return;
+				}
+				sessionStorage.setItem('sequence', seq);
+				window.location.href = nextPg;
+			});
+		})();
+	</script>
 </body>
 
 
