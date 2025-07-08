@@ -31,9 +31,10 @@ body {
 	padding: 1rem 1.5rem;
 }
 
-.brand {
+.title {
 	font-size: 1.5rem;
 	font-weight: 600;
+	text-align: center;
 }
 
 /* ---------- Main Content ---------- */
@@ -72,36 +73,95 @@ textarea:focus {
 	border-color: #1d4ed8;
 }
 
-/* ---------- NEXT Button ---------- */
+/* ---------- Buttons ---------- */
+.prev-btn,
 .next-btn {
 	position: fixed;
 	bottom: 1.5rem;
-	right: 1.5rem;
 	padding: 0.75rem 1.75rem;
 	font-size: 1rem;
 	font-weight: 600;
 	color: #ffffff;
-	background: #0284c7;
 	border: none;
 	border-radius: 0.75rem;
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+	text-decoration: none;
 	cursor: pointer;
 	transition: background 0.2s, transform 0.1s;
+
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	appearance: none;
+	font-family: inherit;
+	line-height: 1;
+	user-select: none;
 }
 
+.prev-btn {
+	left: 1.5rem;
+	background: #64748b;
+}
+.next-btn {
+	right: 1.5rem;
+	background: #0284c7;
+}
+
+.prev-btn:hover {
+	background: #475569;
+}
 .next-btn:hover {
 	background: #0369a1;
 }
 
+.prev-btn:active,
 .next-btn:active {
 	transform: translateY(2px);
 }
 
+/* ---------- Start Page Layout ---------- */
+.start-main {
+	/* Full viewport height minus header (approx 4 rem) */
+	min-height: calc(100vh - 4rem);
+	display: flex;
+	justify-content: center; /* vertical centering */
+	align-items: center; /* horizontal centering */
+	padding: 0 1.25rem;
+}
+
+.start-description {
+	max-width: 680px;
+	padding: 2rem 2.25rem;
+	text-align: left;
+	line-height: 1.6;
+
+	/* neutral background instead of white card */
+	background: transparent;
+	box-shadow: none;
+}
+
+.start-description ol {
+	margin: 1rem 0 1.5rem;
+	padding-left: 1.25rem;
+}
+
+.start-description li {
+	margin-bottom: 0.5rem;
+}
+
+.start-description strong {
+	color: #1d4ed8; /* same royal-blue as header */
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 600px) {
+	.prev-btn,
 	.next-btn {
 		bottom: 1rem;
 		right: 1rem;
 		padding: 0.6rem 1.25rem;
+	}
+	.start-description {
+		line-height: 1.2;
 	}
 }

@@ -3,7 +3,7 @@
   File:             index.html
   Description:      Main entry point for the website
   Author:           Adrian deCola
-  Relative Path:    uSnapback/src/amplicon.html
+  Relative Path:    uSnapback/src/start.html
   Linked files:     ./style.css
 -->
 <html lang="en">
@@ -62,74 +62,38 @@
 		<div class="title">uSnapback</div>
 	</header>
 
-	<!-- Main content -->
-	<main class="app-main">
+	<!-- Centered description -->
+	<main class="start-main">
+		<section class="start-description">
+			<p>
+				This tool will guide you through a short, four-step workflow to gather
+				everything needed for snapback primer design:
+			</p>
 
-		<!-- Instructions -->
-		<section class="instructions">
-			<p>Please input the entire amplicon sequence starting with a 5' end. This
-			amplicon sequence includes the forward primer as well as the
-			complementation of the reverse primer.</p>
+			<ol>
+				<li><strong>Amplicon Sequence</strong> – the full region to be amplified (including forward primer and the complement of the reverse primer).</li>
+				<li><strong>Primer Details</strong> – forward and reverse primer lengths.</li>
+				<li><strong>Variant Nucleotide</strong> – the single-base variant (SNV) location and type. </li>
+                <li><strong>Target T<sub>m</sub></strong> - the desired snapback melting temperature for the wild-type sequence.</li>
+			</ol>
+
+			<p>
+				After collecting this information, uSnapback will calculate a
+				snapback design that meets your specified wild-type T<sub>m</sub> 
+                that maximazes the metling temperature between the wild and variant melting 
+			</p>
 		</section>
-
-		<!-- Form -->
-		<form id="ampliconForm" class="amplicon-form" autocomplete="off" novalidate>
-			<label for="ampliconInput" class="field-label">
-				Amplicon Sequence (5'→3')
-			</label>
-
-			<textarea
-				id="ampliconInput"
-				name="ampliconInput"
-				required
-				spellcheck="false"
-				placeholder="Enter only A, C, G, T"
-				pattern="[ACGTacgt\s]+"
-			></textarea>
-		</form>
-
 	</main>
 
-	<!-- Floating PREVIOUS button -->
-	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
-
 	<!-- Floating NEXT button -->
-	<button type="submit" id="nextBtn" class="next-btn">Next ⭢</button>
+	<button type="button" id="nextBtn" class="next-btn">Next ➡</button>
 
-
-	<!-- Inline script: restrict input, store sequence, go to next page -->
+	<!-- Script to advance to the amplicon page -->
 	<script>
-		(function () {
-			const input  = document.getElementById('ampliconInput');
-			const form   = document.getElementById('ampliconForm');
-			const prev  = document.getElementById('prevBtn');
-			const nextPg = 'primers.html';
-			const prevPg = 'start.html';
-
-			/* 1. Force uppercase, strip invalid characters in real-time */
-			input.addEventListener('input', () => {
-				input.value = input.value.toUpperCase().replace(/[^ACGT]/g, '');
-			});
-
-			/* 2. On submit, save sequence and navigate forward */
-			form.addEventListener('submit', (e) => {
-				e.preventDefault();
-				const seq = input.value.trim();
-				if (!seq.length) {
-					alert('Please enter a valid amplicon sequence.');
-					return;
-				}
-				sessionStorage.setItem('sequence', seq);
-				window.location.href = nextPg;
-			});
-
-			/* 3. Handle Previous button click */
-			prev.addEventListener('click', () => {
-			window.location.href = prevPg;
+		document.getElementById('nextBtn').addEventListener('click', () => {
+			// Update this path if your amplicon page has a different filename
+			window.location.href = 'amplicon.html';
 		});
-		})();
 	</script>
 </body>
-
-
 </html>
