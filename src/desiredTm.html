@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+  File:             desiredTm.html
+  Description:      Main entry point for the website
+  Author:           Adrian deCola
+  Relative Path:    uSnapback/src/desiredTm.html
+  Linked files:     ./style.css
+-->
+<html lang="en">
+<head>
+    <!-- 
+        Specifies the character encoding for the HTML document
+        UTF-8 is a universal character encoding that supports all 
+        written languages, symbols, and emojis 
+    -->
+    <meta charset="UTF-8">
+
+    <!-- 
+        Sets width of viewport to device's screen width 
+        initial-scale=1.0 makes sure the browser doesn't start 
+        zoomed in by default 
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 
+        Sets compatibility mode for older versions of Internet Explorer. 
+        The X-UA-Compatible tag tells Internet Explorer (up to version 11) 
+        which rendering engine to use for better compatibility and functionality. 
+        This tag is now mostly unnecessary because modern browsers no longer 
+        require it, but it remains useful for legacy support. 
+    -->
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- The title of the document, shown in the browser tab -->
+    <title>uSnapback</title>
+
+    <!-- Brief description of the webpage for search engines -->
+    <meta name="description" content="An application to design a snapback primer for single base variant asymmetrical PCR." />
+
+    <!--
+        Open Graph metadata for sharing content on social platforms. 
+        These tags control the webpage appearence.
+    -->
+    <!-- The title of the content, shown as the heading in the preview card -->
+    <meta property="og:title" content="uSnapback"/>
+    <!-- The image displayed in the preview card -->
+	<meta property="og:image" content=""/>
+    <!-- Canonical URL of the webpage, which helps with SEO -->
+	<meta property="og:url" content="https://dna-utah.com/uSnapback"/>
+    <!-- The name of the website where the content is hosted -->
+	<meta property="og:site_name" content="DNA Utah"/>
+    <!-- A short description of the content, shown in the preview -->
+	<meta property="og:description" content="An application to design a snapback primer for single base variant asymmetrical PCR."/>
+
+    <!-- Link to CSS File -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+	<!-- Header -->
+	<header class="app-header">
+		<div class="title">uSnapback</div>
+	</header>
+
+	<!-- Main content -->
+	<main class="app-main">
+
+		<!-- Clear instructions -->
+		<section class="instructions">
+			
+		</section>
+
+        <!-- ───────────── Form ───────────── -->
+        
+
+	</main>
+
+
+	<!-- Floating PREVIOUS button -->
+	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
+	<!-- Floating NEXT button (submits form) -->
+	<button type="submit" id="nextBtn" class="next-btn" form="tmForm">Calculate Snapback</button>
+
+	<!-- ───────────── Script ───────────── -->
+    <script>
+        
+    </script>
+
+</body>
+
+</html>
