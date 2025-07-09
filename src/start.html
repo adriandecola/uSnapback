@@ -80,20 +80,24 @@
 			<p>
 				After collecting this information, uSnapback will calculate a
 				snapback design that meets your specified wild-type T<sub>m</sub> 
-                that maximazes the metling temperature between the wild and variant melting 
+                that maximazes the metling temperature difference between the wild and variant alleles.
 			</p>
 		</section>
 	</main>
 
 	<!-- Floating NEXT button -->
-	<button type="button" id="nextBtn" class="next-btn">Next ➡</button>
+	<button type="button" id="nextBtn" class="next-btn">Next ⭢</button>
 
 	<!-- Script to advance to the amplicon page -->
 	<script>
-		document.getElementById('nextBtn').addEventListener('click', () => {
-			// Update this path if your amplicon page has a different filename
-			window.location.href = 'amplicon.html';
-		});
+        // Apparently its good practice to wrap script tags in anonnymous functions
+        // as not to pollute the global scope
+        (() => {
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                // Update this path if your amplicon page has a different filename
+                window.location.href = 'amplicon.html';
+            });
+        })()
 	</script>
 </body>
 </html>

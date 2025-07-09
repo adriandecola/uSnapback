@@ -94,13 +94,23 @@
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
 	<!-- Floating NEXT button -->
-	<button type="submit" id="nextBtn" class="next-btn">Next ⭢</button>
+	<!-- Floating NEXT button -->
+	<button type="submit"
+			id="nextBtn"
+			class="next-btn"
+			form="ampliconForm">Next ⭢</button>
 
 
 	<!-- Inline script: restrict input, store sequence, go to next page -->
 	<script>
-		(function () {
+		(() => {
 			const input  = document.getElementById('ampliconInput');
+			/* Restore previously-saved amplicon sequence, if any */
+			const savedSeq = sessionStorage.getItem('sequence');
+			if (savedSeq) {
+				input.value = savedSeq;
+			}
+
 			const form   = document.getElementById('ampliconForm');
 			const prev  = document.getElementById('prevBtn');
 			const nextPg = 'primers.html';
@@ -115,8 +125,8 @@
 			form.addEventListener('submit', (e) => {
 				e.preventDefault();
 				const seq = input.value.trim();
-				if (!seq.length) {
-					alert('Please enter a valid amplicon sequence.');
+				if (seq.length<33) {
+					alert('The amplicon it too short.');
 					return;
 				}
 				sessionStorage.setItem('sequence', seq);

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  File:             index.html
+  Description:      Main entry point for the website
+  Author:           Adrian deCola
+  Relative Path:    uSnapback/src/primers.html
+  Linked files:     ./style.css
+-->
+<html lang="en">
+<head>
+    <!-- 
+        Specifies the character encoding for the HTML document
+        UTF-8 is a universal character encoding that supports all 
+        written languages, symbols, and emojis 
+    -->
+    <meta charset="UTF-8">
+
+    <!-- 
+        Sets width of viewport to device's screen width 
+        initial-scale=1.0 makes sure the browser doesn't start 
+        zoomed in by default 
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 
+        Sets compatibility mode for older versions of Internet Explorer. 
+        The X-UA-Compatible tag tells Internet Explorer (up to version 11) 
+        which rendering engine to use for better compatibility and functionality. 
+        This tag is now mostly unnecessary because modern browsers no longer 
+        require it, but it remains useful for legacy support. 
+    -->
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- The title of the document, shown in the browser tab -->
+    <title>uSnapback</title>
+
+    <!-- Brief description of the webpage for search engines -->
+    <meta name="description" content="An application to design a snapback primer for single base variant asymmetrical PCR." />
+
+    <!--
+        Open Graph metadata for sharing content on social platforms. 
+        These tags control the webpage appearence.
+    -->
+    <!-- The title of the content, shown as the heading in the preview card -->
+    <meta property="og:title" content="uSnapback"/>
+    <!-- The image displayed in the preview card -->
+	<meta property="og:image" content=""/>
+    <!-- Canonical URL of the webpage, which helps with SEO -->
+	<meta property="og:url" content="https://dna-utah.com/uSnapback"/>
+    <!-- The name of the website where the content is hosted -->
+	<meta property="og:site_name" content="DNA Utah"/>
+    <!-- A short description of the content, shown in the preview -->
+	<meta property="og:description" content="An application to design a snapback primer for single base variant asymmetrical PCR."/>
+
+    <!-- Link to CSS File -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+	<!-- Header -->
+	<header class="app-header">
+		<div class="title">uSnapback</div>
+	</header>
+
+	<!-- Main content -->
+	<main class="app-main">
+
+		<!-- Clear instructions -->
+		<section>
+			<p>
+				Enter the desired lengths (in nucleotides) for your
+				<strong>forward</strong> and <strong>reverse</strong> primers.
+				Each primer must be at least <strong>10 nt</strong>.  
+				The forward primer will be taken from the <em>start</em> of your
+				amplicon sequence, and the reverse primer will be taken from the
+				<em>end</em>.
+			</p>
+		</section>
+
+		<!-- Form -->
+		<form id="primerForm" class="amplicon-form" autocomplete="off" novalidate>
+			<label for="fwdLen" class="field-label">Forward Primer Length</label>
+			<input
+				type="number"
+				id="fwdLen"
+				name="fwdLen"
+				min="10"
+				required
+				placeholder="e.g. 20"
+			/>
+
+			<label for="revLen" class="field-label">Reverse Primer Length</label>
+			<input
+				type="number"
+				id="revLen"
+				name="revLen"
+				min="10"
+				required
+				placeholder="e.g. 20"
+			/>
+
+			<!-- Live preview -->
+			<div id="primerPreview" class="primer-display" hidden>
+				<p><strong>Forward Primer (5'→3'):</strong><br><code id="fwdPrimer"></code></p>
+				<p><strong>Reverse Primer (5'→3'):</strong><br><code id="revPrimer"></code></p>
+			</div>
+		</form>
+
+	</main>
+
+	<!-- Floating PREVIOUS button -->
+	<button type="button" id="prevBtn" class="prev-btn">⬅ Back</button>
+
+	<!-- Floating NEXT button (submits form) -->
+	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ➡</button>
+
+	<!-- Script: validation, preview, storage, navigation -->
+	<script>
+		(() => {
+			const seq          = sessionStorage.getItem('sequence') || '';
+			const form         = document.getElementById('primerForm');
+			const fwdInput     = document.getElementById('fwdLen');
+			const revInput     = document.getElementById('revLen');
+			const previewBox   = document.getElementById('primerPreview');
+			const fwdOut       = document.getElementById('fwdPrimer');
+			const revOut       = document.getElementById('revPrimer');
+			const prevBtn      = document.getElementById('prevBtn');
+
+            /* Restore primer lengths if they exist */
+            const savedFwdLen = sessionStorage.getItem('forwardPrimerLen');
+            const savedRevLen = sessionStorage.getItem('reversePrimerLen');
+
+            if (savedFwdLen) fwdInput.value = savedFwdLen;
+            if (savedRevLen) revInput.value = savedRevLen;
+
+            // show primers if values are already filled
+            updatePreview();   
+
+
+			const nextPage = 'variant.html';
+			const prevPage = 'amplicon.html';
+
+			/* --- Helper: update preview whenever either length changes --- */
+			function updatePreview() {
+				const fwdLen = parseInt(fwdInput.value, 10);
+				const revLen = parseInt(revInput.value, 10);
+
+				// Conditions to show preview
+				if (
+					seq &&
+					Number.isInteger(fwdLen) &&
+					Number.isInteger(revLen) &&
+					fwdLen >= 10 &&
+					revLen >= 10 &&
+					fwdLen + revLen <= seq.length
+				) {
+					const forwardPrimer = seq.slice(0, fwdLen);
+					const reversePrimer = seq.slice(seq.length - revLen);
+
+					fwdOut.textContent = forwardPrimer;
+					revOut.textContent = reversePrimer;
+					previewBox.hidden = false;
+				} else {
+					previewBox.hidden = true;
+				}
+			}
+
+			fwdInput.addEventListener('input', updatePreview);
+			revInput.addEventListener('input', updatePreview);
+
+			/* --- Handle form submission (Next) --- */
+			form.addEventListener('submit', (e) => {
+				e.preventDefault();
+
+				const fwdLen = parseInt(fwdInput.value, 10);
+				const revLen = parseInt(revInput.value, 10);
+
+				if (!seq) {
+					alert('Amplicon sequence not found. Please restart.');
+					return;
+				}
+				if (!Number.isInteger(fwdLen) || !Number.isInteger(revLen)) {
+					alert('Please enter valid primer lengths.');
+					return;
+				}
+				if (fwdLen < 10 || revLen < 10) {
+					alert('Each primer must be at least 10 nucleotides long.');
+					return;
+				}
+				if (fwdLen + revLen > seq.length) {
+					alert('Primer lengths exceed amplicon length.');
+					return;
+				}
+
+				/* Store primer data */
+				const forwardPrimer = seq.slice(0, fwdLen);
+				const reversePrimer = seq.slice(seq.length - revLen);
+
+				sessionStorage.setItem('forwardPrimerLen', fwdLen);
+				sessionStorage.setItem('reversePrimerLen', revLen);
+				sessionStorage.setItem('forwardPrimerSeq', forwardPrimer);
+				sessionStorage.setItem('reversePrimerSeq', reversePrimer);
+
+				/* Navigate forward */
+				window.location.href = nextPage;
+			});
+
+			/* --- Previous button --- */
+			prevBtn.addEventListener('click', () => {
+				window.location.href = prevPage;
+			});
+		})();
+	</script>
+</body>
+
+</html>
