@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<!--
+  File:             results.html
+  Description:      Main entry point for the website
+  Author:           Adrian deCola
+  Relative Path:    uSnapback/src/results.html
+  Linked files:     ./style.css, script.js
+-->
+<html lang="en">
+<head>
+    <!-- 
+        Specifies the character encoding for the HTML document
+        UTF-8 is a universal character encoding that supports all 
+        written languages, symbols, and emojis 
+    -->
+    <meta charset="UTF-8">
+
+    <!-- 
+        Sets width of viewport to device's screen width 
+        initial-scale=1.0 makes sure the browser doesn't start 
+        zoomed in by default 
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- 
+        Sets compatibility mode for older versions of Internet Explorer. 
+        The X-UA-Compatible tag tells Internet Explorer (up to version 11) 
+        which rendering engine to use for better compatibility and functionality. 
+        This tag is now mostly unnecessary because modern browsers no longer 
+        require it, but it remains useful for legacy support. 
+    -->
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <!-- The title of the document, shown in the browser tab -->
+    <title>uSnapback</title>
+
+    <!-- Brief description of the webpage for search engines -->
+    <meta name="description" content="An application to design a snapback primer for single base variant asymmetrical PCR." />
+
+    <!--
+        Open Graph metadata for sharing content on social platforms. 
+        These tags control the webpage appearence.
+    -->
+    <!-- The title of the content, shown as the heading in the preview card -->
+    <meta property="og:title" content="uSnapback"/>
+    <!-- The image displayed in the preview card -->
+	<meta property="og:image" content=""/>
+    <!-- Canonical URL of the webpage, which helps with SEO -->
+	<meta property="og:url" content="https://dna-utah.com/uSnapback"/>
+    <!-- The name of the website where the content is hosted -->
+	<meta property="og:site_name" content="DNA Utah"/>
+    <!-- A short description of the content, shown in the preview -->
+	<meta property="og:description" content="An application to design a snapback primer for single base variant asymmetrical PCR."/>
+
+    <!-- Link to CSS File -->
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+	<!-- Header -->
+	<header class="app-header">
+		<div class="title">uSnapback</div>
+	</header>
+
+	<!-- Main content -->
+	<main class="app-main">
+
+        <section class="instructions">
+            <p>
+                The snapback primer has been calculated using all inputs you provided.
+                Review the design below. If anything looks off, simply use your browser’s
+                back button to tweak the inputs and re-run.
+            </p>
+        </section>
+
+        <!-- results injected by JS -->
+        <div id="resultBox" class="result-card" hidden>
+            <h2>Snapback Primer&nbsp;(5′→3′)</h2>
+            <pre id="snapSeq"></pre>
+
+            <ul style="margin-top:1rem">
+                <li><strong>Tail appended to:</strong> <span id="tailSide"></span></li>
+                <li><strong>SNV matches:</strong> <span id="matchesWild"></span></li>
+                <li><strong>Wild-type&nbsp;T<sub>m</sub>:</strong> <span id="wildTm"></span> °C</li>
+                <li><strong>Variant&nbsp;T<sub>m</sub>:</strong> <span id="varTm"></span> °C</li>
+            </ul>
+        </div>
+
+    </main>
+
+
+	<!-- Floating PREVIOUS button -->
+	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
+
+	<!-- ───────────── Script ───────────── -->
+    <script type="module">
+        import { createSnapback } from './script.js';   /* if your helper lives elsewhere, adjust path */
+
+        (async () => {
+            /* pull everything we need from sessionStorage */
+            const seq      = sessionStorage.getItem('sequence');
+            const fwdLen   = +sessionStorage.getItem('forwardPrimerLen');
+            const revLen   = +sessionStorage.getItem('reversePrimerLen');
+            const snvIndex = +sessionStorage.getItem('snvIndex');
+            const snvBase  = sessionStorage.getItem('snvBase');
+            const targetTm = +sessionStorage.getItem('desiredTm');
+
+            /* quick guard */
+            const goBack = msg => {
+                alert(msg +
+                    '\n\nYou will now be redirected to the amplicon page so you can adjust your inputs.');
+                window.location.href = 'amplicon.html';
+            };
+
+            if (!seq || !fwdLen || !revLen || isNaN(snvIndex) || !snvBase || !targetTm) {
+                goBack('Some inputs are missing.');
+                return;
+            }
+
+            try {
+                const result = await createSnapback(
+                    seq,
+                    fwdLen,
+                    revLen,
+                    { index: snvIndex, variantBase: snvBase },
+                    targetTm
+                );
+
+                /* populate UI */
+                document.getElementById('snapSeq' ).textContent = result.snapbackSeq;
+                document.getElementById('tailSide').textContent =
+                    result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer';
+                document.getElementById('matchesWild').textContent =
+                    result.matchesWild ? 'Wild allele' : 'Variant allele';
+                document.getElementById('wildTm').textContent = result.snapbackMeltingTms.wildTm.toFixed(1);
+                document.getElementById('varTm' ).textContent = result.snapbackMeltingTms.variantTm.toFixed(1);
+
+                document.getElementById('resultBox').hidden = false;
+            } catch (err) {
+                console.error(err);
+                goBack(err.message || 'Snapback calculation failed.');
+            }
+        })();
+    </script>
+
+</body>
+
+</html>
