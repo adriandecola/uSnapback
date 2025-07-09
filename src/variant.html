@@ -68,24 +68,236 @@
 		<!-- Clear instructions -->
 		<section class="instructions">
 			<p>
-				[PUT INSTRUCTIONS HERE]
-			</p>
+				<p>
+                    Choose a <strong>variant index</strong> (0-based) and select a
+                    <span class="snv-text">single-nucleotide variant (SNV)</span> base.<br>
+                    The SNV must sit at least <strong>4&nbsp;bp</strong> away from either
+                    <span class="primer-text">primer-binding region</span>.  
+                    Valid input will highlight:
+                    <span class="primer-text">primers</span> in yellow and the
+                    <span class="snv-text">SNV</span> in red inside the amplicon below.
+                </p>
 		</section>
 
-		[HAVE AN INPUT FOR THE PRIMER INDEX AND A DROP DOWN FOR THE VARIANT BASE]
-        [BELOW HAVE A RENDERING OF THE AMPLICON SEQUENCE AND HIGHLIGHT THE VARIANT BASE]
+        <!-- ───────────── Form ───────────── -->
+        <form id="variantForm" autocomplete="off" novalidate>
+            <!-- Variant Index Input -->
+            <label for="snvIndex" class="field-label">Variant Index (0-based)</label>
+            <input type="number" id="snvIndex" name="snvIndex"
+                min="0" step="1"
+                inputmode="numeric" pattern="\d*"
+                placeholder="e.g. 42" />
+            <!-- Variant Type Input -->
+            <label for="snvBase" class="field-label">Variant Base</label>
+            <select id="snvBase" name="snvBase" disabled>
+                <option value="">— choose index first —</option>
+            </select>
+            <!-- Error -->
+            <div id="snvError" class="error-msg" style="display:none;"></div>
+
+            <!-- Amplicon preview (always visible) -->
+            <label class="field-label" style="margin-top:2rem;">
+                Amplicon Sequence (5'→3')
+            </label>
+            <div id="ampliconBox" class="amplicon-display"></div>
+        </form>
+
 	</main>
+
 
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
-
 	<!-- Floating NEXT button (submits form) -->
-	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ⭢</button>
+	<button type="submit" id="nextBtn" class="next-btn" form="variantForm">Calculate Snapback</button>
 
-	<!-- Script: validation, preview, storage, navigation -->
-	<script>
-		
-	</script>
+	<!-- ───────────── Script ───────────── -->
+<script>
+    (() => {
+        /* --------------------------------------------------
+        Pull saved data from sessionStorage
+        + (unary plus) converts string → number
+        -------------------------------------------------- */
+        const seq    = sessionStorage.getItem('sequence') || '';
+        const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
+        const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
+
+        /* --------------------------------------------------
+        Cache DOM elements
+        -------------------------------------------------- */
+        const idxIn   = document.getElementById('snvIndex');  // numeric index input
+        const baseSel = document.getElementById('snvBase');   // <select> for variant base
+        const box     = document.getElementById('ampliconBox'); // preview container
+        const form    = document.getElementById('variantForm');
+        const prevBtn = document.getElementById('prevBtn');
+        const errBox = document.getElementById('snvError');
+
+        /* Target pages */
+        const NEXT = 'tm.html';
+        const PREV = 'primers.html';
+
+        /* --------------------------------------------------
+        Restore previously entered values, if any
+        -------------------------------------------------- */
+        idxIn.value           = sessionStorage.getItem('snvIndex') ?? '';
+        baseSel.dataset.keep  = sessionStorage.getItem('snvBase')  ?? '';
+
+        updateBaseOptions();   // populate <select>
+        renderAmplicon();      // draw coloured sequence
+
+        /* --------------------------------------------------
+        Event: user types a new index
+        -------------------------------------------------- */
+        idxIn.addEventListener('input', () => {
+            /* strip any non-digit chars that slip in via paste, etc. */
+            idxIn.value = idxIn.value.replace(/[^0-9]/g,'');          // NEW
+
+            sessionStorage.setItem('snvIndex', idxIn.value);          // unchanged
+            updateBaseOptions();                                      // unchanged
+
+            /* if we just produced an error, wipe stored base */
+            if (errBox.style.display === 'block') {
+                sessionStorage.removeItem('snvBase');
+            }
+
+            renderAmplicon();                                         // unchanged
+        });
+
+
+        /* --------------------------------------------------
+        Event: user picks a base from the <select>
+        -------------------------------------------------- */
+        baseSel.addEventListener('change', () => {
+            sessionStorage.setItem('snvBase', baseSel.value || ''); // blank if none chosen
+            renderAmplicon();
+        });
+
+        /* --------------------------------------------------
+        Event: back button → simply navigate
+        -------------------------------------------------- */
+        prevBtn.addEventListener('click', () => window.location.href = PREV);
+
+        /* --------------------------------------------------
+        Event: Next / Calculate Snapback
+        -------------------------------------------------- */
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+
+            const idx  = +idxIn.value;   // string → number
+            const base = baseSel.value;  // already a string
+
+            /* ---- Validation (ordered from least to most specific) ---- */
+            if (!seq) { alert('Amplicon sequence not found.'); return; }
+            if (idxIn.value.trim() === '') {
+                alert('Please enter a variant index.');
+                return;
+            }
+
+            if (!Number.isInteger(idx) || idx < 0 || idx >= seq.length) {
+                alert('Variant index is out of range.'); return;
+            }
+
+            if (!'ACGT'.includes(base)) {
+                alert('Please select a variant base.'); return;
+            }
+
+            /* overlaps either primer region */
+            if (idx < fwdLen || idx >= seq.length - revLen) {
+                alert('SNV overlaps a primer-binding site. Choose a different index.');
+                return;
+            }
+
+            /* too close—need ≥ 3-bp gap (= 4 bp away) */
+            if (idx < fwdLen + 3) {
+                alert('SNV is too close to the forward primer (need ≥ 3-bp gap).');
+                return;
+            }
+            if (idx > seq.length - revLen - 4) {
+                alert('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
+                return;
+            }
+
+            /* ---- Passed validation → save and continue ---- */
+            sessionStorage.setItem('snvIndex', idx);   // numeric ok (auto stringified)
+            sessionStorage.setItem('snvBase',  base);
+
+            window.location.href = NEXT;
+        });
+
+        /* ==================================================
+        Helper: populate base <select> with the 3 alt bases
+        ================================================== */
+        function updateBaseOptions() {
+            const idx = +idxIn.value;
+            const withinSeq = Number.isInteger(idx) && idx >= 0 && idx < seq.length;
+
+            /* helper: show error text & reset selector */
+            function showError(msg){
+                errBox.textContent = msg;
+                errBox.style.display = 'block';
+                baseSel.style.display = 'none';
+                baseSel.disabled = true;
+                baseSel.innerHTML = '<option value=""></option>';
+                sessionStorage.removeItem('snvBase');
+                baseSel.dataset.keep = '';
+            }
+
+            /* helper: show selector with 3 alt bases */
+            function showSelector(refBase){
+                const opts = ['A','C','G','T'].filter(b => b !== refBase);
+                errBox.style.display = 'none';
+                baseSel.style.display = 'inline-block';
+                baseSel.disabled = false;
+                baseSel.innerHTML = '<option value="">— choose —</option>' +
+                    opts.map(b=>`<option>${b}</option>`).join('');
+                if(opts.includes(baseSel.dataset.keep)){ baseSel.value = baseSel.dataset.keep; }
+            }
+
+            if(!withinSeq){
+                showError('Index is outside the amplicon range.');
+                return;
+            }
+
+            /* distance checks: need ≥3-bp gap (i.e., idx ≥ fwdLen+3 and ≤ len-revLen-4) */
+            if(idx < fwdLen){
+                showError('SNV overlaps a primer-binding site.');
+                return;
+            }
+            if(idx < fwdLen + 3 || idx > seq.length - revLen - 4){
+                showError('SNV is too close to a primer-binding site.');
+                return;
+            }
+
+            /* valid position → populate selector */
+            showSelector(seq[idx]);
+        }
+
+        /* ==================================================
+        Helper: render coloured amplicon
+        ================================================== */
+        function renderAmplicon() {
+            const idx  = +idxIn.value;
+            const base = baseSel.value;
+            let html   = '';
+
+            for (let i=0; i<seq.length; i++) {
+                /* default span class */
+                let cls = '';
+
+                /* colour both primer regions yellow */
+                if (i < fwdLen || i >= seq.length - revLen) cls = 'primer';
+
+                /* override with red if this is the SNV */
+                if (i === idx && 'ACGT'.includes(base)) cls = 'snv';
+
+                /* use variant base letter when appropriate */
+                const nt = (i === idx && base) ? base : seq[i];
+                html += `<span class="${cls}">${nt}</span>`;
+            }
+            box.innerHTML = html;
+        }
+    })();
+    </script>
+
 </body>
 
 </html>
