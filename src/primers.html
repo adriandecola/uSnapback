@@ -124,6 +124,8 @@
 			const previewBox   = document.getElementById('primerPreview');
 			const fwdOut       = document.getElementById('fwdPrimer');
 			const revOut       = document.getElementById('revPrimer');
+			const fwdLine      = fwdOut.parentElement;
+			const revLine      = revOut.parentElement;
 			const prevBtn      = document.getElementById('prevBtn');
 			const nextPage	   = 'variant.html';
 			const prevPage     = 'amplicon.html';
@@ -143,25 +145,29 @@
 				const fwdLen = parseInt(fwdInput.value, 10);
 				const revLen = parseInt(revInput.value, 10);
 
-				let show = false;
+				let showPreviewBox = false;
 
+				// render forward primer, if applicable (and label)
 				if (seq && Number.isInteger(fwdLen) && fwdLen >= 12 && fwdLen <= seq.length) {
-					const forwardPrimer = seq.slice(0, fwdLen);
-					fwdOut.textContent = forwardPrimer;
-					show = true;
+					fwdOut.textContent = seq.slice(0, fwdLen);
+					fwdLine.style.display = 'block';
+					showPreviewBox = true;
 				} else {
 					fwdOut.textContent = '';
+					fwdLine.style.display = 'none';
 				}
 
+				// render reverse primer, if applicable (and label)
 				if (seq && Number.isInteger(revLen) && revLen >= 12 && revLen <= seq.length) {
-					const reversePrimer = reverseComplement(seq.slice(seq.length - revLen));
-					revOut.textContent = reversePrimer;
-					show = true;
+					revOut.textContent = reverseComplement(seq.slice(seq.length - revLen));
+					revLine.style.display = 'block';
+					showPreviewBox = true;
 				} else {
 					revOut.textContent = '';
+					revLine.style.display = 'none';
 				}
 
-				previewBox.hidden = !show;
+				previewBox.hidden = !showPreviewBox;
 			}
 
 			/* Helper Function: return reverse-complement of sequence */
@@ -204,8 +210,16 @@
 					alert('Each primer must be at least 12 nucleotides long.');
 					return;
 				}
+				if (fwdLen > seq.length) {                     // NEW
+					alert('Forward primer length exceeds amplicon length.');
+					return;
+				}
+				if (revLen > seq.length) {                     // NEW
+					alert('Reverse primer length exceeds amplicon length.');
+					return;
+				}
 				if (fwdLen + revLen > seq.length) {
-					alert('Primer lengths exceed amplicon length.');
+					alert('Combined primer lengths exceed amplicon length.');
 					return;
 				}
 
