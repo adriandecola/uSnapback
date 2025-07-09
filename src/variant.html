@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
-  File:             amplicon.html
+  File:             variant.html
   Description:      Main entry point for the website
   Author:           Adrian deCola
-  Relative Path:    uSnapback/src/amplicon.html
+  Relative Path:    uSnapback/src/variant.html
   Linked files:     ./style.css
 -->
 <html lang="en">
@@ -65,88 +65,27 @@
 	<!-- Main content -->
 	<main class="app-main">
 
-		<!-- Instructions -->
+		<!-- Clear instructions -->
 		<section class="instructions">
-			<p>Please input the entire amplicon sequence starting with a 5' end. This
-			amplicon sequence includes the forward primer as well as the
-			complementation of the reverse primer.</p>
+			<p>
+				[PUT INSTRUCTIONS HERE]
+			</p>
 		</section>
 
-		<!-- Form -->
-		<form id="ampliconForm" autocomplete="off" novalidate>
-			<label for="ampliconInput" class="field-label">
-				Amplicon Sequence (5'→3')
-			</label>
-
-			<textarea
-				id="ampliconInput"
-				name="ampliconInput"
-				required
-				spellcheck="false"
-				placeholder="Enter only A, C, G, T"
-				pattern="[ACGTacgt\s]+"
-			></textarea>
-		</form>
-
+		[HAVE AN INPUT FOR THE PRIMER INDEX AND A DROP DOWN FOR THE VARIANT BASE]
+        [BELOW HAVE A RENDERING OF THE AMPLICON SEQUENCE AND HIGHLIGHT THE VARIANT BASE]
 	</main>
 
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
-	<!-- Floating NEXT button -->
-	<!-- Floating NEXT button -->
-	<button type="submit"
-			id="nextBtn"
-			class="next-btn"
-			form="ampliconForm">Next ⭢</button>
+	<!-- Floating NEXT button (submits form) -->
+	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ⭢</button>
 
-
-	<!-- Inline script: restrict input, store sequence, go to next page -->
+	<!-- Script: validation, preview, storage, navigation -->
 	<script>
-		(() => {
-			const input  = document.getElementById('ampliconInput');
-			/* Restore previously-saved amplicon sequence, if any */
-			const savedSeq = sessionStorage.getItem('sequence');
-			if (savedSeq) {
-				input.value = savedSeq;
-			}
-
-			const form   = document.getElementById('ampliconForm');
-			const prev  = document.getElementById('prevBtn');
-			const nextPg = 'primers.html';
-			const prevPg = 'start.html';
-
-			/* 1. Force uppercase, strip invalid characters in real-time */
-			input.addEventListener('input', () => {
-				input.value = input.value.toUpperCase().replace(/[^ACGT]/g, '');
-			});
-			// Store sequence
-			sessionStorage.setItem('sequence', input.value.trim());
-
-			/* 2. On submit, save sequence and navigate forward */
-			form.addEventListener('submit', (e) => {
-				e.preventDefault();
-				const seq = input.value.trim();
-				if (seq.length<33) {
-					alert('The amplicon it too short.');
-					return;
-				}
-				// Store sequence
-				sessionStorage.setItem('sequence', seq);
-				// Navigate to next page
-				window.location.href = nextPg;
-			});
-
-			/* 3. Handle Previous button click */
-			prev.addEventListener('click', () => {
-				// Store sequence
-				sessionStorage.setItem('sequence', input.value.trim());
-				// Navigate to previous page
-				window.location.href = prevPg;
-		});
-		})();
+		
 	</script>
 </body>
-
 
 </html>
