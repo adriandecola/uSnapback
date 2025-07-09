@@ -109,10 +109,10 @@
 	</main>
 
 	<!-- Floating PREVIOUS button -->
-	<button type="button" id="prevBtn" class="prev-btn">⬅ Back</button>
+	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
 	<!-- Floating NEXT button (submits form) -->
-	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ➡</button>
+	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ⭢</button>
 
 	<!-- Script: validation, preview, storage, navigation -->
 	<script>
@@ -129,11 +129,10 @@
             /* Restore primer lengths if they exist */
             const savedFwdLen = sessionStorage.getItem('forwardPrimerLen');
             const savedRevLen = sessionStorage.getItem('reversePrimerLen');
-
             if (savedFwdLen) fwdInput.value = savedFwdLen;
             if (savedRevLen) revInput.value = savedRevLen;
 
-            // show primers if values are already filled
+            // Show primers if primer lengths are already filled
             updatePreview();   
 
 
