@@ -120,6 +120,8 @@
 			input.addEventListener('input', () => {
 				input.value = input.value.toUpperCase().replace(/[^ACGT]/g, '');
 			});
+			// Store sequence
+			sessionStorage.setItem('sequence', input.value.trim());
 
 			/* 2. On submit, save sequence and navigate forward */
 			form.addEventListener('submit', (e) => {
@@ -129,13 +131,18 @@
 					alert('The amplicon it too short.');
 					return;
 				}
+				// Store sequence
 				sessionStorage.setItem('sequence', seq);
+				// Navigate to next page
 				window.location.href = nextPg;
 			});
 
 			/* 3. Handle Previous button click */
 			prev.addEventListener('click', () => {
-			window.location.href = prevPg;
+				// Store sequence
+				sessionStorage.setItem('sequence', input.value.trim());
+				// Navigate to previous page
+				window.location.href = prevPg;
 		});
 		})();
 	</script>
