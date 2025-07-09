@@ -80,24 +80,16 @@
 		<!-- Form -->
 		<form id="primerForm" autocomplete="off" novalidate>
 			<label for="fwdLen" class="field-label">Forward Primer Length</label>
-			<input
-				type="number"
-				id="fwdLen"
-				name="fwdLen"
-				min="1"
-				required
-				placeholder="e.g. 20"
-			/>
+			<input type="number" id="fwdLen" name="fwdLen"
+				min="1" step="1"
+				inputmode="numeric" pattern="\d*"
+				placeholder="e.g. 20" />
 
 			<label for="revLen" class="field-label">Reverse Primer Length</label>
-			<input
-				type="number"
-				id="revLen"
-				name="revLen"
-				min="1"
-				required
-				placeholder="e.g. 20"
-			/>
+			<input type="number" id="revLen" name="revLen"
+				min="1" step="1"
+				inputmode="numeric" pattern="\d*"
+				placeholder="e.g. 20" />
 
 			<!-- Live preview -->
 			<div id="primerPreview" class="primer-display" hidden>
@@ -178,12 +170,16 @@
 
 			/* --- Handle primer length changes --- */
 			fwdInput.addEventListener('input', () => {
+				// Sanitize
+				fwdInput.value = fwdInput.value.replace(/[^0-9]/g,'');   
 				// Store value
 				sessionStorage.setItem('forwardPrimerLen', fwdInput.value);
 				// Update preview (if applicable)
 				updatePreview();
 			});
 			revInput.addEventListener('input', () => {
+				// Sanitize
+				revInput.value = revInput.value.replace(/[^0-9]/g,'');
 				// Store value
 				sessionStorage.setItem('reversePrimerLen', revInput.value);
 				// Update preview (if applicable)
