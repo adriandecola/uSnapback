@@ -279,18 +279,19 @@
             const base = baseSel.value;
             let html   = '';
 
-            for (let i=0; i<seq.length; i++) {
-                /* default span class */
+            for (let i = 0; i < seq.length; i++) {
                 let cls = '';
+                let nt  = seq[i];                         // default: wild base only
 
-                /* colour both primer regions yellow */
+                /* primer regions in yellow */
                 if (i < fwdLen || i >= seq.length - revLen) cls = 'primer';
 
-                /* override with red if this is the SNV */
-                if (i === idx && 'ACGT'.includes(base)) cls = 'snv';
+                /* SNV position in red, show “wild/variant” (e.g. G/A) */
+                if (i === idx && 'ACGT'.includes(base)) {
+                    cls = 'snv';
+                    nt  = `${seq[i]}/${base}`;            // wild / variant
+                }
 
-                /* use variant base letter when appropriate */
-                const nt = (i === idx && base) ? base : seq[i];
                 html += `<span class="${cls}">${nt}</span>`;
             }
             box.innerHTML = html;
