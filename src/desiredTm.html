@@ -67,10 +67,24 @@
 
 		<!-- Clear instructions -->
 		<section class="instructions">
-			
-		</section>
+            <p>
+                Enter the <strong>desired melting temperature (T<sub>m</sub>)</strong> for
+                the <em>wild-type</em> snapback stem. As long as the amplicon is long
+                enough, uSnapback will adjust the stem so the wild-type T<sub>m</sub> is
+                close to this value.<br><br>
+                • Acceptable range: <strong>40 – 80 °C</strong><br>
+                • Whole numbers only (no decimals)<br>
+            </p>
+        </section>
 
         <!-- ───────────── Form ───────────── -->
+         <form id="tmForm" autocomplete="off" novalidate>
+            <label for="desiredTm" class="field-label">Desired T<sub>m</sub> (°C)</label>
+            <input type="number" id="desiredTm" name="desiredTm"
+                min="40" max="80" step="1"
+                required inputmode="numeric" pattern="\d*"
+                placeholder="e.g. 65" />
+        </form>
         
 
 	</main>
@@ -79,11 +93,56 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 	<!-- Floating NEXT button (submits form) -->
-	<button type="submit" id="nextBtn" class="next-btn" form="tmForm">Calculate Snapback</button>
+	<button type="submit" id="nextBtn" class="next-btn" form="tmForm">
+        Calculate Snapback
+    </button>
 
 	<!-- ───────────── Script ───────────── -->
     <script>
-        
+        (() => {
+            const input    = document.getElementById('desiredTm');
+            const form     = document.getElementById('tmForm');
+            const prevBtn  = document.getElementById('prevBtn');
+            const NEXT     = 'results.html';   // destination after Tm is set
+            const PREV     = 'variant.html';
+
+            /* restore previous value */
+            const saved = sessionStorage.getItem('desiredTm');
+            if (saved) input.value = saved;
+
+            /* keep only digits on paste / typing and update storage */
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/[^0-9]/g,'');
+                sessionStorage.setItem('desiredTm', input.value);
+            });
+
+            /* submit / next */
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                const tm = +input.value;
+
+                if (input.value.trim() === '') {
+                    alert('Please enter a Tm value.');
+                    return;
+                }
+                if (!Number.isInteger(tm)) {
+                    alert('Tm must be a whole number.');
+                    return;
+                }
+                if (tm < 40 || tm > 80) {
+                    alert('Tm must be between 40 °C and 80 °C.');
+                    return;
+                }
+                sessionStorage.setItem('desiredTm', tm);
+                window.location.href = NEXT;
+            });
+
+            /* back */
+            prevBtn.addEventListener('click', () => {
+                sessionStorage.setItem('desiredTm', input.value.trim());
+                window.location.href = PREV;
+            });
+        })();
     </script>
 
 </body>
