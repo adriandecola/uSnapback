@@ -84,7 +84,7 @@
 				type="number"
 				id="fwdLen"
 				name="fwdLen"
-				min="10"
+				min="1"
 				required
 				placeholder="e.g. 20"
 			/>
@@ -94,7 +94,7 @@
 				type="number"
 				id="revLen"
 				name="revLen"
-				min="10"
+				min="1"
 				required
 				placeholder="e.g. 20"
 			/>
@@ -125,47 +125,65 @@
 			const fwdOut       = document.getElementById('fwdPrimer');
 			const revOut       = document.getElementById('revPrimer');
 			const prevBtn      = document.getElementById('prevBtn');
+			const nextPage	   = 'variant.html';
+			const prevPage     = 'amplicon.html';
 
             /* Restore primer lengths if they exist */
             const savedFwdLen = sessionStorage.getItem('forwardPrimerLen');
             const savedRevLen = sessionStorage.getItem('reversePrimerLen');
             if (savedFwdLen) fwdInput.value = savedFwdLen;
             if (savedRevLen) revInput.value = savedRevLen;
-
-            // Show primers if primer lengths are already filled
             updatePreview();   
 
 
-			const nextPage = 'variant.html';
-			const prevPage = 'amplicon.html';
 
-			/* --- Helper: update preview whenever either length changes --- */
+
+			/* --- Helper Function: update preview if applicable--- */
 			function updatePreview() {
 				const fwdLen = parseInt(fwdInput.value, 10);
 				const revLen = parseInt(revInput.value, 10);
 
-				// Conditions to show preview
-				if (
-					seq &&
-					Number.isInteger(fwdLen) &&
-					Number.isInteger(revLen) &&
-					fwdLen >= 10 &&
-					revLen >= 10 &&
-					fwdLen + revLen <= seq.length
-				) {
-					const forwardPrimer = seq.slice(0, fwdLen);
-					const reversePrimer = seq.slice(seq.length - revLen);
+				let show = false;
 
+				if (seq && Number.isInteger(fwdLen) && fwdLen >= 12 && fwdLen <= seq.length) {
+					const forwardPrimer = seq.slice(0, fwdLen);
 					fwdOut.textContent = forwardPrimer;
-					revOut.textContent = reversePrimer;
-					previewBox.hidden = false;
+					show = true;
 				} else {
-					previewBox.hidden = true;
+					fwdOut.textContent = '';
 				}
+
+				if (seq && Number.isInteger(revLen) && revLen >= 12 && revLen <= seq.length) {
+					const reversePrimer = reverseComplement(seq.slice(seq.length - revLen));
+					revOut.textContent = reversePrimer;
+					show = true;
+				} else {
+					revOut.textContent = '';
+				}
+
+				previewBox.hidden = !show;
 			}
 
-			fwdInput.addEventListener('input', updatePreview);
-			revInput.addEventListener('input', updatePreview);
+			/* Helper Function: return reverse-complement of sequence */
+			function reverseComplement(dna){
+				const comp={A:'T',T:'A',C:'G',G:'C'};
+				return [...dna].reverse().map(b=>comp[b]||'?').join('');
+			}
+
+			/* --- Handle primer length changes --- */
+			fwdInput.addEventListener('input', () => {
+				// Store value
+				sessionStorage.setItem('forwardPrimerLen', fwdInput.value);
+				// Update preview (if applicable)
+				updatePreview();
+			});
+			revInput.addEventListener('input', () => {
+				// Store value
+				sessionStorage.setItem('reversePrimerLen', revInput.value);
+				// Update preview (if applicable)
+				updatePreview();
+			});
+
 
 			/* --- Handle form submission (Next) --- */
 			form.addEventListener('submit', (e) => {
@@ -182,8 +200,8 @@
 					alert('Please enter valid primer lengths.');
 					return;
 				}
-				if (fwdLen < 10 || revLen < 10) {
-					alert('Each primer must be at least 10 nucleotides long.');
+				if (fwdLen < 12 || revLen < 12) {
+					alert('Each primer must be at least 12 nucleotides long.');
 					return;
 				}
 				if (fwdLen + revLen > seq.length) {
@@ -197,8 +215,6 @@
 
 				sessionStorage.setItem('forwardPrimerLen', fwdLen);
 				sessionStorage.setItem('reversePrimerLen', revLen);
-				sessionStorage.setItem('forwardPrimerSeq', forwardPrimer);
-				sessionStorage.setItem('reversePrimerSeq', reversePrimer);
 
 				/* Navigate forward */
 				window.location.href = nextPage;
@@ -206,6 +222,10 @@
 
 			/* --- Previous button --- */
 			prevBtn.addEventListener('click', () => {
+				// Store current inputs
+				sessionStorage.setItem('forwardPrimerLen', fwdInput.value);
+				sessionStorage.setItem('reversePrimerLen', revInput.value);
+				// Navigate to the previous page
 				window.location.href = prevPage;
 			});
 		})();
