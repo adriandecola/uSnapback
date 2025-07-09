@@ -79,13 +79,10 @@
 			</label>
 
 			<textarea
-				id="ampliconInput"
-				name="ampliconInput"
-				required
-				spellcheck="false"
-				placeholder="Enter only A, C, G, T"
-				pattern="[ACGTacgt\s]+"
-			></textarea>
+				id="ampliconInput" name="ampliconInput" required spellcheck="false"
+				placeholder="Enter only A, C, G, T (line-breaks, tabs, and spaces allowed)"
+				pattern="[ACGTacgt\s]+" wrap="soft"> 
+			</textarea>
 		</form>
 
 	</main>
@@ -105,34 +102,46 @@
 	<script>
 		(() => {
 			const input  = document.getElementById('ampliconInput');
-			/* Restore previously-saved amplicon sequence, if any */
-			const savedSeq = sessionStorage.getItem('sequence');
-			if (savedSeq) {
-				input.value = savedSeq;
-			}
+
+			/* Restore previously-saved amplicon (raw, with whitespace) */
+			const savedRaw = sessionStorage.getItem('sequenceRaw');        // NEW
+			if (savedRaw) input.value = savedRaw;
 
 			const form   = document.getElementById('ampliconForm');
 			const prev  = document.getElementById('prevBtn');
 			const nextPg = 'primers.html';
 			const prevPg = 'start.html';
 
-			/* 1. Force uppercase, strip invalid characters in real-time */
+			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
 			input.addEventListener('input', () => {
-				input.value = input.value.toUpperCase().replace(/[^ACGT]/g, '');
+				input.value = input.value.toUpperCase().replace(/[^ACGT\s]/g,'');
+				sessionStorage.setItem('sequenceRaw', input.value.trim());
 			});
-			// Store sequence
-			sessionStorage.setItem('sequence', input.value.trim());
+
+			/* Insert a literal tab when user presses TAB inside the textarea */
+			input.addEventListener('keydown', e => {
+				if (e.key === 'Tab') {
+					e.preventDefault();
+					const s = input.selectionStart, t = input.selectionEnd;
+					input.value = input.value.slice(0,s) + '\t' + input.value.slice(t);
+					input.selectionStart = input.selectionEnd = s + 1;
+				}
+			});
 
 			/* 2. On submit, save sequence and navigate forward */
 			form.addEventListener('submit', (e) => {
 				e.preventDefault();
-				const seq = input.value.trim();
+				const raw  = input.value.trim();        // preserve user formatting
+				const seq  = raw.replace(/\s+/g,'');    // compact for validation
+
 				if (seq.length<33) {
 					alert('The amplicon it too short.');
 					return;
 				}
 				// Store sequence
 				sessionStorage.setItem('sequence', seq);
+				sessionStorage.setItem('sequenceRaw', raw);
+
 				// Navigate to next page
 				window.location.href = nextPg;
 			});
@@ -140,7 +149,7 @@
 			/* 3. Handle Previous button click */
 			prev.addEventListener('click', () => {
 				// Store sequence
-				sessionStorage.setItem('sequence', input.value.trim());
+				sessionStorage.setItem('sequenceRaw', input.value.trim());
 				// Navigate to previous page
 				window.location.href = prevPg;
 		});
