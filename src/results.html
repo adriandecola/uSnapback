@@ -92,9 +92,10 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
-	<!-- ───────────── Script ───────────── -->
-    <script type="module">
-        import { createSnapback } from './script.js';   /* if your helper lives elsewhere, adjust path */
+
+	<!-- ───────────── Scripts ───────────── -->
+    <script type = "module">
+        import { createSnapback } from './script.js';
 
         (async () => {
             /* pull everything we need from sessionStorage */
@@ -105,7 +106,6 @@
             const snvBase  = sessionStorage.getItem('snvBase');
             const targetTm = +sessionStorage.getItem('desiredTm');
 
-            /* quick guard */
             const goBack = msg => {
                 alert(msg +
                     '\n\nYou will now be redirected to the amplicon page so you can adjust your inputs.');
@@ -118,7 +118,7 @@
             }
 
             try {
-                const result = await createSnapback(
+                const result = await createSnapback(        /* now referenced from global scope */
                     seq,
                     fwdLen,
                     revLen,

@@ -30,6 +30,26 @@ const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 
 /*****************************************************************************************/
+/*********************************** TEMPORARY CORS FIX **********************************/
+/*****************************************************************************************/
+const CORS_PROXY_BASE =
+	location.hostname === '127.0.0.1' || location.hostname === 'localhost'
+		? 'https://corsproxy.io/?' // or your own proxy URL
+		: ''; // disable proxy in production
+
+const _origFetch = window.fetch;
+window.fetch = (input, init) => {
+	/* leave same-origin or already-proxied requests untouched */
+	let url = input instanceof Request ? input.url : input;
+	if (CORS_PROXY_BASE && url.startsWith('https://dna-utah.org')) {
+		url = CORS_PROXY_BASE + url;
+		if (input instanceof Request) input = new Request(url, input);
+		else input = url;
+	}
+	return _origFetch(input, init);
+};
+
+/*****************************************************************************************/
 /************************************ Primary Function ***********************************/
 /*****************************************************************************************/
 
