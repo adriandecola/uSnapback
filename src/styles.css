@@ -241,6 +241,14 @@ input[type='number'] {
 	font-family: 'Courier New', monospace;
 }
 
+#restartBtn {
+	background: #dc2626; /* red */
+}
+
+#restartBtn:hover {
+	background: #b91c1c;
+}
+
 /* ------------------------------------ */
 /* ---------- Responsiveness ---------- */
 /* ------------------------------------ */
