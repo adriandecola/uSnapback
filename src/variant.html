@@ -287,7 +287,7 @@
                 if (i < fwdLen || i >= seq.length - revLen) cls = 'primer';
 
                 /* SNV position in red, show “wild/variant” (e.g. G/A) */
-                if (i === idx && 'ACGT'.includes(base)) {
+                if (i === idx && base && 'ACGT'.includes(base)) {
                     cls = 'snv';
                     nt  = `${seq[i]}/${base}`;            // wild / variant
                 }

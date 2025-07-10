@@ -92,13 +92,40 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
+    <!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="next-btn">⟲ Restart</button>
+
 
 	<!-- ───────────── Scripts ───────────── -->
     <script type = "module">
         import { createSnapback } from './script.js';
 
         (async () => {
-            /* pull everything we need from sessionStorage */
+            /* ---------- DOM elements ---------- */
+            const prevBtn    = document.getElementById('prevBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            const resultBox  = document.getElementById('resultBox');
+
+            /* ---------- Nav targets ---------- */
+            const PREV  = 'desiredTm.html';
+            const START = 'start.html';
+
+            /* ---------- Back button ---------- */
+            prevBtn.addEventListener('click', () => {
+                /* keep current inputs intact – just step back */
+                window.location.href = PREV;
+            });
+
+            /* ---------- Restart button ---------- */
+            restartBtn.addEventListener('click', () => {
+                if (confirm('This will erase all inputs and return to the start page. Continue?')) {
+                    sessionStorage.clear();
+                    window.location.href = START;
+                }
+            });
+
+            /* ---------- Pull inputs ------------ */
+                    
             const seq      = sessionStorage.getItem('sequence');
             const fwdLen   = +sessionStorage.getItem('forwardPrimerLen');
             const revLen   = +sessionStorage.getItem('reversePrimerLen');
