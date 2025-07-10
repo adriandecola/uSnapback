@@ -85,6 +85,11 @@
                 <li><strong>Variant&nbsp;T<sub>m</sub>:</strong> <span id="varTm"></span> °C</li>
             </ul>
         </div>
+        <!-- full-page loading overlay ▼▼ -->
+        <div id="loadingOverlay" class="loading-overlay" hidden>
+            <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+            <p>Calculating snapback&nbsp;primer…</p>
+        </div>
 
     </main>
 
@@ -105,6 +110,7 @@
             const prevBtn    = document.getElementById('prevBtn');
             const restartBtn = document.getElementById('restartBtn');
             const resultBox  = document.getElementById('resultBox');
+            const overlay    = document.getElementById('loadingOverlay');
 
             /* ---------- Nav targets ---------- */
             const PREV  = 'desiredTm.html';
@@ -145,6 +151,7 @@
             }
 
             try {
+                overlay.hidden = false; // Show loading screen
                 const result = await createSnapback(        /* now referenced from global scope */
                     seq,
                     fwdLen,
@@ -162,8 +169,11 @@
                 document.getElementById('wildTm').textContent = result.snapbackMeltingTms.wildTm.toFixed(1);
                 document.getElementById('varTm' ).textContent = result.snapbackMeltingTms.variantTm.toFixed(1);
 
-                document.getElementById('resultBox').hidden = false;
+                /* Show results and hide loading screen */
+                resultBox.hidden = false;
+	            overlay.hidden   = true;
             } catch (err) {
+                overlay.hidden = true; // Hide loading screen
                 console.error(err);
                 goBack(err.message || 'Snapback calculation failed.');
             }
