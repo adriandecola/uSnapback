@@ -20,7 +20,7 @@ const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
 const API_TOKEN = 1;
-// Chemisty parameters ************** name these better ************
+// Chemisty parameters
 const MG = 2.2;
 const MONO = 20.0;
 const T_PARAM = 'UnifiedSantaLucia';
@@ -28,28 +28,8 @@ const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
-
-/*****************************************************************************************/
-/*********************************** TEMPORARY CORS FIX **********************************/
-/*****************************************************************************************/
-/******************************** COMMENT OUT WHEN TESTING *******************************/
-/*****************************************************************************************/
-const CORS_PROXY_BASE =
-	location.hostname === '127.0.0.1' || location.hostname === 'localhost'
-		? 'https://corsproxy.io/?' // or your own proxy URL
-		: ''; // disable proxy in production
-
-const _origFetch = window.fetch;
-window.fetch = (input, init) => {
-	/* leave same-origin or already-proxied requests untouched */
-	let url = input instanceof Request ? input.url : input;
-	if (CORS_PROXY_BASE && url.startsWith('https://dna-utah.org')) {
-		url = CORS_PROXY_BASE + url;
-		if (input instanceof Request) input = new Request(url, input);
-		else input = url;
-	}
-	return _origFetch(input, init);
-};
+// This gets replaced by build.js
+const API_URL = '__API_URL__';
 
 /*****************************************************************************************/
 /************************************ Primary Function ***********************************/
@@ -636,7 +616,7 @@ async function getStemTm(seq, mismatch) {
 	}
 
 	// 2. Assemble the query URL
-	let url = 'https://dna-utah.org/tm/snaprequest.php';
+	let url = API_URL;
 	url += `?mg=${MG}`;
 	url += `&mono=${MONO}`;
 	url += `&seq=${seq.toLowerCase()}`;
