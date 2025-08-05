@@ -32,7 +32,7 @@ import {
 	MIN_LOOP_LEN,
 	MIN_PRIMER_LEN,
 	END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
-} from '../src/script.js';
+} from '../dist/script.js';
 
 /****************************************************************/
 /*********************** Primary Function ***********************/
