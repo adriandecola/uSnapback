@@ -18,5 +18,8 @@
     "jest-environment-jsdom": "^30.0.2",
     "jsdom": "^26.1.0",
     "node-fetch": "^3.3.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1"
   }
 }
