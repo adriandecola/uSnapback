@@ -30,6 +30,8 @@ const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
 const API_URL = '__API_URL__';
+const PROXY_URL = __PROXY_URL__;
+const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
 
 /*****************************************************************************************/
 /************************************ Primary Function ***********************************/
