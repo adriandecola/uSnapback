@@ -29,7 +29,7 @@ const O_TYPE = 'oligo';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
-const API_URL = '__API_URL__';
+const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
 const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
 
@@ -618,37 +618,41 @@ async function getStemTm(seq, mismatch) {
 	}
 
 	// 2. Assemble the query URL
-	let url = API_URL;
-	url += `?mg=${MG}`;
-	url += `&mono=${MONO}`;
-	url += `&seq=${seq.toLowerCase()}`;
-	url += `&tparam=${T_PARAM}`;
-	url += `&saltcalctype=${SALT_CALC_TYPE}`;
-	url += `&otype=${O_TYPE}`;
-	url += `&concentration=${CONC}`;
-	url += `&limitingconc=${LIMITING_CONC}`;
-	url += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	url += `&token=${API_TOKEN}`;
+	let apiURL = API_URL;
+	apiURL += `?mg=${MG}`;
+	apiURL += `&mono=${MONO}`;
+	apiURL += `&seq=${seq.toLowerCase()}`;
+	apiURL += `&tparam=${T_PARAM}`;
+	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
+	apiURL += `&otype=${O_TYPE}`;
+	apiURL += `&concentration=${CONC}`;
+	apiURL += `&limitingconc=${LIMITING_CONC}`;
+	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
+	apiURL += `&token=${API_TOKEN}`;
 	if (mmSeq) {
-		url += `&mmseq=${mmSeq}`;
+		apiURL += `&mmseq=${mmSeq}`;
 	}
+	// 3. If proxying, encode the target and prepend the proxy URL
+	const finalURL = USE_PROXY
+		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
+		: apiURL;
 
-	// 3. Fetch the response
-	const res = await fetch(url);
+	// 4. Fetch the response
+	const res = await fetch(finalURL);
 	if (!res.ok) {
 		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
 	}
 	const rawHtml = await res.text();
 
-	// 4. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
+	// 5. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
 	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
 
-	// 5. Validate that a numeric Tm was found
+	// 6. Validate that a numeric Tm was found
 	if (tmVal === null) {
 		throw new Error('Tm value not found or unparsable in server response.');
 	}
 
-	// 6. Return the temperature
+	// 7. Return the temperature
 	return tmVal;
 }
 
