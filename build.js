@@ -10,7 +10,7 @@ dotenv.config();
 // 2. Read enviroment variaples
 const API_URL = process.env.API_URL?.trim();
 const PROXY_URL = process.env.PROXY_URL?.trim();
-const USE_PROXY = (process.env.USE_PROXY || '').toLowerCase() === 'True';
+const USE_PROXY = (process.env.USE_PROXY || '').toLowerCase() === 'true';
 
 // 3. Check correct enviroment variables exist
 if (!API_URL) {
