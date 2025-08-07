@@ -8,7 +8,7 @@ export default defineConfig(() => {
 		root: 'dist',
 		server: {
 			port: 8000,
-			open: 'start.html',
+			open: isTesting ? false : '/start.html',
 		},
 	};
 });
