@@ -53,4 +53,4 @@ for (const file of fs.readdirSync(SRC_DIR)) {
 	fs.writeFileSync(distPath, content);
 }
 
-console.log(`Build complete. Injected API_URL: ${API_URL}`);
+console.log(`Build complete.`);
