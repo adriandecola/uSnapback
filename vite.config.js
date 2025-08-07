@@ -8,7 +8,7 @@ export default defineConfig(() => {
 		root: 'dist',
 		server: {
 			port: 8000,
-			open: isTesting ? false : 'Safari', // open in Safari unless testing
+			open: 'start.html',
 		},
 	};
 });
