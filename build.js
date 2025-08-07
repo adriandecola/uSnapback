@@ -47,7 +47,8 @@ for (const file of fs.readdirSync(SRC_DIR)) {
 		content = content
 			.replace(/__API_URL__/g, API_URL)
 			.replace(/__PROXY_URL__/g, PROXY_URL || '')
-			.replace(/__USE_PROXY__/g, String(USE_PROXY)); // "true" | "false"
+			// inserts bare boolean/boolean literal
+			.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false');
 	}
 
 	fs.writeFileSync(distPath, content);
