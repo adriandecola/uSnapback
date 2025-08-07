@@ -45,9 +45,10 @@ for (const file of fs.readdirSync(SRC_DIR)) {
 	// Replace __API_URL__ in script.js only
 	if (file === 'script.js') {
 		content = content
-			.replace(/__API_URL__/g, API_URL)
-			.replace(/__PROXY_URL__/g, PROXY_URL || '')
-			// inserts bare boolean/boolean literal
+			// quote strings with JSON.stringify(...)
+			.replace(/__API_URL__/g, JSON.stringify(API_URL))
+			.replace(/__PROXY_URL__/g, JSON.stringify(PROXY_URL || ''))
+			// leave the boolean un-quoted
 			.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false');
 	}
 
