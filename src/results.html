@@ -139,15 +139,92 @@
             const snvBase  = sessionStorage.getItem('snvBase');
             const tm       = +sessionStorage.getItem('desiredTm');
 
+            // Helper function 
             const goBack = msg => {
                 alert(msg +
                     '\n\nYou will now be redirected to the amplicon page so you can adjust your inputs.');
                 window.location.href = 'amplicon.html';
             };
 
-            if (!seq || !fwdLen || !revLen || isNaN(snvIndex) || !snvBase || !tm) {
-                // Don't check the raw sequence, though unless user is purposely messing with stuff it will be there
-                goBack('Some inputs are missing.');
+            // Type checking
+            /*---------- Checking the amplicon ----------*/
+            if (!seq) {
+                goBack('Amplicon sequence not found. Please restart.');
+                return;
+            }
+            if (seq.length<33) {
+                goBack('The amplicon it too short.');
+                return;
+            }
+            if (seq.length > AMPLICON_LIMIT) {
+                goBack(`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`);
+                return;
+            }
+
+            /*---------- Checking the primers ----------*/
+            if (!Number.isInteger(fwdLen) || !Number.isInteger(revLen)) {
+                goBack('Please enter valid primer lengths.');
+                return;
+            }
+            if (fwdLen < 12 || revLen < 12) {
+                goBack('Each primer must be at least 12 nucleotides long.');
+                return;
+            }
+            if (fwdLen > seq.length) {                     // NEW
+                goBack('Forward primer length exceeds amplicon length.');
+                return;
+            }
+            if (revLen > seq.length) {                     // NEW
+                goBack('Reverse primer length exceeds amplicon length.');
+                return;
+            }
+            if (fwdLen + revLen > seq.length) {
+                goBack('Combined primer lengths exceed amplicon length.');
+                return;
+            }
+
+            /*---------- Checking variant index and base ----------*/
+            if (idxIn.value.trim() === '') {
+                goBack('Please enter a variant index.');
+                return;
+            }
+            if (!Number.isInteger(idx) || idx < 0 || idx >= seq.length) {
+                goBack('Variant index is out of range.'); return;
+            }
+            if (!'ACGT'.includes(base)) {
+                goBack('Please select a variant base.'); return;
+            }
+            /* overlaps either primer region */
+            if (idx < fwdLen || idx >= seq.length - revLen) {
+                goBack('SNV overlaps a primer-binding site. Choose a different index.');
+                return;
+            }
+            /* too close—need ≥ 3-bp gap (= 4 bp away) */
+            if (idx < fwdLen + 3) {
+                goBack('SNV is too close to the forward primer (need ≥ 3-bp gap).');
+                return;
+            }
+            if (idx > seq.length - revLen - 4) {
+                goBack('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
+                return;
+            }
+            // make sure variant base is different from wild-type base
+            if (base === seq[idx]) {
+                goBack(`Variant base must be different from the wild-type base at index ${idx} (${seq[idx]}).`);
+                return;
+            }
+
+            /*---------- Checking Tm ----------*/
+            if (tm.trim() === '') {
+                goBack('Please enter a Tm value.');
+                return;
+            }
+            if (!Number.isInteger(tm)) {
+                goBack('Tm must be a whole number.');
+                return;
+            }
+            if (tm < 40 || tm > 80) {
+                goBack('Tm must be between 40 °C and 80 °C.');
                 return;
             }
 
