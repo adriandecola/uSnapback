@@ -92,6 +92,10 @@
 
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
+
+    <!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
+
 	<!-- Floating NEXT button (submits form) -->
 	<button type="submit" id="nextBtn" class="next-btn" form="tmForm">
         Calculate Snapback
@@ -115,6 +119,14 @@
                 input.value = input.value.replace(/[^0-9]/g,'');
                 sessionStorage.setItem('desiredTm', input.value);
             });
+
+            /* --------------------------------------------------
+			Event: restart button → clear storage and go to start.html
+			-------------------------------------------------- */
+			restartBtn.addEventListener('click', () => {
+				sessionStorage.clear();
+				window.location.href = 'start.html';
+			});
 
             /* submit / next */
             form.addEventListener('submit', e => {

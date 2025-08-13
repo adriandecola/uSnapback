@@ -97,8 +97,8 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
-    <!-- Floating RESTART button -->
-    <button type="button" id="restartBtn" class="next-btn">Restart ↺</button>
+	<!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
 
 
 	<!-- ───────────── Scripts ───────────── -->
@@ -122,13 +122,13 @@
                 window.location.href = PREV;
             });
 
-            /* ---------- Restart button ---------- */
-            restartBtn.addEventListener('click', () => {
-                if (confirm('This will erase all inputs and return to the start page. Continue?')) {
-                    sessionStorage.clear();
-                    window.location.href = START;
-                }
-            });
+            /* --------------------------------------------------
+			Event: restart button → clear storage and go to start.html
+			-------------------------------------------------- */
+			restartBtn.addEventListener('click', () => {
+				sessionStorage.clear();
+				window.location.href = 'start.html';
+			});
 
             /* ---------- Pull inputs ------------ */
                     

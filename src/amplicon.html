@@ -89,7 +89,9 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
-	<!-- Floating NEXT button -->
+	<!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
+
 	<!-- Floating NEXT button -->
 	<button type="submit"
 			id="nextBtn"
@@ -110,6 +112,14 @@
 			const prev  = document.getElementById('prevBtn');
 			const nextPg = 'primers.html';
 			const prevPg = 'start.html';
+
+			/* --------------------------------------------------
+			Event: restart button → clear storage and go to start.html
+			-------------------------------------------------- */
+			restartBtn.addEventListener('click', () => {
+				sessionStorage.clear();
+				window.location.href = 'start.html';
+			});
 
 			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
 			input.addEventListener('input', () => {

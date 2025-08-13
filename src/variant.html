@@ -106,6 +106,10 @@
 
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
+
+	<!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
+
 	<!-- Floating NEXT button (submits form) -->
 	<button type="submit" id="nextBtn" class="next-btn" form="variantForm">Next ⭢</button>
 
@@ -128,6 +132,7 @@
         const box     = document.getElementById('ampliconBox'); // preview container
         const form    = document.getElementById('variantForm');
         const prevBtn = document.getElementById('prevBtn');
+        const restartBtn = document.getElementById('restartBtn');
         const errBox = document.getElementById('snvError');
 
         /* Target pages */
@@ -142,6 +147,14 @@
 
         updateBaseOptions();   // populate <select>
         renderAmplicon();      // draw coloured sequence
+
+        /* --------------------------------------------------
+        Event: restart button → clear storage and go to start.html
+        -------------------------------------------------- */
+        restartBtn.addEventListener('click', () => {
+            sessionStorage.clear();
+            window.location.href = 'start.html';
+        });
 
         /* --------------------------------------------------
         Event: user types a new index
@@ -174,6 +187,19 @@
         Event: back button → simply navigate
         -------------------------------------------------- */
         prevBtn.addEventListener('click', () => window.location.href = PREV);
+
+        /* --------------------------------------------------
+        Event: restart button → clear storage and go to start.html
+        -------------------------------------------------- */
+        restartBtn.addEventListener('click', () => {
+            sessionStorage.clear();
+            localStorage.clear();
+            window.location.href = 'start.html';
+        });
+
+        /* --------------------------------------------------
+        Event: restart button → clear storage and go to start.html
+        -------------------------------------------------- */
 
         /* --------------------------------------------------
         Event: Next 

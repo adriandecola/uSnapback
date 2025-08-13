@@ -103,6 +103,9 @@
 	<!-- Floating PREVIOUS button -->
 	<button type="button" id="prevBtn" class="prev-btn">⭠ Back</button>
 
+	<!-- Floating RESTART button -->
+    <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
+
 	<!-- Floating NEXT button (submits form) -->
 	<button type="submit" id="nextBtn" class="next-btn" form="primerForm">Next ⭢</button>
 
@@ -167,6 +170,14 @@
 				const comp={A:'T',T:'A',C:'G',G:'C'};
 				return [...dna].reverse().map(b=>comp[b]||'?').join('');
 			}
+
+			/* --------------------------------------------------
+			Event: restart button → clear storage and go to start.html
+			-------------------------------------------------- */
+			restartBtn.addEventListener('click', () => {
+				sessionStorage.clear();
+				window.location.href = 'start.html';
+			});
 
 			/* --- Handle primer length changes --- */
 			fwdInput.addEventListener('input', () => {
