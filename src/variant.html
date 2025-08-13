@@ -224,6 +224,28 @@
                 return;
             }
 
+            /*---------- Checking the primers ----------*/
+            if (!Number.isInteger(fwdLen) || !Number.isInteger(revLen)) {
+                alert('Please enter valid primer lengths.');
+                return;
+            }
+            if (fwdLen < 12 || revLen < 12) {
+                alert('Each primer must be at least 12 nucleotides long.');
+                return;
+            }
+            if (fwdLen > seq.length) {                     // NEW
+                alert('Forward primer length exceeds amplicon length.');
+                return;
+            }
+            if (revLen > seq.length) {                     // NEW
+                alert('Reverse primer length exceeds amplicon length.');
+                return;
+            }
+            if (fwdLen + revLen > seq.length) {
+                alert('Combined primer lengths exceed amplicon length.');
+                return;
+            }
+
             if (idxIn.value.trim() === '') {
                 alert('Please enter a variant index.');
                 return;
