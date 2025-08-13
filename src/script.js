@@ -16,6 +16,7 @@ const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
+const MAX_AMPLICON_LEN = 1000;
 const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
@@ -195,6 +196,14 @@ async function createSnapback(
 				`it must be at least ${SNV_BASE_BUFFER} bases away from both primer binding regions.`
 		);
 	}
+
+	// 6. Ensure the amplicon length does not exceed MAX_AMPLICON_LEN
+	if (targetSeqStrand.length > MAX_AMPLICON_LEN) {
+		throw new Error(
+			`Amplicon length (${targetSeqStrand.length}) exceeds maximum allowed (${MAX_AMPLICON_LEN}).`
+		);
+	}
+
 	//──────────────────────────────────────────────────────────────────────────//
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
@@ -1924,4 +1933,5 @@ export {
 	MIN_LOOP_LEN,
 	MIN_PRIMER_LEN,
 	END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
+	MAX_AMPLICON_LEN,
 };

@@ -32,6 +32,7 @@ import {
 	MIN_LOOP_LEN,
 	MIN_PRIMER_LEN,
 	END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
+	MAX_AMPLICON_LEN,
 } from '../dist/script.js';
 
 /****************************************************************/
@@ -197,6 +198,87 @@ describe('createSnapback()', () => {
 				validTm
 			)
 		).rejects.toThrow(/too close to a primer/i);
+	});
+
+	// TESTING THE MAX AMPLICON LENGTH TEST
+	const makeDNA = (n) => 'ACGT'.repeat(Math.ceil(n / 4)).slice(0, n);
+	const primerLen = MIN_PRIMER_LEN;
+	const compPrimerLen = MIN_PRIMER_LEN;
+	const targetSnapMeltTemp = 60;
+
+	test('throws if amplicon length exceeds MAX_AMPLICON_LEN by 1', async () => {
+		const len = MAX_AMPLICON_LEN + 1;
+		const targetSeqStrand = makeDNA(len);
+		const snvSite = { index: Math.floor(len / 2), variantBase: 'A' };
+
+		await expect(
+			createSnapback(
+				targetSeqStrand,
+				primerLen,
+				compPrimerLen,
+				snvSite,
+				targetSnapMeltTemp
+			)
+		).rejects.toThrow(/exceeds maximum allowed/i);
+	});
+
+	test('throws if amplicon length exceeds MAX_AMPLICON_LEN by a large margin', async () => {
+		const len = MAX_AMPLICON_LEN + 250;
+		const targetSeqStrand = makeDNA(len);
+		const snvSite = { index: Math.floor(len / 2), variantBase: 'C' };
+
+		await expect(
+			createSnapback(
+				targetSeqStrand,
+				primerLen,
+				compPrimerLen,
+				snvSite,
+				targetSnapMeltTemp
+			)
+		).rejects.toThrow(/exceeds maximum allowed/i);
+	});
+
+	test('does not fail the length check when amplicon length equals MAX_AMPLICON_LEN', async () => {
+		const len = MAX_AMPLICON_LEN; // boundary: allowed
+		const targetSeqStrand = makeDNA(len);
+		const snvSite = { index: Math.floor(len / 2), variantBase: 'G' };
+
+		// We only assert it doesn't fail due to the length guard.
+		// The function may still reject later for other reasons (that is OK here).
+		try {
+			await createSnapback(
+				targetSeqStrand,
+				primerLen,
+				compPrimerLen,
+				snvSite,
+				targetSnapMeltTemp
+			);
+			// resolved → certainly not the length guard, test passes
+		} catch (err) {
+			expect(String(err && err.message ? err.message : err)).not.toMatch(
+				/exceeds maximum allowed/i
+			);
+		}
+	});
+
+	test('does not fail the length check when amplicon length is under MAX_AMPLICON_LEN', async () => {
+		const len = MAX_AMPLICON_LEN - 1;
+		const targetSeqStrand = makeDNA(len);
+		const snvSite = { index: Math.floor(len / 2), variantBase: 'T' };
+
+		try {
+			await createSnapback(
+				targetSeqStrand,
+				primerLen,
+				compPrimerLen,
+				snvSite,
+				targetSnapMeltTemp
+			);
+		} catch (err) {
+			expect(String(err && err.message ? err.message : err)).not.toMatch(
+				/exceeds maximum allowed/i
+			);
+		}
 	});
 });
 
