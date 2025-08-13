@@ -120,7 +120,8 @@
         Pull saved data from sessionStorage
         + (unary plus) converts string → number
         -------------------------------------------------- */
-        const seq    = sessionStorage.getItem('sequence') || '';
+		const raw		   = sessionStorage.getItem('sequenceRaw') || '';
+		const seq          = sessionStorage.getItem('sequence') || '';
         const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
         const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
 
@@ -210,8 +211,6 @@
             const base = baseSel.value;  // already a string
 
             /*---------- Checking the amplicon ----------*/
-            const raw  = input.value.trim();        // preserve user formatting
-            const seq  = raw.replace(/\s+/g,'');    // compact for validation
             if (!seq) {
                 alert('Amplicon sequence not found. Please restart.');
                 return;

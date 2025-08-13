@@ -104,6 +104,8 @@
 	<!-- ───────────── Script ───────────── -->
     <script>
         (() => {
+            const raw		   = sessionStorage.getItem('sequenceRaw') || '';
+			const seq          = sessionStorage.getItem('sequence') || '';
             const input    = document.getElementById('desiredTm');
             const form     = document.getElementById('tmForm');
             const prevBtn  = document.getElementById('prevBtn');
@@ -137,8 +139,6 @@
                 const tm = +input.value;
 
                 /*---------- Checking the amplicon ----------*/
-				const raw  = input.value.trim();        // preserve user formatting
-				const seq  = raw.replace(/\s+/g,'');    // compact for validation
 				if (!seq) {
 					alert('Amplicon sequence not found. Please restart.');
 					return;

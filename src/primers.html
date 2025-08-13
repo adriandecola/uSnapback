@@ -112,6 +112,7 @@
 	<!-- Script: validation, preview, storage, navigation -->
 	<script>
 		(() => {
+			const raw		   = sessionStorage.getItem('sequenceRaw') || '';
 			const seq          = sessionStorage.getItem('sequence') || '';
 			const form         = document.getElementById('primerForm');
 			const fwdInput     = document.getElementById('fwdLen');
@@ -210,8 +211,6 @@
 				const revLen = parseInt(revInput.value, 10);
 		
 				/*---------- Checking the amplicon ----------*/
-				const raw  = input.value.trim();        // preserve user formatting
-				const seq  = raw.replace(/\s+/g,'');    // compact for validation
 				if (!seq) {
 					alert('Amplicon sequence not found. Please restart.');
 					return;

@@ -131,7 +131,7 @@
 			});
 
             /* ---------- Pull inputs ------------ */
-                    
+            
             const seq      = sessionStorage.getItem('sequence');
             const fwdLen   = +sessionStorage.getItem('forwardPrimerLen');
             const revLen   = +sessionStorage.getItem('reversePrimerLen');
@@ -146,6 +146,7 @@
             };
 
             if (!seq || !fwdLen || !revLen || isNaN(snvIndex) || !snvBase || !targetTm) {
+                // Don't check the raw sequence, though unless user is purposely messing with stuff it will be there
                 goBack('Some inputs are missing.');
                 return;
             }
