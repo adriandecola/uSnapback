@@ -120,6 +120,20 @@ body {
 	transform: translate(-50%, 2px); /* keep centered but pressed look */
 }
 
+/* ---------- Stats Preview Box ---------- */
+/* This is used on the amplicon.htlm and primer.html pages */
+.stats-display {
+	margin-top: 2rem;
+	padding: 0.75rem 1rem;
+	background: #e2e8f0; /* light slate */
+	border-radius: 0.5rem;
+	font-family: 'Courier New', monospace;
+	word-break: break-all;
+}
+.stats-display code {
+	color: #0f172a;
+}
+
 /* -------------------------------- */
 /* ---------- Start Page ---------- */
 /* -------------------------------- */
@@ -200,18 +214,6 @@ input[type='number'] {
 	width: 240px; /* slightly longer box */
 }
 
-/* ---------- Primer Preview Box ---------- */
-.primer-display {
-	margin-top: 2rem;
-	padding: 0.75rem 1rem;
-	background: #e2e8f0; /* light slate */
-	border-radius: 0.5rem;
-	font-family: 'Courier New', monospace;
-	word-break: break-all;
-}
-.primer-display code {
-	color: #0f172a;
-}
 /* ---------------------------------- */
 /* ---------- Variant Page ---------- */
 /* ---------------------------------- */

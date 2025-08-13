@@ -82,6 +82,12 @@
 				id="ampliconInput" name="ampliconInput" required spellcheck="false"
 				placeholder="Enter only A, C, G, T (line-breaks, tabs, and spaces allowed)"
 				pattern="[ACGTacgt\s]+" wrap="soft"></textarea>
+			
+			<!-- Live Amplicon Stats -->
+			<div id="ampliconStats" class="stats-display" hidden>
+			<p><strong>Amplicon length:</strong> <code id="ampLenOut"></code></p>
+			<p><strong>GC content:</strong> <code id="ampGcOut"></code></p>
+			</div>
 		</form>
 
 	</main>
@@ -103,15 +109,23 @@
 	<script>
 		(() => {
 			const input  = document.getElementById('ampliconInput');
-
-			/* Restore previously-saved amplicon (raw, with whitespace) */
-			const savedRaw = sessionStorage.getItem('sequenceRaw');        // NEW
-			if (savedRaw) input.value = savedRaw;
-
 			const form   = document.getElementById('ampliconForm');
 			const prev  = document.getElementById('prevBtn');
+			const statsBox  = document.getElementById('ampliconStats');
+			const ampLenOut = document.getElementById('ampLenOut');
+			const ampGcOut  = document.getElementById('ampGcOut');
 			const nextPg = 'primers.html';
 			const prevPg = 'start.html';
+			const restartBtn = document.getElementById('restartBtn');
+
+			/* Restore previously-saved amplicon (raw, with whitespace) */
+			const savedRaw = sessionStorage.getItem('sequenceRaw');
+			if (savedRaw) input.value = savedRaw;
+			// Update amplicon statistics, if there is an amplicon
+			updateAmpliconStats();
+
+			
+
 
 			/* --------------------------------------------------
 			Event: restart button → clear storage and go to start.html
@@ -123,8 +137,13 @@
 
 			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
 			input.addEventListener('input', () => {
+				// Avoid inserting for non whitespace text
+				// and text that would not represent a nucleotide
 				input.value = input.value.toUpperCase().replace(/[^ACGT\s]/g,'');
+				// Update the raw amplicon in the session storage
 				sessionStorage.setItem('sequenceRaw', input.value.trim());
+				// Update amplicon statistics
+				updateAmpliconStats();
 			});
 
 			/* Insert a literal tab when user presses TAB inside the textarea */
@@ -136,6 +155,28 @@
 					input.selectionStart = input.selectionEnd = s + 1;
 				}
 			});
+
+			/* Helper function to update amplicon statistics */
+			function updateAmpliconStats() {
+				const raw = input.value.trim();
+				const seq = raw.replace(/\s+/g, '');   // collapse whitespace
+				const n   = seq.length;
+
+				if (n === 0) {
+					statsBox.hidden = true;
+					ampLenOut.textContent = '';
+					ampGcOut.textContent  = '';
+					return;
+				}
+
+				const gc  = (seq.match(/[GC]/g) || []).length;
+				const pct = (gc / n) * 100;
+
+				ampLenOut.textContent = String(n);
+				ampGcOut.textContent  = `${pct.toFixed(1)}%`;
+				statsBox.hidden = false;
+			}
+
 
 			/* 2. On submit, save sequence and navigate forward */
 			form.addEventListener('submit', (e) => {
