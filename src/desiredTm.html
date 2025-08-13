@@ -110,6 +110,8 @@
             const restartBtn = document.getElementById('restartBtn');
             const NEXT     = 'results.html';   // destination after Tm is set
             const PREV     = 'variant.html';
+            // maximum nt allowed
+			const AMPLICON_LIMIT = 1000;
 
             /* restore previous value */
             const saved = sessionStorage.getItem('desiredTm');
@@ -133,6 +135,22 @@
             form.addEventListener('submit', e => {
                 e.preventDefault();
                 const tm = +input.value;
+
+                /*---------- Checking the amplicon ----------*/
+				const raw  = input.value.trim();        // preserve user formatting
+				const seq  = raw.replace(/\s+/g,'');    // compact for validation
+				if (!seq) {
+					alert('Amplicon sequence not found. Please restart.');
+					return;
+				}
+				if (seq.length<33) {
+					alert('The amplicon it too short.');
+					return;
+				}
+				if (seq.length > AMPLICON_LIMIT) {
+					alert(`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`);
+					return;
+				}
 
                 if (input.value.trim() === '') {
                     alert('Please enter a Tm value.');

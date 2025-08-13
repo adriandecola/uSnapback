@@ -134,6 +134,8 @@
         const prevBtn = document.getElementById('prevBtn');
         const restartBtn = document.getElementById('restartBtn');
         const errBox = document.getElementById('snvError');
+        // maximum nt allowed
+		const AMPLICON_LIMIT = 1000;
 
         /* Target pages */
         const NEXT = 'desiredTm.html';
@@ -197,9 +199,6 @@
             window.location.href = 'start.html';
         });
 
-        /* --------------------------------------------------
-        Event: restart button → clear storage and go to start.html
-        -------------------------------------------------- */
 
         /* --------------------------------------------------
         Event: Next 
@@ -210,8 +209,21 @@
             const idx  = +idxIn.value;   // string → number
             const base = baseSel.value;  // already a string
 
-            /* ---- Validation (ordered from least to most specific) ---- */
-            if (!seq) { alert('Amplicon sequence not found.'); return; }
+            /*---------- Checking the amplicon ----------*/
+            const raw  = input.value.trim();        // preserve user formatting
+            const seq  = raw.replace(/\s+/g,'');    // compact for validation
+            if (!seq) {
+                alert('Amplicon sequence not found. Please restart.');
+                return;
+            }
+            if (seq.length<33) {
+                alert('The amplicon it too short.');
+                return;
+            }
+            if (seq.length > AMPLICON_LIMIT) {
+                alert(`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`);
+                return;
+            }
 
             if (idxIn.value.trim() === '') {
                 alert('Please enter a variant index.');

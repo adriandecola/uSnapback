@@ -87,7 +87,7 @@
 				<!-- Live Character Count (nucleotides only, whitespace ignored) -->
 				<div id="ampliconCount" class="char-count" aria-live="polite"></div>
 			</div>
-			
+
 			<!-- Live Amplicon Stats -->
 			<div id="ampliconStats" class="stats-display" hidden>
 				<p><strong>Amplicon length:</strong> <code id="ampLenOut"></code></p>
@@ -124,7 +124,8 @@
 			const restartBtn = document.getElementById('restartBtn');
 			const countBox = document.getElementById('ampliconCount');
 
-			const AMPLICON_LIMIT = 1000;                           // maximum nt allowed
+			// maximum nt allowed
+			const AMPLICON_LIMIT = 1000;
 
 
 			/* Restore previously-saved amplicon (raw, with whitespace) */
@@ -209,7 +210,10 @@
 				/*---------- Checking the amplicon ----------*/
 				const raw  = input.value.trim();        // preserve user formatting
 				const seq  = raw.replace(/\s+/g,'');    // compact for validation
-
+				if (!seq) {
+					alert('Amplicon sequence not found. Please restart.');
+					return;
+				}
 				if (seq.length<33) {
 					alert('The amplicon it too short.');
 					return;
