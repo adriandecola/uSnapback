@@ -246,25 +246,22 @@
                 return;
             }
 
+            /*---------- Checking variant index ----------*/
             if (idxIn.value.trim() === '') {
                 alert('Please enter a variant index.');
                 return;
             }
-
             if (!Number.isInteger(idx) || idx < 0 || idx >= seq.length) {
                 alert('Variant index is out of range.'); return;
             }
-
             if (!'ACGT'.includes(base)) {
                 alert('Please select a variant base.'); return;
             }
-
             /* overlaps either primer region */
             if (idx < fwdLen || idx >= seq.length - revLen) {
                 alert('SNV overlaps a primer-binding site. Choose a different index.');
                 return;
             }
-
             /* too close—need ≥ 3-bp gap (= 4 bp away) */
             if (idx < fwdLen + 3) {
                 alert('SNV is too close to the forward primer (need ≥ 3-bp gap).');
@@ -272,6 +269,11 @@
             }
             if (idx > seq.length - revLen - 4) {
                 alert('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
+                return;
+            }
+            // make sure variant base is different from wild-type base
+            if (base === seq[idx]) {
+                alert(`Variant base must be different from the wild-type base at index ${idx} (${seq[idx]}).`);
                 return;
             }
 
