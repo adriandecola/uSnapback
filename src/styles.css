@@ -175,7 +175,13 @@ body {
 /* ---------- Amplicon Page ---------- */
 /* ----------------------------------- */
 
-textarea {
+.textarea-wrapper {
+	position: relative;
+	display: inline-block;
+	width: 100%;
+}
+
+.textarea-wrapper textarea {
 	width: 100%;
 	min-height: 240px;
 	padding: 0.75rem 1rem;
@@ -188,11 +194,29 @@ textarea {
 	white-space: pre-wrap; /* keeps user line-breaks, allows wrapping */
 	word-wrap: break-word; /* forces wrap inside long unbroken strings */
 	overflow-wrap: anywhere; /* ensures even huge chunks wrap */
+	padding-bottom: 2.25rem;
 }
 
-textarea:focus {
+.textarea-wrapper textarea:focus {
 	outline: none;
 	border-color: #1d4ed8;
+}
+
+/* Small right-aligned live counter under the textarea */
+.textarea-wrapper .char-count {
+	position: absolute;
+	bottom: 0.5rem;
+	right: 0.75rem;
+	margin: 0;
+	pointer-events: none; /* don't block clicks/selections */
+	font-size: 0.875rem;
+	color: #475569; /* slate-600 */
+	text-align: right;
+	background: transparent;
+}
+.textarea-wrapper .char-count.over {
+	color: #dc2626; /* red-600 when exceeding limit */
+	font-weight: 600;
 }
 
 /* --------------------------------- */

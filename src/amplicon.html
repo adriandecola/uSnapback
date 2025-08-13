@@ -78,15 +78,20 @@
 				Amplicon Sequence (5'→3')
 			</label>
 
-			<textarea
-				id="ampliconInput" name="ampliconInput" required spellcheck="false"
-				placeholder="Enter only A, C, G, T (line-breaks, tabs, and spaces allowed)"
-				pattern="[ACGTacgt\s]+" wrap="soft"></textarea>
+			<div class="textarea-wrapper">
+				<textarea
+					id="ampliconInput" name="ampliconInput" required spellcheck="false"
+					placeholder="Enter only A, C, G, T (line-breaks, tabs, and spaces allowed)"
+					pattern="[ACGTacgt\s]+" wrap="soft"></textarea>
+
+				<!-- Live Character Count (nucleotides only, whitespace ignored) -->
+				<div id="ampliconCount" class="char-count" aria-live="polite"></div>
+			</div>
 			
 			<!-- Live Amplicon Stats -->
 			<div id="ampliconStats" class="stats-display" hidden>
-			<p><strong>Amplicon length:</strong> <code id="ampLenOut"></code></p>
-			<p><strong>GC content:</strong> <code id="ampGcOut"></code></p>
+				<p><strong>Amplicon length:</strong> <code id="ampLenOut"></code></p>
+				<p><strong>GC content:</strong> <code id="ampGcOut"></code></p>
 			</div>
 		</form>
 
@@ -117,45 +122,21 @@
 			const nextPg = 'primers.html';
 			const prevPg = 'start.html';
 			const restartBtn = document.getElementById('restartBtn');
+			const countBox = document.getElementById('ampliconCount');
+
+			const AMPLICON_LIMIT = 1000;                           // maximum nt allowed
+
 
 			/* Restore previously-saved amplicon (raw, with whitespace) */
 			const savedRaw = sessionStorage.getItem('sequenceRaw');
 			if (savedRaw) input.value = savedRaw;
 			// Update amplicon statistics, if there is an amplicon
 			updateAmpliconStats();
+			// Update nucleotice count
+			updateCharCount();
+
 
 			
-
-
-			/* --------------------------------------------------
-			Event: restart button → clear storage and go to start.html
-			-------------------------------------------------- */
-			restartBtn.addEventListener('click', () => {
-				sessionStorage.clear();
-				window.location.href = 'start.html';
-			});
-
-			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
-			input.addEventListener('input', () => {
-				// Avoid inserting for non whitespace text
-				// and text that would not represent a nucleotide
-				input.value = input.value.toUpperCase().replace(/[^ACGT\s]/g,'');
-				// Update the raw amplicon in the session storage
-				sessionStorage.setItem('sequenceRaw', input.value.trim());
-				// Update amplicon statistics
-				updateAmpliconStats();
-			});
-
-			/* Insert a literal tab when user presses TAB inside the textarea */
-			input.addEventListener('keydown', e => {
-				if (e.key === 'Tab') {
-					e.preventDefault();
-					const s = input.selectionStart, t = input.selectionEnd;
-					input.value = input.value.slice(0,s) + '\t' + input.value.slice(t);
-					input.selectionStart = input.selectionEnd = s + 1;
-				}
-			});
-
 			/* Helper function to update amplicon statistics */
 			function updateAmpliconStats() {
 				const raw = input.value.trim();
@@ -177,10 +158,55 @@
 				statsBox.hidden = false;
 			}
 
+			// Helper function to update the nucleotide count
+			function updateCharCount() {
+				const seqLen = input.value.replace(/\s+/g, '').length; // nucleotides only
+				countBox.textContent = `${seqLen} / ${AMPLICON_LIMIT} nt`;
+				countBox.classList.toggle('over', seqLen > AMPLICON_LIMIT);
+			}
+
+
+			/* --------------------------------------------------
+			Event: restart button → clear storage and go to start.html
+			-------------------------------------------------- */
+			restartBtn.addEventListener('click', () => {
+				sessionStorage.clear();
+				window.location.href = 'start.html';
+			});
+
+			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
+			input.addEventListener('input', () => {
+				// Avoid inserting for non whitespace text
+				// and text that would not represent a nucleotide
+				input.value = input.value.toUpperCase().replace(/[^ACGT\s]/g,'');
+				// Update the raw amplicon in the session storage
+				sessionStorage.setItem('sequenceRaw', input.value.trim());
+				// Update amplicon statistics
+				updateAmpliconStats();
+				// Update nucleotide count
+				updateCharCount();
+
+			});
+
+			/* Insert a literal tab when user presses TAB inside the textarea */
+			input.addEventListener('keydown', e => {
+				if (e.key === 'Tab') {
+					e.preventDefault();
+					const s = input.selectionStart, t = input.selectionEnd;
+					input.value = input.value.slice(0,s) + '\t' + input.value.slice(t);
+					input.selectionStart = input.selectionEnd = s + 1;
+					// Update nucleotide count
+					updateCharCount();
+				}
+			});
+
+
+
 
 			/* 2. On submit, save sequence and navigate forward */
 			form.addEventListener('submit', (e) => {
 				e.preventDefault();
+				/*---------- Checking the amplicon ----------*/
 				const raw  = input.value.trim();        // preserve user formatting
 				const seq  = raw.replace(/\s+/g,'');    // compact for validation
 
@@ -188,6 +214,11 @@
 					alert('The amplicon it too short.');
 					return;
 				}
+				if (seq.length > AMPLICON_LIMIT) {
+					alert(`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`);
+					return;
+				}
+
 				// Store sequence
 				sessionStorage.setItem('sequence', seq);
 				sessionStorage.setItem('sequenceRaw', raw);
