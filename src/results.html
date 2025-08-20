@@ -116,6 +116,9 @@
             const PREV  = 'desiredTm.html';
             const START = 'start.html';
 
+            // maximum nt allowed
+			const AMPLICON_LIMIT = 1000;
+
             /* ---------- Back button ---------- */
             prevBtn.addEventListener('click', () => {
                 /* keep current inputs intact – just step back */
@@ -184,47 +187,39 @@
             }
 
             /*---------- Checking variant index and base ----------*/
-            if (idxIn.value.trim() === '') {
-                goBack('Please enter a variant index.');
-                return;
+            if (!Number.isInteger(snvIndex) || snvIndex< 0 || snvIndex >= seq.length) {
+                alert('Variant index is out of range.'); return;
             }
-            if (!Number.isInteger(idx) || idx < 0 || idx >= seq.length) {
-                goBack('Variant index is out of range.'); return;
-            }
-            if (!'ACGT'.includes(base)) {
-                goBack('Please select a variant base.'); return;
+            if (!'ACGT'.includes(snvBase)) {
+                alert('Please select a variant base.'); return;
             }
             /* overlaps either primer region */
-            if (idx < fwdLen || idx >= seq.length - revLen) {
-                goBack('SNV overlaps a primer-binding site. Choose a different index.');
+            if (snvIndex < fwdLen || snvIndex >= seq.length - revLen) {
+                alert('SNV overlaps a primer-binding site. Choose a different index.');
                 return;
             }
             /* too close—need ≥ 3-bp gap (= 4 bp away) */
-            if (idx < fwdLen + 3) {
-                goBack('SNV is too close to the forward primer (need ≥ 3-bp gap).');
+            if (snvIndex < fwdLen + 3) {
+                alert('SNV is too close to the forward primer (need ≥ 3-bp gap).');
                 return;
             }
-            if (idx > seq.length - revLen - 4) {
-                goBack('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
+            if (snvIndex > seq.length - revLen - 4) {
+                alert('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
                 return;
             }
             // make sure variant base is different from wild-type base
-            if (base === seq[idx]) {
-                goBack(`Variant base must be different from the wild-type base at index ${idx} (${seq[idx]}).`);
+            if (snvBase === seq[snvBase]) {
+                alert(`Variant base must be different from the wild-type base at index ${snvIndex} (${seq[snvIndex]}).`);
                 return;
             }
 
             /*---------- Checking Tm ----------*/
-            if (tm.trim() === '') {
-                goBack('Please enter a Tm value.');
-                return;
-            }
             if (!Number.isInteger(tm)) {
-                goBack('Tm must be a whole number.');
+                alert('Tm must be a whole number.');
                 return;
             }
             if (tm < 40 || tm > 80) {
-                goBack('Tm must be between 40 °C and 80 °C.');
+                alert('Tm must be between 40 °C and 80 °C.');
                 return;
             }
 
