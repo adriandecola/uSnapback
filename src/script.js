@@ -327,13 +327,13 @@ async function createSnapback(
 	);
 	const stemSeqVariantRevPrimer =
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
-			bestStemLocRevCompSnapPrimerRefPoint,
+			bestStemLocRevCompSnapPrimerRefPoint.start,
 			snvSiteRevCompSnapPrimerRefPoint.index
 		) +
 		snvSiteRevCompSnapPrimerRefPoint.variantBase +
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
 			snvSiteRevCompSnapPrimerRefPoint.index + 1,
-			bestStemLocRevCompSnapPrimerRefPoint + 1
+			bestStemLocRevCompSnapPrimerRefPoint.end + 1
 		);
 	// Calculating the loop lengths for each case. They only depend on which primer the tail is
 	// attached to
@@ -347,17 +347,23 @@ async function createSnapback(
 	// 		for stem Tm calculation
 	const wildMismatchSamePrimer = {
 		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
-		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.wildBase],
+		type: NUCLEOTIDE_COMPLEMENT[
+			targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index]
+		],
 	};
 	const variantMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint - bestStemLoc, // Appropriate position is relative to the start of the stem
+		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
 		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.variantBase],
 	};
 	const wildMismatchRevPrimer = {
 		position:
 			snvSiteRevCompSnapPrimerRefPoint.index -
 			bestStemLocRevCompSnapPrimerRefPoint.start,
-		type: NUCLEOTIDE_COMPLEMENT[snvSiteRevCompSnapPrimerRefPoint.wildBase],
+		type: NUCLEOTIDE_COMPLEMENT[
+			targetStrandSeqRevCompSnapPrimerRefPoint[
+				snvSiteRevCompSnapPrimerRefPoint.index
+			]
+		],
 	};
 	const variantMismatchRevPrimer = {
 		position:
@@ -496,6 +502,7 @@ async function createSnapback(
  *
  * @throws {Error} If stem sequences cannot be constructed or mismatch positions are invalid
  */
+/*
 async function calculateMeltingTempDifferences(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
@@ -540,13 +547,13 @@ async function calculateMeltingTempDifferences(
 	);
 	const stemSeqVariantRevPrimer =
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
-			bestStemLocRevCompSnapPrimerRefPoint,
+			bestStemLocRevCompSnapPrimerRefPoint.start,
 			snvSiteRevCompSnapPrimerRefPoint.index
 		) +
 		snvSiteRevCompSnapPrimerRefPoint.variantBase +
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
 			snvSiteRevCompSnapPrimerRefPoint.index + 1,
-			bestStemLocRevCompSnapPrimerRefPoint + 1
+			bestStemLocRevCompSnapPrimerRefPoint.end + 1
 		);
 	// Calculating the loop lengths for each case. They only depend on which primer the tail is
 	// attached to
@@ -639,6 +646,7 @@ async function calculateMeltingTempDifferences(
 	// Return the results
 	return meltingTempDiffs;
 }
+	*/
 
 /**
  * Decide whether the snapback tail should be appended to the forward primer

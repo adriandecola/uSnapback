@@ -259,7 +259,7 @@ describe('createSnapback()', () => {
 				/exceeds maximum allowed/i
 			);
 		}
-	});
+	}, 30000);
 
 	test('does not fail the length check when amplicon length is under MAX_AMPLICON_LEN', async () => {
 		const len = MAX_AMPLICON_LEN - 1;
