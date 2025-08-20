@@ -380,42 +380,44 @@ async function createSnapback(
 		],
 	};
 
-	//		Calculating the melting termperature differences and saving them
+	// Calculating the melting termperature differences and saving them
 	// same primer ones
-	const meltingTempDiffSamePrimerMatchWild =
-		Math.abs(
-			calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)
-		) -
-		calculateSnapbackTm(
-			stemSeqWildSamePrimer,
-			loopLenSamePrimer,
-			variantMismatchSamePrimer
-		);
+	const meltingTempDiffSamePrimerMatchWild = Math.abs(
+		(await calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)) -
+			(await calculateSnapbackTm(
+				stemSeqWildSamePrimer,
+				loopLenSamePrimer,
+				variantMismatchSamePrimer
+			))
+	);
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		calculateSnapbackTm(stemSeqVariantSamePrimer, loopLenSamePrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(
+			stemSeqVariantSamePrimer,
+			loopLenSamePrimer
+		)) -
+			(await calculateSnapbackTm(
 				stemSeqVariantSamePrimer,
 				loopLenSamePrimer,
 				wildMismatchSamePrimer
-			)
+			))
 	);
 	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer)) -
+			(await calculateSnapbackTm(
 				stemSeqWildRevPrimer,
 				loopLenRevPrimer,
 				variantMismatchRevPrimer
-			)
+			))
 	);
 	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer)) -
+			(await calculateSnapbackTm(
 				stemSeqVariantRevPrimer,
 				loopLenRevPrimer,
 				wildMismatchRevPrimer
-			)
+			))
 	);
-	if (tailOnForwardPrimer) {
+	if (!tailOnForwardPrimer) {
 		meltingTempDiffs.onForwardPrimer.matchWild =
 			meltingTempDiffSamePrimerMatchWild;
 		meltingTempDiffs.onForwardPrimer.matchVariant =

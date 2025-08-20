@@ -200,7 +200,7 @@
                     return;
                 }
                 // make sure variant base is different from wild-type base
-                if (snvBase === seq[snvBase]) {
+                if (snvBase === seq[snvIndex]) {
                     alert(`Variant base must be different from the wild-type base at index ${snvIndex} (${seq[snvIndex]}).`);
                     return;
                 }

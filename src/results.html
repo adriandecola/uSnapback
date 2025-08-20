@@ -84,6 +84,35 @@
                 <li><strong>Wild-type&nbsp;T<sub>m</sub>:</strong> <span id="wildTm"></span> °C</li>
                 <li><strong>Variant&nbsp;T<sub>m</sub>:</strong> <span id="varTm"></span> °C</li>
             </ul>
+
+            <!-- ΔTm table -->
+            <h3 class="alt-title">Alternate Snapback ΔT<sub>m</sub> Options</h3>
+            <div class="table-wrapper">
+                <table class="delta-table" id="deltaTable" aria-describedby="deltaCaption">
+                    <thead>
+                        <tr>
+                            <th scope="col">Tail on ROW Matches COL </th>
+                            <th scope="col">Wild base on tail</th>
+                            <th scope="col">Variant base on tail</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Forward primer</th>
+                            <td id="dt-fwd-wild">—</td>
+                            <td id="dt-fwd-var">—</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Reverse primer</th>
+                            <td id="dt-rev-wild">—</td>
+                            <td id="dt-rev-var">—</td>
+                        </tr>
+                    </tbody>
+                    <caption id="deltaCaption">
+                        ΔT<sub>m</sub> = | T<sub>m</sub>(snapback with wild allele) − T<sub>m</sub>(snapback with variant allele) | (°C)
+                    </caption>
+                </table>
+            </div>
         </div>
         <!-- full-page loading overlay ▼▼ -->
         <div id="loadingOverlay" class="loading-overlay" hidden>
@@ -208,7 +237,7 @@
                 return;
             }
             // make sure variant base is different from wild-type base
-            if (snvBase === seq[snvBase]) {
+            if (snvBase === seq[snvIndex]) {
                 alert(`Variant base must be different from the wild-type base at index ${snvIndex} (${seq[snvIndex]}).`);
                 return;
             }
@@ -241,6 +270,18 @@
                     result.matchesWild ? 'Wild allele' : 'Variant allele';
                 document.getElementById('wildTm').textContent = result.snapbackMeltingTms.wildTm.toFixed(1);
                 document.getElementById('varTm' ).textContent = result.snapbackMeltingTms.variantTm.toFixed(1);
+
+                // Populate ΔTm table (gracefully handle null/undefined)
+                const fmt = v => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n.toFixed(1) : '—';
+                };
+                const d = result.meltingTempDiffs ?? {};
+                console.log(d);
+                document.getElementById('dt-fwd-wild').textContent = fmt(d.onForwardPrimer?.matchWild);
+                document.getElementById('dt-fwd-var' ).textContent = fmt(d.onForwardPrimer?.matchVariant);
+                document.getElementById('dt-rev-wild').textContent = fmt(d.onReversePrimer?.matchWild);
+                document.getElementById('dt-rev-var' ).textContent = fmt(d.onReversePrimer?.matchVariant);
 
                 /* Show results and hide loading screen */
                 resultBox.hidden = false;
