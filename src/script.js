@@ -52,7 +52,7 @@ const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
  *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
  *  4. Returns the snapback melting temperature differences if, using the same stem
  * 	   location, we changed which primer we matched the snapback tail to or changed
- *     which allese we match the base on the tail to at the SNV location.
+ *     which allele we match the tail base to at the SNV location.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Assumptions
@@ -89,19 +89,24 @@ const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
  * @property {number} 				index				0-based position of the SNV on `targetSeqStrand`
  * @property {string}				variantBase			Variant base ('A', 'C', 'G', or 'T')
  *
+ * @typedef {Object} SnapbackMeltingTempDiffs
+ * @property {{matchWild:number, matchVariant:number}} onForwardPrimer  ΔTms (°C) if tail is on the forward primer
+ * @property {{matchWild:number, matchVariant:number}} onReversePrimer  ΔTms (°C) if tail is on the reverse primer
+ *
  * @typedef {Object} SnapbackMeltingTm
  * @property {number} 				wildTm     			Calculated Tm (°C) of the snapback on the wilt type allele
  * @property {number} 				variantTm  			Calculated Tm (°C) of the snapback on the variant type allele
  *
  * @typedef {Object} SnapbackPrimerResult
- * @property {string}				snapbackSeq			Entire snapback primer written 5' → 3'
- *                                                   	(tail → primer).
- * @property {boolean}				tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
- * 														primer represented by `targetSeqStrand`; false if it is
- * 														appended to the reverse primer.
- * @property {boolean}				matchesWild			true if the snapback base at the SNV matches on is tail
- *                                       				the wild-type allele
- * @property {SnapbackMeltingTm}	snapbackMeltingTms	Object holding wild/variant snapback Tm values.
+ * @property {string}						snapbackSeq			Entire snapback primer written 5' → 3'
+ *                                                   			(tail → primer).
+ * @property {boolean}						tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
+ * 																primer represented by `targetSeqStrand`; false if it is
+ * 																appended to the reverse primer.
+ * @property {boolean}						matchesWild			true if the snapback base at the SNV matches on is tail
+ *                                			       				the wild-type allele
+ * @property {SnapbackMeltingTm}			snapbackMeltingTms	Object holding wild/variant snapback Tm values.
+ * @property {SnapbackMeltingTempDiffs}		meltingTempDiffs 	Wild/variant ΔTm values for both primer orientations.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
@@ -114,7 +119,8 @@ const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
  * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
  *
- * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer and is specification
+ * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer, Tms, and ΔTms of
+ * 																other snapback options.
  *
  * @throws {Error} 												If any input is invalid, the SNV is too close to a primer,
  *             													or an acceptable stem cannot be constructed.
@@ -435,6 +441,7 @@ async function createSnapback(
 		tailOnForwardPrimer: tailOnForwardPrimer,
 		matchesWild: matchesWild,
 		snapbackMeltingTms: meltingTemps,
+		meltingTempDiffs: meltingTempDiffs,
 	};
 }
 
