@@ -499,7 +499,8 @@ async function createSnapback(
  *
  * @returns {Promise<MeltingTempDiffs>}                 Object containing absolute melting temperature differences across cases
  *
- * @throws {Error} 										NONE YET BUT SHOULD PARAMETER CHECK
+ * @throws {Error} 										When any of the parameters passed in don't make sense or the API doesn't respond
+ * 														correctly
  */
 async function calculateMeltingTempDifferences(
 	targetStrandSeqSnapPrimerRefPoint,
@@ -508,7 +509,7 @@ async function calculateMeltingTempDifferences(
 	tailOnForwardPrimer
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
-	// Parameter Checking for calculateMeltingTempDifferences                   //
+	// Parameter Checking									                    //
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Validate sequence (must be non-empty, uppercase A/T/C/G only)
@@ -694,7 +695,7 @@ async function calculateMeltingTempDifferences(
 	};
 
 	// Calculating the melting termperature differences and saving them
-	// same primer ones
+	// same primer ones IF API DOESNT RESPOND CORRECTLY THROW AN ERROR
 	const meltingTempDiffSamePrimerMatchWild = Math.abs(
 		(await calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)) -
 			(await calculateSnapbackTm(
@@ -2390,6 +2391,7 @@ export {
 	createSnapback,
 
 	// Secondary functions
+	calculateMeltingTempDifferences,
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
 	getStemTm,

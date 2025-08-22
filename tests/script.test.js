@@ -5,6 +5,7 @@ import {
 	createSnapback,
 
 	// Secondary functions
+	calculateMeltingTempDifferences,
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
 	getStemTm,
@@ -64,7 +65,7 @@ describe('createSnapback()', () => {
 		expect(result.snapbackSeq).toBe(
 			'AGTGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
 		);
-	});
+	}, 30000);
 
 	//---------------------------------------------------------------------------------------------------------------------------------//
 	const validSeq =
@@ -369,6 +370,300 @@ describe('useForwardPrimer()', () => {
 				/is too close to a sequence end/i
 			);
 		}
+	});
+});
+
+describe('calculateMeltingTempDifferences() — parameter checking', () => {
+	// Helper: make a valid uppercase DNA string
+	const makeDNA = (n) => 'ACGT'.repeat(Math.ceil(n / 4)).slice(0, n);
+
+	// Valid baseline fixtures — mutate per test
+	const validSeq = makeDNA(120); // lengthy enough for various bounds tests
+	const validSNV = { index: 60, variantBase: 'A' };
+	const validStem = { start: 40, end: 80 }; // includes the SNV at 60
+	const validTailFlag = true;
+
+	// Sanity: a wrapper that calls with provided args (so we can re-use)
+	const callFn = (
+		seq = validSeq,
+		snv = validSNV,
+		stem = validStem,
+		flag = validTailFlag
+	) => calculateMeltingTempDifferences(seq, snv, stem, flag);
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 1) targetStrandSeqSnapPrimerRefPoint validation
+	// ────────────────────────────────────────────────────────────────────────
+	const badTargets = [
+		['null', null],
+		['non-string (number)', 1234],
+		['empty string', ''],
+		['invalid chars', 'AXTGCT'],
+		['lowercase', 'atcg'],
+		['array', ['A', 'T', 'C', 'G']],
+		['object', { seq: 'ATCG' }],
+	];
+
+	for (const [label, badSeq] of badTargets) {
+		test(`throws for invalid targetStrandSeqSnapPrimerRefPoint (${label})`, async () => {
+			await expect(
+				callFn(badSeq, validSNV, validStem, validTailFlag)
+			).rejects.toThrow(
+				/Invalid targetStrandSeqSnapPrimerRefPoint|DNA string/i
+			);
+		});
+	}
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 2) snvSiteSnapPrimerRefPoint validation (shape via helper + bounds here)
+	// ────────────────────────────────────────────────────────────────────────
+	const badSNVsShape = [
+		['null', null],
+		['non-object (string)', 'A'],
+		['array', [10, 'A']],
+		['missing index', { variantBase: 'A' }],
+		['missing variantBase', { index: 5 }],
+		['index not integer', { index: 5.5, variantBase: 'A' }],
+		['variantBase invalid', { index: 5, variantBase: 'Z' }],
+		['variantBase lowercase', { index: 5, variantBase: 'g' }],
+		['variantBase too long', { index: 5, variantBase: 'AG' }],
+		['variantBase non-string', { index: 5, variantBase: 7 }],
+	];
+
+	for (const [label, badSnv] of badSNVsShape) {
+		test(`throws for invalid snvSiteSnapPrimerRefPoint (${label})`, async () => {
+			await expect(
+				callFn(validSeq, badSnv, validStem, validTailFlag)
+			).rejects.toThrow(/snvSiteSnapPrimerRefPoint|index|variantBase/i);
+		});
+	}
+
+	test('throws when snvSiteSnapPrimerRefPoint.index is negative (bounds)', async () => {
+		await expect(
+			callFn(
+				validSeq,
+				{ index: -1, variantBase: 'A' },
+				validStem,
+				validTailFlag
+			)
+		).rejects.toThrow(/out of bounds|index/i);
+	});
+
+	test('throws when snvSiteSnapPrimerRefPoint.index equals sequence length (bounds)', async () => {
+		const seq = makeDNA(50);
+		const snv = { index: seq.length, variantBase: 'C' }; // == SEQ_LEN → OOB
+		const stem = { start: 10, end: 20 };
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/out of bounds/i
+		);
+	});
+
+	test('throws when snvSiteSnapPrimerRefPoint.index greater than sequence length (bounds)', async () => {
+		const seq = makeDNA(50);
+		const snv = { index: seq.length + 5, variantBase: 'T' };
+		const stem = { start: 10, end: 20 };
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/out of bounds/i
+		);
+	});
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 3) bestStemLoc validation (shape, only keys, integer bounds, non-empty)
+	// ────────────────────────────────────────────────────────────────────────
+	test('throws when bestStemLoc is null', async () => {
+		await expect(
+			callFn(validSeq, validSNV, null, validTailFlag)
+		).rejects.toThrow(/bestStemLoc must be a non-null object/i);
+	});
+
+	test('throws when bestStemLoc is non-object', async () => {
+		await expect(
+			callFn(validSeq, validSNV, 42, validTailFlag)
+		).rejects.toThrow(/bestStemLoc must be a non-null object/i);
+	});
+
+	test('throws when bestStemLoc is missing start', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { end: 80 }, validTailFlag)
+		).rejects.toThrow(/missing required key "start"/i);
+	});
+
+	test('throws when bestStemLoc is missing end', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: 40 }, validTailFlag)
+		).rejects.toThrow(/missing required key "end"/i);
+	});
+
+	test('throws when bestStemLoc has extra key', async () => {
+		await expect(
+			callFn(
+				validSeq,
+				validSNV,
+				{ start: 40, end: 80, foo: 1 },
+				validTailFlag
+			)
+		).rejects.toThrow(/unexpected key "foo"/i);
+	});
+
+	test('throws when bestStemLoc.start is not an integer', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: 40.5, end: 80 }, validTailFlag)
+		).rejects.toThrow(/bestStemLoc\.start must be an integer/i);
+	});
+
+	test('throws when bestStemLoc.end is not an integer', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: 40, end: 80.1 }, validTailFlag)
+		).rejects.toThrow(/bestStemLoc\.end must be an integer/i);
+	});
+
+	test('throws when bestStemLoc.start is NaN', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: NaN, end: 80 }, validTailFlag)
+		).rejects.toThrow(/bestStemLoc\.start must be an integer/i);
+	});
+
+	test('throws when bestStemLoc.end is Infinity', async () => {
+		await expect(
+			callFn(
+				validSeq,
+				validSNV,
+				{ start: 40, end: Infinity },
+				validTailFlag
+			)
+		).rejects.toThrow(/bestStemLoc\.end must be an integer/i);
+	});
+
+	test('throws when bestStemLoc.start < 0', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: -1, end: 10 }, validTailFlag)
+		).rejects.toThrow(/must be ≥ 0/i);
+	});
+
+	test('throws when bestStemLoc.end < 0', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: 0, end: -1 }, validTailFlag)
+		).rejects.toThrow(/must be ≥ 0/i);
+	});
+
+	test('throws when bestStemLoc.start > bestStemLoc.end', async () => {
+		await expect(
+			callFn(validSeq, validSNV, { start: 50, end: 40 }, validTailFlag)
+		).rejects.toThrow(/cannot be greater than/i);
+	});
+
+	test('throws when bestStemLoc.end is out of bounds (== SEQ_LEN)', async () => {
+		const seq = makeDNA(30);
+		const snv = { index: 15, variantBase: 'G' };
+		const stem = { start: 10, end: 30 }; // end == SEQ_LEN → OOB
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/out of bounds/i
+		);
+	});
+
+	test('throws when bestStemLoc.end is out of bounds (> SEQ_LEN)', async () => {
+		const seq = makeDNA(30);
+		const snv = { index: 15, variantBase: 'C' };
+		const stem = { start: 10, end: 35 };
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/out of bounds/i
+		);
+	});
+
+	test('throws when bestStemLoc spans zero nucleotides (empty)', async () => {
+		// The only way to hit "span at least one" guard beyond start>end is to
+		// force a degenerate case. Here, we still expect a throw (redundant guard).
+		await expect(
+			callFn(validSeq, validSNV, { start: 10, end: 9 }, validTailFlag)
+		).rejects.toThrow(
+			/span at least one nucleotide|cannot be greater than/i
+		);
+	});
+
+	test('throws when SNV is outside bestStemLoc (below start)', async () => {
+		const snv = { index: 9, variantBase: 'A' };
+		const stem = { start: 10, end: 20 };
+		await expect(
+			callFn(validSeq, snv, stem, validTailFlag)
+		).rejects.toThrow(/must lie within bestStemLoc/i);
+	});
+
+	test('throws when SNV is outside bestStemLoc (above end)', async () => {
+		const snv = { index: 21, variantBase: 'T' };
+		const stem = { start: 10, end: 20 };
+		await expect(
+			callFn(validSeq, snv, stem, validTailFlag)
+		).rejects.toThrow(/must lie within bestStemLoc/i);
+	});
+
+	// Edge inclusivity checks for SNV within the stem bounds
+	test('allows SNV exactly at bestStemLoc.start (no throw)', async () => {
+		const seq = makeDNA(50);
+		const stem = { start: 10, end: 20 };
+		const snv = { index: 10, variantBase: 'C' }; // on boundary, valid
+		// We only assert that the "must lie within" check does not trigger.
+		try {
+			await callFn(seq, snv, stem, validTailFlag);
+		} catch (err) {
+			expect(String(err?.message || err)).not.toMatch(
+				/must lie within bestStemLoc/i
+			);
+		}
+	});
+
+	test('allows SNV exactly at bestStemLoc.end (no throw)', async () => {
+		const seq = makeDNA(50);
+		const stem = { start: 10, end: 20 };
+		const snv = { index: 20, variantBase: 'G' }; // on boundary, valid
+		try {
+			await callFn(seq, snv, stem, validTailFlag);
+		} catch (err) {
+			expect(String(err?.message || err)).not.toMatch(
+				/must lie within bestStemLoc/i
+			);
+		}
+	});
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 4) tailOnForwardPrimer validation
+	// ────────────────────────────────────────────────────────────────────────
+	const badTailFlags = [
+		['null', null],
+		['number 0', 0],
+		['number 1', 1],
+		['string "true"', 'true'],
+		['string "false"', 'false'],
+		['array', []],
+		['object', {}],
+	];
+
+	for (const [label, badFlag] of badTailFlags) {
+		test(`throws for invalid tailOnForwardPrimer (${label})`, async () => {
+			await expect(
+				callFn(validSeq, validSNV, validStem, badFlag)
+			).rejects.toThrow(/tailOnForwardPrimer must be a boolean/i);
+		});
+	}
+
+	// ────────────────────────────────────────────────────────────────────────
+	// 5) Cross-field relational edge cases
+	// ────────────────────────────────────────────────────────────────────────
+	test('throws when bestStemLoc.end is valid but SNV index equals SEQ_LEN-1 and stem excludes it', async () => {
+		const seq = makeDNA(40);
+		const snv = { index: seq.length - 1, variantBase: 'A' };
+		const stem = { start: 10, end: 20 }; // SNV not inside stem
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/must lie within bestStemLoc/i
+		);
+	});
+
+	test('throws when bestStemLoc fits sequence, but SNV index out of bounds for that sequence', async () => {
+		const seq = makeDNA(25);
+		const snv = { index: 30, variantBase: 'T' }; // OOB w.r.t. sequence
+		const stem = { start: 5, end: 10 };
+		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
+			/out of bounds/i
+		);
 	});
 });
 
