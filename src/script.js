@@ -236,7 +236,6 @@ async function createSnapback(
 	var primerLensSnapPrimerRefPoint;
 	var targetStrandSeqRevCompSnapPrimerRefPoint;
 	var snvSiteRevCompSnapPrimerRefPoint;
-	var primerLensRevCompSnapPrimerRefPoint;
 	if (tailOnForwardPrimer) {
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
@@ -251,10 +250,6 @@ async function createSnapback(
 			snvSite,
 			targetSeqStrand.length
 		);
-		primerLensRevCompSnapPrimerRefPoint = {
-			primerLen: compPrimerLen,
-			compPrimerLen: primerLen,
-		};
 	} else {
 		targetStrandSeqSnapPrimerRefPoint = reverseComplement(targetSeqStrand);
 		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite, targetSeqStrand.length);
@@ -265,10 +260,6 @@ async function createSnapback(
 		// Reverse Complempement of snapback primer reference point
 		targetStrandSeqRevCompSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteRevCompSnapPrimerRefPoint = snvSite;
-		primerLensRevCompSnapPrimerRefPoint = {
-			primerLen: primerLen,
-			compPrimerLen: compPrimerLen,
-		};
 	}
 
 	// 3) Calculating the stem in the snapback primers reference point (inculsive on both ends)
@@ -466,12 +457,12 @@ async function createSnapback(
  * Assumptions
  * ──────────────────────────────────────────────────────────────────────────
  * - Inputs have already been validated by `createSnapback`:
- *   - `targetSeqStrand` is a valid uppercase DNA sequence (A/T/C/G only).
- *   - `snvSite` is a valid SNV object with `index` and `variantBase`.
- *   - `primerLensSnapPrimerRefPoint` and `primerLensRevCompSnapPrimerRefPoint`
- *     correspond to valid forward/reverse primer length assignments.
- *   - `bestStemLoc` has been computed previously and represents the inclusive
- *     start and end indices of the chosen stem region.
+ *   - `targetStrandSeqSnapPrimerRefPoint` is a valid uppercase DNA sequence (A/T/C/G only).
+ *   - `snvSiteSnapPrimerRefPoint` is a valid SNV object with `index` and `variantBase`.
+ *     correspond the variant index and nucleotide.
+ *   - `bestStemLoc` makes sense and does not go out of bounds of the sequence. It contains
+ * 		only start and end keys that are valid integers
+ *   - `tailOnForwardPrimer` is a boolean
  * - The mismatch objects used in calculating Tm are derived from valid
  *   wild/variant bases and aligned to the correct positions in their stem
  *   sequences.
@@ -497,45 +488,144 @@ async function createSnapback(
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters
  * ──────────────────────────────────────────────────────────────────────────
- * @param {string} targetStrandSeqSnapPrimerRefPoint    Sequence in the snapback primer’s reference orientation
- * @param {SNVSite} snvSiteSnapPrimerRefPoint           SNV object in the snapback primer’s reference orientation
- * @param {string} targetStrandSeqRevCompSnapPrimerRefPoint
- *                                                      Reverse complement of `targetSeqStrand`
- * @param {SNVSite} snvSiteRevCompSnapPrimerRefPoint    SNV object in the reverse complement reference orientation
- * @param {{primerLen:number, compPrimerLen:number}} primerLensRevCompSnapPrimerRefPoint
- *                                                      Primer lengths in the reverse complement reference orientation
- * @param {{start:number,end:number}} bestStemLoc       Inclusive start/end indices of the stem in snapback primer reference orientation
- * @param {boolean} tailOnForwardPrimer                 Indicates whether tail was originally assigned to the forward primer
+ * @param {string} targetStrandSeqSnapPrimerRefPoint	Sequence in the snapback primer’s reference orientation (5' -> 3')
+ * 														on the strand that shares the same nucleotide pattern as the snapback
+ * 														3' end of the snapback primer
+ * @param {SNVSite} snvSiteSnapPrimerRefPoint			SNV object in the snapback primer’s reference orientation
+ * @param {{start:number,end:number}} bestStemLoc      	Inclusive start/end indices of the best stem (wild type melting temperature
+ * 														is closest to the desired melting temperature given by the user) in snapback
+ * 														primer reference orientation
+ * @param {boolean} tailOnForwardPrimer                 Indicates whether optimal snapback primer has its tail assigned to the forward primer
  *
- * @returns {Promise<MeltingTempDiffs>}                  Object containing absolute melting temperature differences across cases
+ * @returns {Promise<MeltingTempDiffs>}                 Object containing absolute melting temperature differences across cases
  *
- * @throws {Error} If stem sequences cannot be constructed or mismatch positions are invalid
+ * @throws {Error} 										NONE YET BUT SHOULD PARAMETER CHECK
  */
-/*
 async function calculateMeltingTempDifferences(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
-	targetStrandSeqRevCompSnapPrimerRefPoint,
-	snvSiteRevCompSnapPrimerRefPoint,
 	bestStemLoc,
 	tailOnForwardPrimer
 ) {
+	//──────────────────────────────────────────────────────────────────────────//
+	// Parameter Checking for calculateMeltingTempDifferences                   //
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1) Validate sequence (must be non-empty, uppercase A/T/C/G only)
+	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
+		throw new Error(
+			`Invalid targetStrandSeqSnapPrimerRefPoint: "${targetStrandSeqSnapPrimerRefPoint}". ` +
+				'Must be a non-empty, uppercase DNA string containing only A/T/C/G.'
+		);
+	}
+
+	const SEQ_LEN = targetStrandSeqSnapPrimerRefPoint.length;
+
+	// 2) Validate SNV object with help from helper function
+	if (!isValidSNVObject(snvSiteSnapPrimerRefPoint)) {
+		throw new Error(
+			`Invalid snvSiteSnapPrimerRefPoint: ${JSON.stringify(
+				snvSiteSnapPrimerRefPoint
+			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`
+		);
+	}
+	const snvIndex = snvSiteSnapPrimerRefPoint.index;
+	if (snvIndex < 0 || snvIndex >= SEQ_LEN) {
+		throw new Error(
+			`snvSiteSnapPrimerRefPoint.index (${snvIndex}) is out of bounds for ` +
+				`sequence length ${SEQ_LEN}.`
+		);
+	}
+
+	// 3) Validate bestStemLoc object (shape, only keys, integer bounds, non-empty)
+	if (typeof bestStemLoc !== 'object' || bestStemLoc === null) {
+		throw new Error('bestStemLoc must be a non-null object.');
+	}
+	{
+		const allowedStemKeys = new Set(['start', 'end']);
+		const stemKeys = Object.keys(bestStemLoc);
+		for (const k of stemKeys) {
+			if (!allowedStemKeys.has(k)) {
+				throw new Error(
+					`bestStemLoc has unexpected key "${k}". Only {start, end} are allowed.`
+				);
+			}
+		}
+		for (const k of allowedStemKeys) {
+			if (!(k in bestStemLoc)) {
+				throw new Error(`bestStemLoc missing required key "${k}".`);
+			}
+		}
+	}
+	const { start, end } = bestStemLoc;
+	if (
+		typeof start !== 'number' ||
+		!Number.isInteger(start) ||
+		!Number.isFinite(start)
+	) {
+		throw new Error('bestStemLoc.start must be an integer.');
+	}
+	if (
+		typeof end !== 'number' ||
+		!Number.isInteger(end) ||
+		!Number.isFinite(end)
+	) {
+		throw new Error('bestStemLoc.end must be an integer.');
+	}
+	if (start < 0 || end < 0) {
+		throw new Error('bestStemLoc.start and bestStemLoc.end must be ≥ 0.');
+	}
+	if (start > end) {
+		throw new Error(
+			`bestStemLoc.start (${start}) cannot be greater than bestStemLoc.end (${end}).`
+		);
+	}
+	if (end >= SEQ_LEN) {
+		throw new Error(
+			`bestStemLoc.end (${end}) is out of bounds for sequence length ${SEQ_LEN}.`
+		);
+	}
+	// Non-empty stem (at least one base)
+	if (end - start + 1 <= 0) {
+		throw new Error('bestStemLoc must span at least one nucleotide.');
+	}
+	// SNV must lie within the stem for downstream logic/mismatch placement
+	if (snvIndex < start || snvIndex > end) {
+		throw new Error(
+			`snvSiteSnapPrimerRefPoint.index (${snvIndex}) must lie within bestStemLoc ` +
+				`[${start}, ${end}] for mismatch positioning.`
+		);
+	}
+
+	// 4) Validate tailOnForwardPrimer (boolean)
+	if (typeof tailOnForwardPrimer !== 'boolean') {
+		throw new Error('tailOnForwardPrimer must be a boolean.');
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
 	////////////////////////// CREATE targetStrandSeqRevCompSnapPrimerRefPoint and snvSiteRevCompSnapPrimerRefPoint HERE //////////////////
 
-	// 1) Create an object to hold the melting temperature differences
+	//		Create an object to hold the melting temperature differences
 	const meltingTempDiffs = {
 		onForwardPrimer: { matchWild: null, matchVariant: null },
 		onReversePrimer: { matchWild: null, matchVariant: null },
 	};
-	// 2) Creating the stem location in the reverse complement of the snapback
-	//	  primer's reference point.
+	// 		Getting the stem location in the reverse complement of the snapback
+	//		primer's reference point.
 	const bestStemLocRevCompSnapPrimerRefPoint = {
 		start: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.end - 1,
 		end: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.start - 1,
 	};
+	//		Calculating the melting temperature differences
+	// 		I still calculate the melting temperature
+	// 		differences for matching the wild or variant alleles as validity check, done
+	//		later on
 
-	// 3) Creating the stem sequences for each case
-	// 3a) Matching the tail to the wild and variant alleles with tail on same primer as ideal case
+	//		Creating the stem sequences for each case
+	// 		Matching the tail to the wild and variant alleles with tail on same primer as ideal case
 	const stemSeqWildSamePrimer = targetStrandSeqSnapPrimerRefPoint.slice(
 		bestStemLoc.start,
 		bestStemLoc.end + 1
@@ -576,17 +666,23 @@ async function calculateMeltingTempDifferences(
 	// 		for stem Tm calculation
 	const wildMismatchSamePrimer = {
 		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
-		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.wildBase],
+		type: NUCLEOTIDE_COMPLEMENT[
+			targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index]
+		],
 	};
 	const variantMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint - bestStemLoc, // Appropriate position is relative to the start of the stem
+		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
 		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.variantBase],
 	};
 	const wildMismatchRevPrimer = {
 		position:
 			snvSiteRevCompSnapPrimerRefPoint.index -
 			bestStemLocRevCompSnapPrimerRefPoint.start,
-		type: NUCLEOTIDE_COMPLEMENT[snvSiteRevCompSnapPrimerRefPoint.wildBase],
+		type: NUCLEOTIDE_COMPLEMENT[
+			targetStrandSeqRevCompSnapPrimerRefPoint[
+				snvSiteRevCompSnapPrimerRefPoint.index
+			]
+		],
 	};
 	const variantMismatchRevPrimer = {
 		position:
@@ -597,42 +693,44 @@ async function calculateMeltingTempDifferences(
 		],
 	};
 
-	//		Calculating the melting termperature differences and saving them
+	// Calculating the melting termperature differences and saving them
 	// same primer ones
-	const meltingTempDiffSamePrimerMatchWild =
-		Math.abs(
-			calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)
-		) -
-		calculateSnapbackTm(
-			stemSeqWildSamePrimer,
-			loopLenSamePrimer,
-			variantMismatchSamePrimer
-		);
+	const meltingTempDiffSamePrimerMatchWild = Math.abs(
+		(await calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)) -
+			(await calculateSnapbackTm(
+				stemSeqWildSamePrimer,
+				loopLenSamePrimer,
+				variantMismatchSamePrimer
+			))
+	);
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		calculateSnapbackTm(stemSeqVariantSamePrimer, loopLenSamePrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(
+			stemSeqVariantSamePrimer,
+			loopLenSamePrimer
+		)) -
+			(await calculateSnapbackTm(
 				stemSeqVariantSamePrimer,
 				loopLenSamePrimer,
 				wildMismatchSamePrimer
-			)
+			))
 	);
 	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer)) -
+			(await calculateSnapbackTm(
 				stemSeqWildRevPrimer,
 				loopLenRevPrimer,
 				variantMismatchRevPrimer
-			)
+			))
 	);
 	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer) -
-			calculateSnapbackTm(
+		(await calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer)) -
+			(await calculateSnapbackTm(
 				stemSeqVariantRevPrimer,
 				loopLenRevPrimer,
 				wildMismatchRevPrimer
-			)
+			))
 	);
-	if (tailOnForwardPrimer) {
+	if (!tailOnForwardPrimer) {
 		meltingTempDiffs.onForwardPrimer.matchWild =
 			meltingTempDiffSamePrimerMatchWild;
 		meltingTempDiffs.onForwardPrimer.matchVariant =
@@ -655,7 +753,6 @@ async function calculateMeltingTempDifferences(
 	// Return the results
 	return meltingTempDiffs;
 }
-	*/
 
 /**
  * Decide whether the snapback tail should be appended to the forward primer
