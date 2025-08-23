@@ -234,8 +234,6 @@ async function createSnapback(
 	var targetStrandSeqSnapPrimerRefPoint;
 	var snvSiteSnapPrimerRefPoint;
 	var primerLensSnapPrimerRefPoint;
-	var targetStrandSeqRevCompSnapPrimerRefPoint;
-	var snvSiteRevCompSnapPrimerRefPoint;
 	if (tailOnForwardPrimer) {
 		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
 		snvSiteSnapPrimerRefPoint = snvSite;
@@ -243,13 +241,6 @@ async function createSnapback(
 			primerLen: primerLen,
 			compPrimerLen: compPrimerLen,
 		};
-		// Rev Complempement of snapback primer reference point
-		targetStrandSeqRevCompSnapPrimerRefPoint =
-			reverseComplement(targetSeqStrand);
-		snvSiteRevCompSnapPrimerRefPoint = revCompSNV(
-			snvSite,
-			targetSeqStrand.length
-		);
 	} else {
 		targetStrandSeqSnapPrimerRefPoint = reverseComplement(targetSeqStrand);
 		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite, targetSeqStrand.length);
@@ -257,9 +248,6 @@ async function createSnapback(
 			primerLen: compPrimerLen,
 			compPrimerLen: primerLen,
 		};
-		// Reverse Complempement of snapback primer reference point
-		targetStrandSeqRevCompSnapPrimerRefPoint = targetSeqStrand;
-		snvSiteRevCompSnapPrimerRefPoint = snvSite;
 	}
 
 	// 3) Calculating the stem in the snapback primers reference point (inculsive on both ends)
@@ -285,148 +273,12 @@ async function createSnapback(
 	//	  stem location but changed the primer for which we attach the snapback
 	//	  tail to or change which allele we match the nucleotide on the tail
 	//	  to
-
-	//		Create an object to hold the melting temperature differences
-	const meltingTempDiffs = {
-		onForwardPrimer: { matchWild: null, matchVariant: null },
-		onReversePrimer: { matchWild: null, matchVariant: null },
-	};
-	// 		Getting the stem location in the reverse complement of the snapback
-	//		primer's reference point.
-	const bestStemLocRevCompSnapPrimerRefPoint = {
-		start: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.end - 1,
-		end: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.start - 1,
-	};
-	//		Calculating the melting temperature differences
-	// 		I still calculate the melting temperature
-	// 		differences for matching the wild or variant alleles as validity check, done
-	//		later on
-
-	//		Creating the stem sequences for each case
-	// 		Matching the tail to the wild and variant alleles with tail on same primer as ideal case
-	const stemSeqWildSamePrimer = targetStrandSeqSnapPrimerRefPoint.slice(
-		bestStemLoc.start,
-		bestStemLoc.end + 1
+	const meltingTempDiffs = calculateMeltingTempDifferences(
+		targetStrandSeqSnapPrimerRefPoint,
+		snvSiteSnapPrimerRefPoint,
+		bestStemLoc,
+		tailOnForwardPrimer
 	);
-	const stemSeqVariantSamePrimer =
-		targetStrandSeqSnapPrimerRefPoint.slice(
-			bestStemLoc.start,
-			snvSiteSnapPrimerRefPoint.index
-		) +
-		snvSiteSnapPrimerRefPoint.variantBase +
-		targetStrandSeqSnapPrimerRefPoint.slice(
-			snvSiteSnapPrimerRefPoint.index + 1,
-			bestStemLoc.end + 1
-		);
-	const stemSeqWildRevPrimer = targetStrandSeqRevCompSnapPrimerRefPoint.slice(
-		bestStemLocRevCompSnapPrimerRefPoint.start,
-		bestStemLocRevCompSnapPrimerRefPoint.end + 1
-	);
-	const stemSeqVariantRevPrimer =
-		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
-			bestStemLocRevCompSnapPrimerRefPoint.start,
-			snvSiteRevCompSnapPrimerRefPoint.index
-		) +
-		snvSiteRevCompSnapPrimerRefPoint.variantBase +
-		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
-			snvSiteRevCompSnapPrimerRefPoint.index + 1,
-			bestStemLocRevCompSnapPrimerRefPoint.end + 1
-		);
-	// Calculating the loop lengths for each case. They only depend on which primer the tail is
-	// attached to
-	const loopLenSamePrimer =
-		bestStemLoc.start +
-		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-	const loopLenRevPrimer =
-		bestStemLocRevCompSnapPrimerRefPoint.start +
-		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-	// 		Build mismatch object for wild and variant type on same ideal primer, if needed,
-	// 		for stem Tm calculation
-	const wildMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
-		type: NUCLEOTIDE_COMPLEMENT[
-			targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index]
-		],
-	};
-	const variantMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
-		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.variantBase],
-	};
-	const wildMismatchRevPrimer = {
-		position:
-			snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start,
-		type: NUCLEOTIDE_COMPLEMENT[
-			targetStrandSeqRevCompSnapPrimerRefPoint[
-				snvSiteRevCompSnapPrimerRefPoint.index
-			]
-		],
-	};
-	const variantMismatchRevPrimer = {
-		position:
-			snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start,
-		type: NUCLEOTIDE_COMPLEMENT[
-			snvSiteRevCompSnapPrimerRefPoint.variantBase
-		],
-	};
-
-	// Calculating the melting termperature differences and saving them
-	// same primer ones
-	const meltingTempDiffSamePrimerMatchWild = Math.abs(
-		(await calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqWildSamePrimer,
-				loopLenSamePrimer,
-				variantMismatchSamePrimer
-			))
-	);
-	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		(await calculateSnapbackTm(
-			stemSeqVariantSamePrimer,
-			loopLenSamePrimer
-		)) -
-			(await calculateSnapbackTm(
-				stemSeqVariantSamePrimer,
-				loopLenSamePrimer,
-				wildMismatchSamePrimer
-			))
-	);
-	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		(await calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqWildRevPrimer,
-				loopLenRevPrimer,
-				variantMismatchRevPrimer
-			))
-	);
-	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		(await calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqVariantRevPrimer,
-				loopLenRevPrimer,
-				wildMismatchRevPrimer
-			))
-	);
-	if (!tailOnForwardPrimer) {
-		meltingTempDiffs.onForwardPrimer.matchWild =
-			meltingTempDiffSamePrimerMatchWild;
-		meltingTempDiffs.onForwardPrimer.matchVariant =
-			meltingTempDiffSamePrimerMatchVariant;
-		meltingTempDiffs.onReversePrimer.matchWild =
-			meltingTempDiffRevPrimerMatchWild;
-		meltingTempDiffs.onReversePrimer.matchVariant =
-			meltingTempDiffRevPrimerMatchVariant;
-	} else {
-		meltingTempDiffs.onForwardPrimer.matchWild =
-			meltingTempDiffRevPrimerMatchWild;
-		meltingTempDiffs.onForwardPrimer.matchVariant =
-			meltingTempDiffRevPrimerMatchVariant;
-		meltingTempDiffs.onReversePrimer.matchWild =
-			meltingTempDiffSamePrimerMatchWild;
-		meltingTempDiffs.onReversePrimer.matchVariant =
-			meltingTempDiffSamePrimerMatchVariant;
-	}
 
 	// 6) Return the results
 	return {
