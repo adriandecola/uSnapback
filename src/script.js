@@ -607,19 +607,31 @@ async function calculateMeltingTempDifferences(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	////////////////////////// CREATE targetStrandSeqRevCompSnapPrimerRefPoint and snvSiteRevCompSnapPrimerRefPoint HERE //////////////////
-
-	//		Create an object to hold the melting temperature differences
+	// 1) Creating an object to hold the melting temperature differences
 	const meltingTempDiffs = {
 		onForwardPrimer: { matchWild: null, matchVariant: null },
 		onReversePrimer: { matchWild: null, matchVariant: null },
 	};
-	// 		Getting the stem location in the reverse complement of the snapback
-	//		primer's reference point.
+
+	// 2) Creating a variable to represent the target strand in the reverse complement
+	//	  of the snapback primers reference point
+	const targetStrandSeqRevCompSnapPrimerRefPoint = reverseComplement(
+		targetStrandSeqSnapPrimerRefPoint
+	);
+
+	// 3) Creating a variable to represent the SNV sithe in the reverse complement
+	//	  of the snapback primers reference point
+	const snvSiteRevCompSnapPrimerRefPoint = revCompSNV(
+		snvSiteSnapPrimerRefPoint
+	);
+
+	// 4) Getting the stem location in the reverse complement of the snapback
+	//	  primer's reference point.
 	const bestStemLocRevCompSnapPrimerRefPoint = {
 		start: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.end - 1,
 		end: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.start - 1,
 	};
+
 	//		Calculating the melting temperature differences
 	// 		I still calculate the melting temperature
 	// 		differences for matching the wild or variant alleles as validity check, done
