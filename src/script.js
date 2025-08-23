@@ -632,13 +632,7 @@ async function calculateMeltingTempDifferences(
 		end: targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.start - 1,
 	};
 
-	//		Calculating the melting temperature differences
-	// 		I still calculate the melting temperature
-	// 		differences for matching the wild or variant alleles as validity check, done
-	//		later on
-
-	//		Creating the stem sequences for each case
-	// 		Matching the tail to the wild and variant alleles with tail on same primer as ideal case
+	// 5) Creating the stem sequences any option the stem can be
 	const stemSeqWildSamePrimer = targetStrandSeqSnapPrimerRefPoint.slice(
 		bestStemLoc.start,
 		bestStemLoc.end + 1
@@ -667,27 +661,38 @@ async function calculateMeltingTempDifferences(
 			snvSiteRevCompSnapPrimerRefPoint.index + 1,
 			bestStemLocRevCompSnapPrimerRefPoint.end + 1
 		);
-	// Calculating the loop lengths for each case. They only depend on which primer the tail is
-	// attached to
+
+	// 6) Calculating the loop lengths for each case.
+	//    They only depend on which primer the tail is attached to
 	const loopLenSamePrimer =
 		bestStemLoc.start +
 		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
 	const loopLenRevPrimer =
 		bestStemLocRevCompSnapPrimerRefPoint.start +
 		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-	// 		Build mismatch object for wild and variant type on same ideal primer, if needed,
-	// 		for stem Tm calculation
-	const wildMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
+
+	// 7) Build mismatch object for wild and variant type on each primer to use in
+	//	  snapback Tm calculations
+
+	// Represents the base on the tail matching a wild allele on the
+	// REMEMBER: we pass in the stem sequence from the `inner strand`
+	//			 This is the strand as seen from `targetStrandSeqSnapPrimerRefPoint`
+	//			 or `targetStrandSeqRevCompSnapPrimerRefPoint`.
+	//			 The mismatch object should then include the index, relative to the
+	//			 start of the stem, and the type which is the base on the tail end
+	//			 of the snapback primer, at the location that hybridizes with the SNV.
+
+	const wildTailSamePrimerMismatch = {
+		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
 		type: NUCLEOTIDE_COMPLEMENT[
 			targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index]
 		],
 	};
-	const variantMismatchSamePrimer = {
-		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start, // Appropriate position is relative to the start of the stem
+	const variantTailSamePrimerMismatch = {
+		position: snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
 		type: NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.variantBase],
 	};
-	const wildMismatchRevPrimer = {
+	const wildTailRevPrimerMismatch = {
 		position:
 			snvSiteRevCompSnapPrimerRefPoint.index -
 			bestStemLocRevCompSnapPrimerRefPoint.start,
@@ -697,7 +702,7 @@ async function calculateMeltingTempDifferences(
 			]
 		],
 	};
-	const variantMismatchRevPrimer = {
+	const variantTailRevPrimerMismatch = {
 		position:
 			snvSiteRevCompSnapPrimerRefPoint.index -
 			bestStemLocRevCompSnapPrimerRefPoint.start,
@@ -706,44 +711,97 @@ async function calculateMeltingTempDifferences(
 		],
 	};
 
-	// Calculating the melting termperature differences and saving them
-	// same primer ones IF API DOESNT RESPOND CORRECTLY THROW AN ERROR
+	// 8) Parallelized Tm computations (batch the API calls and then do the math)
+	//    - Fires ALL required calculateSnapbackTm() requests concurrently
+	//    - Validates that every call succeeded before computing absolute ΔTm’s
+
+	// 		Kick off ALL eight calls immediately (no awaiting yet):
+	const launches = [
+		// Same primer, wild stem
+		calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer), // 0: same-wild baseline
+		calculateSnapbackTm(
+			stemSeqWildSamePrimer,
+			loopLenSamePrimer,
+			variantTailSamePrimerMismatch
+		), // 1: same-wild + variant tail
+
+		// Same primer, variant stem
+		calculateSnapbackTm(stemSeqVariantSamePrimer, loopLenSamePrimer), // 2: same-variant baseline
+		calculateSnapbackTm(
+			stemSeqVariantSamePrimer,
+			loopLenSamePrimer,
+			wildTailSamePrimerMismatch
+		), // 3: same-variant + wild tail
+
+		// Reverse primer, wild stem
+		calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer), // 4: rev-wild baseline
+		calculateSnapbackTm(
+			stemSeqWildRevPrimer,
+			loopLenRevPrimer,
+			variantTailRevPrimerMismatch
+		), // 5: rev-wild + variant tail
+
+		// Reverse primer, variant stem
+		calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer), // 6: rev-variant baseline
+		calculateSnapbackTm(
+			stemSeqVariantRevPrimer,
+			loopLenRevPrimer,
+			wildTailRevPrimerMismatch
+		), // 7: rev-variant + wild tail
+	];
+
+	// 		Wait for everything in parallel and verify success:
+	const labels = [
+		'samePrimer(wild) baseline',
+		'samePrimer(wild) + variant-tail mismatch',
+		'samePrimer(variant) baseline',
+		'samePrimer(variant) + wild-tail mismatch',
+		'revPrimer(wild) baseline',
+		'revPrimer(wild) + variant-tail mismatch',
+		'revPrimer(variant) baseline',
+		'revPrimer(variant) + wild-tail mismatch',
+	];
+
+	const settled = await Promise.allSettled(launches);
+	const failIdx = settled.findIndex((r) => r.status === 'rejected');
+	if (failIdx !== -1) {
+		const reason = settled[failIdx].reason;
+		// Surface a precise, actionable error (bubbles to your existing try/catch)
+		throw new Error(
+			`calculateSnapbackTm failed for ${labels[failIdx]}: ${
+				reason?.message ?? String(reason)
+			}`
+		);
+	}
+
+	// 		Unpack numeric results in the same order as launched:
+	const [
+		sameWild_base,
+		sameWild_withVariantTail,
+		sameVar_base,
+		sameVar_withWildTail,
+		revWild_base,
+		revWild_withVariantTail,
+		revVar_base,
+		revVar_withWildTail,
+	] = settled.map((r) => /** @type {number} */ (r.value));
+
+	// 9) Compute absolute Tm differences with API results
 	const meltingTempDiffSamePrimerMatchWild = Math.abs(
-		(await calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqWildSamePrimer,
-				loopLenSamePrimer,
-				variantMismatchSamePrimer
-			))
+		sameWild_base - sameWild_withVariantTail
 	);
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		(await calculateSnapbackTm(
-			stemSeqVariantSamePrimer,
-			loopLenSamePrimer
-		)) -
-			(await calculateSnapbackTm(
-				stemSeqVariantSamePrimer,
-				loopLenSamePrimer,
-				wildMismatchSamePrimer
-			))
+		sameVar_base - sameVar_withWildTail
 	);
 	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		(await calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqWildRevPrimer,
-				loopLenRevPrimer,
-				variantMismatchRevPrimer
-			))
+		revWild_base - revWild_withVariantTail
 	);
 	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		(await calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer)) -
-			(await calculateSnapbackTm(
-				stemSeqVariantRevPrimer,
-				loopLenRevPrimer,
-				wildMismatchRevPrimer
-			))
+		revVar_base - revVar_withWildTail
 	);
-	if (!tailOnForwardPrimer) {
+
+	// 10) Map Tm difference values to their correct orientation depending on `tailOnForwardPrimer`.)
+	if (tailOnForwardPrimer) {
 		meltingTempDiffs.onForwardPrimer.matchWild =
 			meltingTempDiffSamePrimerMatchWild;
 		meltingTempDiffs.onForwardPrimer.matchVariant =
@@ -763,7 +821,7 @@ async function calculateMeltingTempDifferences(
 			meltingTempDiffSamePrimerMatchVariant;
 	}
 
-	// Return the results
+	// 11) Return the results
 	return meltingTempDiffs;
 }
 
