@@ -252,10 +252,10 @@ input[type='number'] {
 
 /* highlight colours */
 .primer {
-	background: #fde047;
+	background: lightseagreen;
 }
 .primer-text {
-	color: #fde047;
+	color: lightseagreen;
 }
 .snv {
 	background: #dc2626;
