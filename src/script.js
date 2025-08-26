@@ -273,7 +273,7 @@ async function createSnapback(
 	//	  stem location but changed the primer for which we attach the snapback
 	//	  tail to or change which allele we match the nucleotide on the tail
 	//	  to
-	const meltingTempDiffs = calculateMeltingTempDifferences(
+	const meltingTempDiffs = await calculateMeltingTempDifferences(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		bestStemLoc,
