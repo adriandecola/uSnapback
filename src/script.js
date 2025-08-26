@@ -474,7 +474,8 @@ async function calculateMeltingTempDifferences(
 	// 3) Creating a variable to represent the SNV sithe in the reverse complement
 	//	  of the snapback primers reference point
 	const snvSiteRevCompSnapPrimerRefPoint = revCompSNV(
-		snvSiteSnapPrimerRefPoint
+		snvSiteSnapPrimerRefPoint,
+		targetStrandSeqRevCompSnapPrimerRefPoint.length
 	);
 
 	// 4) Getting the stem location in the reverse complement of the snapback
