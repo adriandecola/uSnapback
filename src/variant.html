@@ -148,8 +148,37 @@
         idxIn.value           = sessionStorage.getItem('snvIndex') ?? '';
         baseSel.dataset.keep  = sessionStorage.getItem('snvBase')  ?? '';
 
-        updateBaseOptions();   // populate <select>
-        renderAmplicon();      // draw coloured sequence
+        // Use centralized setter when we have a saved index
+        if (idxIn.value !== '') {
+            setVariantIndex(+idxIn.value);        // <<< now using setter
+        } else {
+            updateBaseOptions();  // populate <select>
+            renderAmplicon();     // draw coloured sequence
+        }
+
+
+        /* --------------------------------------------------
+        Helper function: Index validity checker(≥ 4 bp away from either primer; i.e., 3-bp gap)
+        -------------------------------------------------- */
+        function isValidSnvIndex(i) {
+            if (!Number.isInteger(i)) return false;
+            if (i < 0 || i >= seq.length) return false;
+            if (i < fwdLen || i >= seq.length - revLen) return false;  // not inside primer regions
+            if (i < fwdLen + 3) return false;                          // too close to forward primer
+            if (i > seq.length - revLen - 4) return false;             // too close to reverse primer
+            return true;
+        }
+
+        /* --------------------------------------------------
+        Helper Function: centralized setter when choosing an index via click/keyboard
+        -------------------------------------------------- */
+        function setVariantIndex(i, focusSelect = false) {
+            idxIn.value = String(i);
+            sessionStorage.setItem('snvIndex', idxIn.value);
+            updateBaseOptions();
+            renderAmplicon();
+            if (focusSelect && !baseSel.disabled) baseSel.focus();
+        }
 
         /* --------------------------------------------------
         Event: restart button → clear storage and go to start.html
@@ -164,18 +193,37 @@
         -------------------------------------------------- */
         idxIn.addEventListener('input', () => {
             /* strip any non-digit chars that slip in via paste, etc. */
-            idxIn.value = idxIn.value.replace(/[^0-9]/g,'');          // NEW
+            const clean = idxIn.value.replace(/[^0-9]/g, '');
+            idxIn.value = clean;
 
-            sessionStorage.setItem('snvIndex', idxIn.value);          // unchanged
-            updateBaseOptions();                                      // unchanged
-
-            /* if we just produced an error, wipe stored base */
-            if (errBox.style.display === 'block') {
+            if (clean === '') {
+                sessionStorage.removeItem('snvIndex');
                 sessionStorage.removeItem('snvBase');
+                updateBaseOptions();
+                renderAmplicon();
+                return;
             }
-
-            renderAmplicon();                                         // unchanged
+            setVariantIndex(+clean);
         });
+
+        /* --------------------------------------------------
+        Event: click/keyboard on amplicon → choose index
+        -------------------------------------------------- */
+        // NEW
+        box.addEventListener('click', (e) => {
+            const el = e.target.closest('span[data-idx]');
+            if (!el) return;
+            setVariantIndex(+el.dataset.idx, true);
+        });
+
+        // NEW (optional keyboard support: Enter/Space)
+        box.addEventListener('keydown', (e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('span[data-idx]')) {
+                e.preventDefault();
+                setVariantIndex(+e.target.dataset.idx, true);
+            }
+        });
+
 
 
         /* --------------------------------------------------
@@ -191,14 +239,6 @@
         -------------------------------------------------- */
         prevBtn.addEventListener('click', () => window.location.href = PREV);
 
-        /* --------------------------------------------------
-        Event: restart button → clear storage and go to start.html
-        -------------------------------------------------- */
-        restartBtn.addEventListener('click', () => {
-            sessionStorage.clear();
-            localStorage.clear();
-            window.location.href = 'start.html';
-        });
 
 
         /* --------------------------------------------------
@@ -344,26 +384,30 @@
         ================================================== */
         function renderAmplicon() {
             const rawIdx = idxIn.value.trim();
-            const idx    = rawIdx === '' ? -1 : +rawIdx;      // -1 → “no highlight”
+            const idx    = rawIdx === '' ? -1 : +rawIdx;      // -1 -> “no highlight”
             const base   = baseSel.value;
             let   html   = '';
 
             for (let i = 0; i < seq.length; i++) {
-                let cls = '';
+                let classes = ['nt'];
                 let nt  = seq[i];
 
-                /* primer regions = yellow */
-                if (i < fwdLen || i >= seq.length - revLen) cls = 'primer';
+                // primer highlight (push correct class)
+                if (i < fwdLen || i >= seq.length - revLen) classes.push('primer');
 
-                /* SNV position = red (wild only OR wild/variant) */
+                // SNV highlight (push correct class)
                 if (i === idx) {
-                    cls = 'snv';
+                    classes.push('snv');
                     nt  = (base && 'ACGT'.includes(base))
-                        ? `${seq[i]}/${base}`   // wild / variant
-                        : seq[i];               // wild only
+                        ? `${seq[i]}/${base}`
+                        : seq[i];
                 }
 
-                html += `<span class="${cls}">${nt}</span>`;
+                // Mark bases that are not valid clickable SNV positions
+                if (!isValidSnvIndex(i)) classes.push('invalid');
+
+                // Add data-idx + tabindex so each base is clickable/focusable and then push classes
+                html += `<span data-idx="${i}" class="${classes.join(' ')}" role="button" tabindex="0" title="idx ${i}: ${seq[i]}">${nt}</span>`;
             }
             box.innerHTML = html;
         }
