@@ -127,6 +127,9 @@
 			// maximum nt allowed
 			const AMPLICON_LIMIT = 1000;
 
+			// IME-composition guard (place near other const/let declarations)
+			let isComposing = false;
+
 
 			/* Restore previously-saved amplicon (raw, with whitespace) */
 			const savedRaw = sessionStorage.getItem('sequenceRaw');
@@ -166,6 +169,39 @@
 				countBox.classList.toggle('over', seqLen > AMPLICON_LIMIT);
 			}
 
+			// Helper function to sanitize while preserving caret/selection & scroll
+			function sanitizeAndPreserveCaret(el) {
+				// capture pre-sanitize positions
+				const raw = el.value;
+				const selStart = el.selectionStart;
+				const selEnd   = el.selectionEnd;
+				const scrollY  = el.scrollTop;
+
+				// build sanitized string + mapped selection
+				let out = '';
+				let newStart = 0, newEnd = 0;
+
+				for (let i = 0; i < raw.length; i++) {
+					const ch = raw[i];
+					// keep whitespace or A/C/G/T (any case); drop everything else
+					const isWhite = /\s/.test(ch);
+					const isBase  = /[ACGTacgt]/.test(ch);
+					if (isWhite || isBase) {
+						out += isBase ? ch.toUpperCase() : ch;
+						if (i < selStart) newStart++;
+						if (i < selEnd)   newEnd++;
+					}
+				}
+
+				// only touch DOM if something actually changed
+				if (out !== raw) {
+					el.value = out;
+					el.selectionStart = newStart;
+					el.selectionEnd   = newEnd;
+					el.scrollTop = scrollY; // restore scroll in long inputs
+				}
+			}
+
 
 			/* --------------------------------------------------
 			Event: restart button → clear storage and go to start.html
@@ -175,31 +211,61 @@
 				window.location.href = 'start.html';
 			});
 
-			/* Force uppercase, strip invalid *non-whitespace* chars in real-time */
-			input.addEventListener('input', () => {
-				// Avoid inserting for non whitespace text
-				// and text that would not represent a nucleotide
-				input.value = input.value.toUpperCase().replace(/[^ACGT\s]/g,'');
-				// Update the raw amplicon in the session storage
+			// IME composition listeners
+			input.addEventListener('compositionstart', () => { isComposing = true; });
+			input.addEventListener('compositionend', () => {
+				isComposing = false;
+				sanitizeAndPreserveCaret(input);
+				// keep your existing live-updates in sync
+				sessionStorage.setItem('sequenceRaw', input.value.trim());
+				updateAmpliconStats();
+				updateCharCount();
+			});
+
+
+			input.addEventListener('input', (e) => {
+				// skip during IME composition; sanitize on compositionend instead
+				if (e.isComposing || isComposing) return;
+
+				sanitizeAndPreserveCaret(input);
+
+				// Update the raw amplicon in session storage
 				sessionStorage.setItem('sequenceRaw', input.value.trim());
 				// Update amplicon statistics
 				updateAmpliconStats();
 				// Update nucleotide count
 				updateCharCount();
-
 			});
 
-			/* Insert a literal tab when user presses TAB inside the textarea */
-			input.addEventListener('keydown', e => {
-				if (e.key === 'Tab') {
-					e.preventDefault();
-					const s = input.selectionStart, t = input.selectionEnd;
-					input.value = input.value.slice(0,s) + '\t' + input.value.slice(t);
-					input.selectionStart = input.selectionEnd = s + 1;
-					// Update nucleotide count
-					updateCharCount();
-				}
+			// CHANGED: Tab inserts '\t' while preserving caret, scroll, stats, and storage
+			input.addEventListener('keydown', (e) => {
+				if (e.key !== 'Tab') return;
+
+				// If an IME composition is active, let Tab do its default (usually focus move)
+				if (isComposing) return;
+
+				e.preventDefault();
+
+				const s = input.selectionStart;
+				const t = input.selectionEnd;
+				const scrollY = input.scrollTop;
+
+				// Insert a literal tab at the current selection
+				input.value = input.value.slice(0, s) + '\t' + input.value.slice(t);
+
+				// Place caret right after the inserted tab and restore scroll
+				input.selectionStart = input.selectionEnd = s + 1;
+				input.scrollTop = scrollY;
+
+				// Sanitize + uppercase while preserving the updated caret/scroll
+				sanitizeAndPreserveCaret(input);
+
+				// Keep everything else in sync (session, stats, count)
+				sessionStorage.setItem('sequenceRaw', input.value.trim());
+				updateAmpliconStats();
+				updateCharCount();
 			});
+
 
 
 
