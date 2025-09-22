@@ -34,6 +34,227 @@ const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
 const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
 
+//──────────────────────────────────────────────────────────────────────────//
+// Rochester Hairpin Loop Initiation Parameters
+// For loop size N > 30, we use the corrected large-N formula:
+//
+//   ΔH°(n) = -14.1
+//   ΔS°(n) = -[ (14.1 + 6.5 + 0.1*(N - 30) ]*1000/310.15
+//
+//──────────────────────────────────────────────────────────────────────────//
+const HAIRPIN_LOOP_PARAMETER_ROCHESTER = {
+	3: { dH: -0.6, dS: -12.9 },
+	4: { dH: -2.3, dS: -18.4 },
+	5: { dH: -12.1, dS: -50.3 },
+	6: { dH: -16.7, dS: -67.4 },
+	7: { dH: -13.6, dS: -57.4 },
+	8: { dH: -14.1, dS: -59.0 },
+	9: { dH: -14.1, dS: -59.3 },
+	10: { dH: -14.1, dS: -59.6 },
+	11: { dH: -14.1, dS: -60.0 },
+	12: { dH: -14.1, dS: -60.3 },
+	13: { dH: -14.1, dS: -60.6 },
+	14: { dH: -14.1, dS: -60.9 },
+	15: { dH: -14.1, dS: -61.6 },
+	16: { dH: -14.1, dS: -61.9 },
+	17: { dH: -14.1, dS: -62.2 },
+	18: { dH: -14.1, dS: -62.6 },
+	19: { dH: -14.1, dS: -62.9 },
+	20: { dH: -14.1, dS: -63.2 },
+	21: { dH: -14.1, dS: -63.5 },
+	22: { dH: -14.1, dS: -63.8 },
+	23: { dH: -14.1, dS: -64.2 },
+	24: { dH: -14.1, dS: -64.5 },
+	25: { dH: -14.1, dS: -64.8 },
+	26: { dH: -14.1, dS: -65.1 },
+	27: { dH: -14.1, dS: -65.5 },
+	28: { dH: -14.1, dS: -65.8 },
+	29: { dH: -14.1, dS: -66.1 },
+	30: { dH: -14.1, dS: -66.4 },
+};
+
+/**
+ * Rochester hairpin-loop initiation parameters.
+ *
+ * Computes ΔH° and ΔS° for a hairpin loop of size N using the Rochester
+ * parameterization:
+ *  - For 3 ≤ N ≤ 30: returns the exact tabulated values from
+ *    HAIRPIN_LOOP_PARAMETER_ROCHESTER
+ *  - For N > 30: uses the corrected large-N expression:
+ *        ΔH°(N) = −14.1  (kcal/mol??)
+ *        ΔS°(N) = −[ 14.1 + 6.5 + 0.1*(N − 30) ] * 1000 / 310.15  (cal/mol·K???)
+ *
+ *
+ * Assumptions/Notes
+ * -----------------
+ *  - Loop size N is an integer count of nucleotides in the loop.
+ *  - The 3..30 table contains every integer key
+ *
+ * @param {number} N
+ *   Integer loop size (N ≥ 3). Must be a finite integer.
+ *
+ * @returns {{ dH: number, dS: number }}
+ *   Object with:
+ *     - dH: ΔH°(N) in kcal/mol
+ *     - dS: ΔS°(N) in cal/(mol·K)
+ *
+ * @throws {Error}
+ *   - If N is not a finite integer.
+ *   - If N < 3 (model undefined).
+ *
+ */
+function getRochesterHairpinLoopParams(N) {
+	//──────────────────────────────────────────────────────────────────//
+	// 						Parameter checking							//
+	//──────────────────────────────────────────────────────────────────//
+	if (!Number.isFinite(N) || Math.floor(N) !== N) {
+		throw new Error('Loop size N must be a finite integer.');
+	}
+	if (N < 3) {
+		throw new Error('Rochester loop initiation is defined for N ≥ 3.');
+	}
+
+	//──────────────────────────────────────────────────────────────────//
+	// 							Function Logic							//
+	//──────────────────────────────────────────────────────────────────//
+	// Case 1: Exact table entry for 3..30 (table is dense at unit steps)
+	if (N <= 30) {
+		const entry = HAIRPIN_LOOP_PARAMETER_ROCHESTER[N];
+		// Return a plain object (avoid exposing internal table object)
+		return { dH: entry.dH, dS: entry.dS };
+	}
+
+	// Case 2: N > 30 → corrected large-N formula
+	const T_REF = 310.15;
+	const dH = -14.1; // kcal/mol
+	const dS = -(14.1 + 6.5 + 0.1 * (N - 30) * 1000) / 310.15; // cal/(mol·K)
+
+	return { dH, dS };
+}
+
+//──────────────────────────────────────────────────────────────────────────//
+// SantaLucia & Hicks (2004) Hairpin Loop Initiation Parameters
+// Paper assumes delta H = 0 for all loop initiations
+// For loop size N ≤ 30 that not listed in the table, we do linear interpolation.
+// For loop size N > 30, we use the corrected large-N formula:
+//
+//   ΔH°(n) = 0
+//   ΔS°(n) = -[ 6.3 + 1.50*ln(n/30) ]*1000/310.15
+//
+//──────────────────────────────────────────────────────────────────────────//
+const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = Object.freeze({
+	3: { dH: 0.0, dS: -11.3 },
+	4: { dH: 0.0, dS: -11.3 },
+	5: { dH: 0.0, dS: -10.6 },
+	6: { dH: 0.0, dS: -12.9 },
+	7: { dH: 0.0, dS: -13.5 },
+	8: { dH: 0.0, dS: -14.3 },
+	9: { dH: 0.0, dS: -14.5 },
+	10: { dH: 0.0, dS: -14.6 },
+	12: { dH: 0.0, dS: -16.1 },
+	14: { dH: 0.0, dS: -16.4 },
+	16: { dH: 0.0, dS: -17.1 },
+	18: { dH: 0.0, dS: -17.7 },
+	20: { dH: 0.0, dS: -18.4 },
+	25: { dH: 0.0, dS: -19.7 },
+	30: { dH: 0.0, dS: -20.3 },
+});
+
+/**
+ * SantaLucia & Hicks (2004) hairpin-loop initiation parameters.
+ * Returns ONLY { dH, dS } with units:
+ *   dH in kcal/mol, dS in cal/(mol·K)
+ *
+ * Rules:
+ *  - For exact table sizes (3,4,5,6,7,8,9,10,12,14,16,18,20,25,30):
+ *      return stored values (ΔH°=0, ΔS° from table).
+ *  - For 3 ≤ N ≤ 30 but not in the table:
+ *      linearly interpolate ΔS° between the nearest anchors (ΔH°=0).
+ *  - For N > 30:
+ *      use corrected asymptotic formula; ΔH°=0,
+ *      ΔS°(N) = −[ 6.3 + 1.50*ln(N/30) ] * 1000 / 310.15
+ *
+ * @param {number} N
+ *   Integer loop size (N ≥ 3). Must be a finite integer.
+ *
+ * @returns {{ dH: number, dS: number }}
+ *   Object containing:
+ *     - dH: ΔH°(N) in kcal/mol (always 0.0 for Santa Lucia Hicks parameters)
+ *     - dS: ΔS°(N) in cal/(mol·K), from table, interpolation, or large-N formula
+ *
+ * @throws {Error}
+ *   - If N is not a finite integer.
+ *   - If N < 3 (model is defined only for N ≥ 3).
+ */
+function getSantaLuciaHicksHairpinParams(N) {
+	//──────────────────────────────────────────────────────────────────//
+	// 						Parameter checking							//
+	//──────────────────────────────────────────────────────────────────//
+	if (!Number.isFinite(N) || Math.floor(N) !== N) {
+		throw new Error('Loop size N must be a finite integer.');
+	}
+	if (N < 3) {
+		throw new Error(
+			'SantaLucia–Hicks loop initiation is defined for N ≥ 3.'
+		);
+	}
+
+	//──────────────────────────────────────────────────────────────────//
+	// 							Function Logic							//
+	//──────────────────────────────────────────────────────────────────//
+
+	// Case 1: Exact anchor value present → return directly (ΔH°=0, ΔS° from table)
+	if (
+		Object.prototype.hasOwnProperty.call(
+			HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
+			N
+		)
+	) {
+		return HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[N];
+	}
+
+	// Case 2: Interpolate ΔS° for 3 ≤ N ≤ 30 (missing sizes only)
+	if (N <= 30) {
+		// Parse & sort loop-size keys from the table (integers as strings → numbers)
+		const keys = Object.keys(HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS)
+			.map(Number)
+			.sort((a, b) => a - b);
+
+		// Find nearest lower (lo) and higher (hi) anchors such that lo < N < hi
+		let lo = null;
+		let hi = null;
+		for (let i = 0; i < keys.length - 1; i++) {
+			const k0 = keys[i];
+			const k1 = keys[i + 1];
+			if (k0 < N && N < k1) {
+				lo = k0;
+				hi = k1;
+				break;
+			}
+		}
+
+		// --- Inline "linear interpolation" on delta S only (delta H=0 across table) ---
+		// y(x) = y0 + ((x - x0)/(x1 - x0)) * (y1 - y0)
+		const Slo = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[lo].dS;
+		const Shi = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[hi].dS;
+		const t = (N - lo) / (hi - lo);
+		const dS = Slo + t * (Shi - Slo);
+
+		return { dH: 0.0, dS };
+	}
+
+	// Case 3: N > 30
+	//   ΔH°(N) = 0
+	//   ΔS°(N) = -[ 6.3 + 1.50*ln(N/30) ] * 1000 / 310.15
+	// Notes:
+	//   - Use natural logarithm (Math.log).
+	//   - 310.15 K corresponds to 37 °C.
+	const T_REF = 310.15;
+	const dS = (-(6.3 + 1.5 * Math.log(N / 30)) * 1000) / T_REF;
+
+	return { dH: 0.0, dS };
+}
+
 /*****************************************************************************************/
 /************************************ Primary Function ***********************************/
 /*****************************************************************************************/
@@ -1060,6 +1281,7 @@ async function getStemTm(seq, mismatch) {
 		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
 	}
 	const rawHtml = await res.text();
+	console.log(rawHtml);
 
 	// 5. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
 	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
