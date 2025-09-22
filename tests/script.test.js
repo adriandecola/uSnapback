@@ -27,6 +27,10 @@ import {
 	reverseSequence,
 	calculateSnapbackTm,
 
+	// Loop parameter functions
+	getRochesterHairpinLoopParams,
+	getSantaLuciaHicksHairpinParams,
+
 	// Constants
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
@@ -34,6 +38,8 @@ import {
 	MIN_PRIMER_LEN,
 	END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
 	MAX_AMPLICON_LEN,
+	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
+	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
 } from '../dist/script.js';
 
 /****************************************************************/
@@ -2536,5 +2542,311 @@ describe('isValidMismatchObject()', () => {
 
 	test('returns false if type is not a string', () => {
 		expect(isValidMismatchObject({ position: 0, type: 3 })).toBe(false);
+	});
+});
+
+/****************************************************************/
+/************** Rochester Hairpin Loop Params Tests *************/
+/****************************************************************/
+
+describe('getRochesterHairpinLoopParams()', () => {
+	// ----------------------------- Helpers ----------------------------- //
+	const T_REF = 310.15;
+	const largeNdS = (N) => {
+		// dS = -[14.1 + 6.5 + 0.1*(N-30)] * 1000 / 310.15
+		const base = 14.1 + 6.5 + 0.1 * (N - 30);
+		return -((base * 1000) / T_REF);
+	};
+	const LARGE_N_STEP = -((0.1 * 1000) / T_REF); // ≈ -0.3224246332 cal/(mol·K) per +1 in N
+
+	// ----------------------- Parameter checking ------------------------ //
+	test('throws when N is not a finite integer', () => {
+		for (const n of [
+			null,
+			undefined,
+			NaN,
+			Infinity,
+			-Infinity,
+			'10',
+			12.5,
+			{},
+			[],
+			() => 5,
+		]) {
+			expect(() => getRochesterHairpinLoopParams(n)).toThrow(
+				/finite integer/i
+			);
+		}
+	});
+
+	test('throws when N < 3', () => {
+		for (const n of [2, 1, 0, -1, -100]) {
+			expect(() => getRochesterHairpinLoopParams(n)).toThrow(
+				/N ≥ 3|N >= 3/i
+			);
+		}
+	});
+
+	// ----------------------- Exact table lookups ----------------------- //
+	test('returns exact tabulated values for 3 ≤ N ≤ 30 (spot checks)', () => {
+		for (const n of [3, 5, 8, 10, 15, 20, 25, 30]) {
+			const { dH, dS } = getRochesterHairpinLoopParams(n);
+			expect(dH).toBeCloseTo(HAIRPIN_LOOP_PARAMETER_ROCHESTER[n].dH, 6);
+			expect(dS).toBeCloseTo(HAIRPIN_LOOP_PARAMETER_ROCHESTER[n].dS, 6);
+		}
+	});
+
+	test('matches ALL Rochester table entries from N=3..30 exactly (within rounding)', () => {
+		for (let n = 3; n <= 30; n++) {
+			const { dH, dS } = getRochesterHairpinLoopParams(n);
+			expect(dH).toBeCloseTo(HAIRPIN_LOOP_PARAMETER_ROCHESTER[n].dH, 10);
+			expect(dS).toBeCloseTo(HAIRPIN_LOOP_PARAMETER_ROCHESTER[n].dS, 10);
+		}
+	});
+
+	test('returns a fresh object (mutations do not affect subsequent calls)', () => {
+		const first = getRochesterHairpinLoopParams(10);
+		first.dH = 999;
+		first.dS = 999;
+		const second = getRochesterHairpinLoopParams(10);
+		expect(second.dH).toBeCloseTo(
+			HAIRPIN_LOOP_PARAMETER_ROCHESTER[10].dH,
+			10
+		);
+		expect(second.dS).toBeCloseTo(
+			HAIRPIN_LOOP_PARAMETER_ROCHESTER[10].dS,
+			10
+		);
+	});
+
+	// -------------------------- Large-N branch ------------------------- //
+	// Exact expected values from the large-N formula:
+	// N=31: dS ≈ -66.74189908108981
+	// N=32: dS ≈ -67.06432371433178
+	// N=40: dS ≈ -69.64372078026761
+	// N=100: dS ≈ -88.9891987747864
+
+	test('N=31: uses large-N formula with correct dH and dS', () => {
+		const out = getRochesterHairpinLoopParams(31);
+		expect(out.dH).toBeCloseTo(-14.1, 12);
+		expect(out.dS).toBeCloseTo(-66.74189908108981, 10);
+	});
+
+	test('N=32: uses large-N formula with correct dS', () => {
+		const out = getRochesterHairpinLoopParams(32);
+		expect(out.dH).toBeCloseTo(-14.1, 12);
+		expect(out.dS).toBeCloseTo(-67.06432371433178, 10);
+	});
+
+	test('N=40: uses large-N formula with correct dS', () => {
+		const out = getRochesterHairpinLoopParams(40);
+		expect(out.dH).toBeCloseTo(-14.1, 12);
+		expect(out.dS).toBeCloseTo(-69.64372078026761, 10);
+	});
+
+	test('N=100: uses large-N formula with correct dS', () => {
+		const out = getRochesterHairpinLoopParams(100);
+		expect(out.dH).toBeCloseTo(-14.1, 12);
+		expect(out.dS).toBeCloseTo(-88.9891987747864, 10);
+	});
+
+	test('Large-N branch has linear step size in dS of ≈ -0.3224246332 per +1 in N', () => {
+		const dS31 = getRochesterHairpinLoopParams(31).dS;
+		const dS32 = getRochesterHairpinLoopParams(32).dS;
+		const dS50 = getRochesterHairpinLoopParams(50).dS;
+		const dS51 = getRochesterHairpinLoopParams(51).dS;
+
+		expect(dS32 - dS31).toBeCloseTo(LARGE_N_STEP, 10);
+		expect(dS51 - dS50).toBeCloseTo(LARGE_N_STEP, 10);
+	});
+
+	test('Across the boundary: N=30 (table) vs N=31 (formula) — values are close and ordered', () => {
+		const s30 = getRochesterHairpinLoopParams(30).dS; // -66.4
+		const s31 = getRochesterHairpinLoopParams(31).dS; // -66.74189...
+		// 1) s31 is more negative than s30
+		expect(s31).toBeLessThan(s30);
+		// 2) The jump magnitude is modest (≈ 0.3224 based on formula step)
+		expect(Math.abs(s31 - s30)).toBeLessThan(0.75);
+	});
+
+	test('Returns finite numbers at representative N values', () => {
+		for (const n of [3, 10, 20, 30, 31, 40, 60, 100]) {
+			const { dH, dS } = getRochesterHairpinLoopParams(n);
+			expect(Number.isFinite(dH)).toBe(true);
+			expect(Number.isFinite(dS)).toBe(true);
+		}
+	});
+});
+
+/*****************************************************/
+/***** SantaLucia & Hicks Hairpin Loop Params Tests **/
+/*****************************************************/
+
+describe('getSantaLuciaHicksHairpinParams()', () => {
+	// ----------------------------- Helpers ----------------------------- //
+	const T_REF = 310.15;
+
+	// Large-N entropy (N > 30): dS = -[ 6.3 + 1.50*ln(N/30) ] * 1000 / 310.15
+	const largeNdS = (N) => -((6.3 + 1.5 * Math.log(N / 30)) * 1000) / T_REF;
+
+	// Linear interpolation of dS within 3..30 (for non-anchor N only)
+	const interpDS = (N) => {
+		const keys = Object.keys(HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS)
+			.map(Number)
+			.sort((a, b) => a - b);
+
+		let lo = null;
+		let hi = null;
+		for (let i = 0; i < keys.length - 1; i++) {
+			const k0 = keys[i];
+			const k1 = keys[i + 1];
+			if (k0 < N && N < k1) {
+				lo = k0;
+				hi = k1;
+				break;
+			}
+		}
+		if (lo == null || hi == null) {
+			throw new Error(`No interpolation anchors found for N=${N}`);
+		}
+		const Slo = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[lo].dS;
+		const Shi = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[hi].dS;
+		const t = (N - lo) / (hi - lo);
+		return Slo + t * (Shi - Slo);
+	};
+
+	const isAnchor = (N) =>
+		Object.prototype.hasOwnProperty.call(
+			HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
+			N
+		);
+
+	// ----------------------- Parameter checking ------------------------ //
+	test('throws when N is not a finite integer', () => {
+		for (const n of [
+			null,
+			undefined,
+			NaN,
+			Infinity,
+			-Infinity,
+			'10',
+			12.3,
+			{},
+			[],
+			() => 7,
+		]) {
+			expect(() => getSantaLuciaHicksHairpinParams(n)).toThrow(
+				/finite integer/i
+			);
+		}
+	});
+
+	test('throws when N < 3', () => {
+		for (const n of [2, 1, 0, -1, -100]) {
+			expect(() => getSantaLuciaHicksHairpinParams(n)).toThrow(
+				/N ≥ 3|N >= 3/i
+			);
+		}
+	});
+
+	// ----------------------- Exact table lookups ----------------------- //
+	test('returns exact tabulated values for anchor sizes (spot checks)', () => {
+		for (const n of [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 25, 30]) {
+			const expected = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[n];
+			const { dH, dS } = getSantaLuciaHicksHairpinParams(n);
+			expect(dH).toBeCloseTo(expected.dH, 12); // always 0.0
+			expect(dS).toBeCloseTo(expected.dS, 12);
+		}
+	});
+
+	test('returns a fresh object (mutating result does not affect later calls)', () => {
+		const first = getSantaLuciaHicksHairpinParams(10);
+		first.dH = 12345;
+		first.dS = 67890;
+		const second = getSantaLuciaHicksHairpinParams(10);
+		const expected = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[10];
+		expect(second.dH).toBeCloseTo(expected.dH, 12);
+		expect(second.dS).toBeCloseTo(expected.dS, 12);
+	});
+
+	// ----------------------- Interpolation branch (3..30 non-anchors) -- //
+	test('interpolates dS correctly for non-anchor N in 3..30 (multiple checks)', () => {
+		// Choose several non-anchor loop sizes
+		const candidates = [11, 13, 15, 17, 19, 21, 22, 23, 24, 26, 27, 28, 29];
+		for (const N of candidates) {
+			expect(isAnchor(N)).toBe(false);
+			const expected_dS = interpDS(N);
+			const out = getSantaLuciaHicksHairpinParams(N);
+			expect(out.dH).toBeCloseTo(0.0, 12); // ΔH°=0 by definition
+			expect(out.dS).toBeCloseTo(expected_dS, 12);
+		}
+	});
+
+	test('interpolation is bracketed by adjacent anchors (monotone within segment)', () => {
+		// Pick a few segments and test an interior N value in each one
+		const segments = [
+			[10, 12, 11],
+			[12, 14, 13],
+			[14, 16, 15],
+			[18, 20, 19],
+			[25, 30, 27], // larger span
+		];
+		for (const [lo, hi, mid] of segments) {
+			const Slo = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[lo].dS;
+			const Shi = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[hi].dS;
+			const Smid = getSantaLuciaHicksHairpinParams(mid).dS;
+			// Smid should lie within [min(Slo,Shi), max(Slo,Shi)]
+			const minS = Math.min(Slo, Shi);
+			const maxS = Math.max(Slo, Shi);
+			expect(Smid).toBeGreaterThanOrEqual(minS - 1e-9);
+			expect(Smid).toBeLessThanOrEqual(maxS + 1e-9);
+		}
+	});
+
+	// ----------------------- Large-N branch (N > 30) ------------------- //
+	// We compute the exact expected values using the large-N formula.
+	test('N=31: correct large-N dH and dS', () => {
+		const out = getSantaLuciaHicksHairpinParams(31);
+		expect(out.dH).toBeCloseTo(0.0, 12);
+		expect(out.dS).toBeCloseTo(largeNdS(31), 12);
+	});
+
+	test('N=40: correct large-N dS', () => {
+		const out = getSantaLuciaHicksHairpinParams(40);
+		expect(out.dH).toBeCloseTo(0.0, 12);
+		expect(out.dS).toBeCloseTo(largeNdS(40), 12);
+	});
+
+	test('N=100: correct large-N dS', () => {
+		const out = getSantaLuciaHicksHairpinParams(100);
+		expect(out.dH).toBeCloseTo(0.0, 12);
+		expect(out.dS).toBeCloseTo(largeNdS(100), 12);
+	});
+
+	test('dS decreases (more negative) with N in large-N regime (monotone check)', () => {
+		const s31 = getSantaLuciaHicksHairpinParams(31).dS;
+		const s60 = getSantaLuciaHicksHairpinParams(60).dS;
+		const s100 = getSantaLuciaHicksHairpinParams(100).dS;
+		expect(s60).toBeLessThan(s31);
+		expect(s100).toBeLessThan(s60);
+	});
+
+	// ----------------------- Boundary behavior ------------------------- //
+	test('continuity/ordering across boundary: N=30 (table) vs N=31 (formula)', () => {
+		const s30 = getSantaLuciaHicksHairpinParams(30).dS;
+		const s31 = getSantaLuciaHicksHairpinParams(31).dS;
+		// The model does not enforce continuity; just assert sane ordering and smallish jump.
+		// Since large-N includes a log term, expect |Δ| < ~2 cal/(mol·K).
+		expect(Math.abs(s31 - s30)).toBeLessThan(2.0);
+	});
+
+	// ----------------------- General sanity ---------------------------- //
+	test('always returns finite numbers and dH === 0 in all regimes', () => {
+		for (const N of [3, 4, 10, 11, 15, 20, 25, 29, 30, 31, 40, 75, 100]) {
+			const { dH, dS } = getSantaLuciaHicksHairpinParams(N);
+			expect(Number.isFinite(dH)).toBe(true);
+			expect(Number.isFinite(dS)).toBe(true);
+			expect(dH).toBeCloseTo(0.0, 12);
+		}
 	});
 });

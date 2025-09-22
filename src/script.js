@@ -167,6 +167,7 @@ const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = Object.freeze({
  * @typedef {Object} SnapbackPrimerResult
  * @property {string}						snapbackSeq			Entire snapback primer written 5' → 3'
  *                                                   			(tail → primer).
+ * @property {string}						limitingPrimerSeq	The limiting primmer written 5' → 3'
  * @property {boolean}						tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
  * 																primer represented by `targetSeqStrand`; false if it is
  * 																appended to the reverse primer.
@@ -350,6 +351,10 @@ async function createSnapback(
 	// 6) Return the results
 	return {
 		snapbackSeq: snapback,
+		limitingPrimerSeq: targetStrandSeqSnapPrimerRefPoint.slice(
+			targetStrandSeqSnapPrimerRefPoint.length -
+				primerLensSnapPrimerRefPoint.compPrimerLen
+		),
 		tailOnForwardPrimer: tailOnForwardPrimer,
 		matchesWild: matchesWild,
 		snapbackMeltingTms: meltingTemps,
