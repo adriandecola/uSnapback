@@ -71,6 +71,7 @@ describe('createSnapback()', () => {
 		expect(result.snapbackSeq).toBe(
 			'AGTGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
 		);
+		expect(result.limitingPrimerSeq).toBe('ATATTCAGAATAACTAATGT');
 	}, 30000);
 
 	//---------------------------------------------------------------------------------------------------------------------------------//
