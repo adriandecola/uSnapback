@@ -349,9 +349,11 @@ async function createSnapback(
 	// 6) Return the results
 	return {
 		snapbackSeq: snapback,
-		limitingPrimerSeq: targetStrandSeqSnapPrimerRefPoint.slice(
-			targetStrandSeqSnapPrimerRefPoint.length -
-				primerLensSnapPrimerRefPoint.compPrimerLen
+		limitingPrimerSeq: reverseComplement(
+			targetStrandSeqSnapPrimerRefPoint.slice(
+				targetStrandSeqSnapPrimerRefPoint.length -
+					primerLensSnapPrimerRefPoint.compPrimerLen
+			)
 		),
 		tailOnForwardPrimer: tailOnForwardPrimer,
 		matchesWild: matchesWild,

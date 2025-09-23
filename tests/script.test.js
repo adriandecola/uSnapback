@@ -64,7 +64,7 @@ describe('createSnapback()', () => {
 			targetSnapMeltTemp
 		);
 
-		// expect(result.tailOnForwardPrimer).toBe(false); // reverse primer
+		expect(result.tailOnForwardPrimer).toBe(false); // reverse primer
 		expect(result.matchesWild).toBe(true);
 		expect(result.snapbackMeltingTms.wildTm).toBeCloseTo(60.45, 2);
 		expect(result.snapbackMeltingTms.variantTm).toBeCloseTo(52.508, 2);
