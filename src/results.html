@@ -78,6 +78,10 @@
             <h2>Snapback Primer&nbsp;(5′→3′)</h2>
             <pre id="snapSeq"></pre>
 
+            <h2>Limiting Primer&nbsp;(5′→3′)</h2>
+            <pre id="limitSeq"></pre>
+
+
             <ul style="margin-top:1rem">
                 <li><strong>Tail appended to:</strong> <span id="tailSide"></span></li>
                 <li><strong>SNV on tail matches:</strong> <span id="matchesWild"></span></li>
@@ -264,6 +268,7 @@
 
                 /* populate UI */
                 document.getElementById('snapSeq' ).textContent = result.snapbackSeq;
+                document.getElementById('limitSeq').textContent = result.limitingPrimerSeq;
                 document.getElementById('tailSide').textContent =
                     result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer';
                 document.getElementById('matchesWild').textContent =
