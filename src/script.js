@@ -27,8 +27,6 @@ const MONO = 20.0;
 const T_PARAM = 'UnifiedSantaLucia';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
-const CONC = 0.5;
-const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
 const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
@@ -1114,8 +1112,6 @@ async function getStemTm(seq, mismatch) {
 	apiURL += `&tparam=${T_PARAM}`;
 	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
 	apiURL += `&otype=${O_TYPE}`;
-	apiURL += `&concentration=${CONC}`;
-	apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
 	apiURL += `&token=${API_TOKEN}`;
 	if (mmSeq) {
@@ -1132,7 +1128,6 @@ async function getStemTm(seq, mismatch) {
 		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
 	}
 	const rawHtml = await res.text();
-	console.log(rawHtml);
 
 	// 5. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
 	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
