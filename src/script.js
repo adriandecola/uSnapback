@@ -42,7 +42,7 @@ const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
 //   ΔS°(n) = -[ (14.1 + 6.5 + 0.1*(N - 30) ]*1000/310.15
 //
 //──────────────────────────────────────────────────────────────────────────//
-const HAIRPIN_LOOP_PARAMETER_ROCHESTER = {
+const HAIRPIN_LOOP_PARAMETER_ROCHESTER = deepFreeze({
 	3: { dH: -0.6, dS: -12.9 },
 	4: { dH: -2.3, dS: -18.4 },
 	5: { dH: -12.1, dS: -50.3 },
@@ -71,7 +71,7 @@ const HAIRPIN_LOOP_PARAMETER_ROCHESTER = {
 	28: { dH: -14.1, dS: -65.8 },
 	29: { dH: -14.1, dS: -66.1 },
 	30: { dH: -14.1, dS: -66.4 },
-};
+});
 
 //──────────────────────────────────────────────────────────────────────────//
 // SantaLucia & Hicks (2004) Hairpin Loop Initiation Parameters
@@ -83,7 +83,7 @@ const HAIRPIN_LOOP_PARAMETER_ROCHESTER = {
 //   ΔS°(n) = -[ 6.3 + 1.50*ln(n/30) ]*1000/310.15
 //
 //──────────────────────────────────────────────────────────────────────────//
-const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = Object.freeze({
+const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = deepFreeze({
 	3: { dH: 0.0, dS: -11.3 },
 	4: { dH: 0.0, dS: -11.3 },
 	5: { dH: 0.0, dS: -10.6 },
@@ -2430,7 +2430,7 @@ function getRochesterHairpinLoopParams(N) {
 
 	// Case 2: N > 30 → corrected large-N formula
 	const dH = -14.1; // kcal/mol
-	const dS = -(14.1 + 6.5 + 0.1 * (N - 30) * 1000) / 310.15; // cal/(mol·K)
+	const dS = -(14.1 + 6.5 + 0.1 * (N - 30)) * (1000 / 310.15); // cal/(mol·K)
 
 	return { dH, dS };
 }
@@ -2524,10 +2524,33 @@ function getSantaLuciaHicksHairpinParams(N) {
 	// Notes:
 	//   - Use natural logarithm (Math.log).
 	//   - 310.15 K corresponds to 37 °C.
-	const T_REF = 310.15;
-	const dS = (-(6.3 + 1.5 * Math.log(N / 30)) * 1000) / T_REF;
+	const dS = -(6.3 + 1.5 * Math.log(N / 30)) * (1000 / 310.15);
 
 	return { dH: 0.0, dS };
+}
+
+/*****************************************************************************************/
+/************************************** Small Helpers ************************************/
+/*****************************************************************************************/
+/**
+ * Helper function to freeze all the elements in the table for the loop initiation parameters.
+ *
+ * @param 		{*} 	obj
+ * @returns 	obj		An object with all nested values/objects frozen
+ */
+function deepFreeze(obj) {
+	Object.freeze(obj);
+	for (const key of Object.getOwnPropertyNames(obj)) {
+		const val = obj[key];
+		if (
+			val &&
+			(typeof val === 'object' || typeof val === 'function') &&
+			!Object.isFrozen(val)
+		) {
+			deepFreeze(val);
+		}
+	}
+	return obj;
 }
 
 /*****************************************************************************************/

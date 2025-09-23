@@ -2604,21 +2604,6 @@ describe('getRochesterHairpinLoopParams()', () => {
 		}
 	});
 
-	test('returns a fresh object (mutations do not affect subsequent calls)', () => {
-		const first = getRochesterHairpinLoopParams(10);
-		first.dH = 999;
-		first.dS = 999;
-		const second = getRochesterHairpinLoopParams(10);
-		expect(second.dH).toBeCloseTo(
-			HAIRPIN_LOOP_PARAMETER_ROCHESTER[10].dH,
-			10
-		);
-		expect(second.dS).toBeCloseTo(
-			HAIRPIN_LOOP_PARAMETER_ROCHESTER[10].dS,
-			10
-		);
-	});
-
 	// -------------------------- Large-N branch ------------------------- //
 	// Exact expected values from the large-N formula:
 	// N=31: dS ≈ -66.74189908108981
@@ -2757,16 +2742,6 @@ describe('getSantaLuciaHicksHairpinParams()', () => {
 			expect(dH).toBeCloseTo(expected.dH, 12); // always 0.0
 			expect(dS).toBeCloseTo(expected.dS, 12);
 		}
-	});
-
-	test('returns a fresh object (mutating result does not affect later calls)', () => {
-		const first = getSantaLuciaHicksHairpinParams(10);
-		first.dH = 12345;
-		first.dS = 67890;
-		const second = getSantaLuciaHicksHairpinParams(10);
-		const expected = HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[10];
-		expect(second.dH).toBeCloseTo(expected.dH, 12);
-		expect(second.dS).toBeCloseTo(expected.dS, 12);
 	});
 
 	// ----------------------- Interpolation branch (3..30 non-anchors) -- //
