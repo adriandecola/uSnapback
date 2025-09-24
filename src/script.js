@@ -587,6 +587,72 @@ async function calculateMeltingTempDifferences(
 			bestStemLocRevCompSnapPrimerRefPoint.end + 1
 		);
 
+	console.group('Step 5 — Stem sequences at fixed bestStemLoc');
+
+	// Shared context for step 5
+	console.log(
+		'bestStemLoc (same-primer frame): start=%d, end=%d, len=%d',
+		bestStemLoc.start,
+		bestStemLoc.end,
+		bestStemLoc.end - bestStemLoc.start + 1
+	);
+	console.log(
+		'bestStemLoc (rev-comp frame): start=%d, end=%d, len=%d',
+		bestStemLocRevCompSnapPrimerRefPoint.start,
+		bestStemLocRevCompSnapPrimerRefPoint.end,
+		bestStemLocRevCompSnapPrimerRefPoint.end -
+			bestStemLocRevCompSnapPrimerRefPoint.start +
+			1
+	);
+
+	// Same-primer frame (snapback reference orientation)
+	console.group('Same primer (snapback reference orientation)');
+	console.log('Stem (WILD) sequence: %s', stemSeqWildSamePrimer);
+	console.log(
+		'  length=%d | global SNV index=%d | SNV base (genomic)=%s | posInStem=%d',
+		stemSeqWildSamePrimer.length,
+		snvSiteSnapPrimerRefPoint.index,
+		targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index],
+		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start
+	);
+
+	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantSamePrimer);
+	console.log(
+		'  length=%d | global SNV index=%d | SNV base (variant)=%s | posInStem=%d',
+		stemSeqVariantSamePrimer.length,
+		snvSiteSnapPrimerRefPoint.index,
+		snvSiteSnapPrimerRefPoint.variantBase,
+		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start
+	);
+	console.groupEnd(); // Same primer
+
+	// Reverse-primer frame (reverse complement of snapback reference)
+	console.group('Reverse primer (reverse-complement orientation)');
+	console.log('Stem (WILD) sequence: %s', stemSeqWildRevPrimer);
+	console.log(
+		'  length=%d | global SNV index (rev)=%d | SNV base (rev genomic)=%s | posInStem=%d',
+		stemSeqWildRevPrimer.length,
+		snvSiteRevCompSnapPrimerRefPoint.index,
+		targetStrandSeqRevCompSnapPrimerRefPoint[
+			snvSiteRevCompSnapPrimerRefPoint.index
+		],
+		snvSiteRevCompSnapPrimerRefPoint.index -
+			bestStemLocRevCompSnapPrimerRefPoint.start
+	);
+
+	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantRevPrimer);
+	console.log(
+		'  length=%d | global SNV index (rev)=%d | SNV base (rev variant)=%s | posInStem=%d',
+		stemSeqVariantRevPrimer.length,
+		snvSiteRevCompSnapPrimerRefPoint.index,
+		snvSiteRevCompSnapPrimerRefPoint.variantBase,
+		snvSiteRevCompSnapPrimerRefPoint.index -
+			bestStemLocRevCompSnapPrimerRefPoint.start
+	);
+	console.groupEnd(); // Reverse primer
+
+	console.groupEnd(); // Step 5
+
 	// 6) Calculating the loop lengths for each case.
 	//    They only depend on which primer the tail is attached to
 	const loopLenSamePrimer =
