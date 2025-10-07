@@ -46,6 +46,7 @@ import {
 	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
 	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
 	DANGLING_END_PARAMS_BOMMARITO_2000,
+	DANGLING_ORIENTATION,
 } from '../dist/script.js';
 
 /****************************************************************/
@@ -2951,7 +2952,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 	for (const [label, o] of badOrientations) {
 		test(`normalizeDanglingOrientation throws for invalid orientation (${label})`, () => {
 			expect(() => normalizeDanglingOrientation(o)).toThrow(
-				/orientation must be a string/i
+				/orientation/i
 			);
 		});
 	}
@@ -3010,10 +3011,14 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 
 	test('getDanglingEndParams throws on invalid orientation tokens', () => {
 		expect(() => getDanglingEndParams('AC', 'west')).toThrow(
-			/orientation/i
+			/Unrecognized orientation/i
 		);
-		expect(() => getDanglingEndParams('AC', '')).toThrow(/orientation/i);
-		expect(() => getDanglingEndParams('AC', null)).toThrow(/orientation/i);
+		expect(() => getDanglingEndParams('AC', '')).toThrow(
+			/Unrecognized orientation/i
+		);
+		expect(() => getDanglingEndParams('AC', null)).toThrow(
+			/orientation must be a string/i
+		);
 	});
 
 	test('getDanglingEndParams throws on invalid NN steps (delegates to normalizer)', () => {
