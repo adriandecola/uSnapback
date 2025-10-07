@@ -99,6 +99,53 @@ const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = deepFreeze({
 	30: { dH: 0.0, dS: -20.3 },
 });
 
+/**
+ * Bommarito, Peyret & SantaLucia (2000) dangling-end parameters.
+ * Units: dH (kcal/mol), dS (cal/K/mol).
+ *
+ * Orientation rules (important):
+ *   - 5′-dangling end on step XY: dangling base must be complement(Y).
+ *   - 3′-dangling end on step XY: dangling base must be complement(X).
+ */
+const DANGLING_END_PARAMS_BOMMARITO_2000 = deepFreeze({
+	fivePrime: {
+		AA: { dH: 0.2, dS: 2.3 },
+		AC: { dH: -6.3, dS: -17.1 },
+		AG: { dH: -3.7, dS: -10.0 },
+		AT: { dH: -2.9, dS: -7.6 },
+		CA: { dH: 0.6, dS: 3.3 },
+		CC: { dH: -4.4, dS: -12.6 },
+		CG: { dH: -4.0, dS: -11.9 },
+		CT: { dH: -4.1, dS: -13.0 },
+		GA: { dH: -1.1, dS: -1.6 },
+		GC: { dH: -5.1, dS: -14.0 },
+		GG: { dH: -3.9, dS: -10.9 },
+		GT: { dH: -4.2, dS: -15.0 },
+		TA: { dH: -6.9, dS: -20.0 },
+		TC: { dH: -4.0, dS: -10.9 },
+		TG: { dH: -4.9, dS: -13.8 },
+		TT: { dH: -0.2, dS: -0.5 },
+	},
+	threePrime: {
+		TA: { dH: -0.7, dS: -0.8 },
+		GA: { dH: -2.1, dS: -3.9 },
+		CA: { dH: -5.9, dS: -16.5 },
+		AA: { dH: -0.5, dS: -1.1 },
+		TC: { dH: 4.4, dS: 7.3 },
+		GC: { dH: -0.2, dS: -0.1 },
+		CC: { dH: -2.6, dS: -7.4 },
+		AC: { dH: 4.7, dS: 14.2 },
+		TG: { dH: -1.6, dS: -3.6 },
+		GG: { dH: -3.9, dS: -11.2 },
+		CG: { dH: -3.2, dS: -10.4 },
+		AG: { dH: -4.1, dS: -13.1 },
+		TT: { dH: 2.9, dS: 10.4 },
+		GT: { dH: -4.4, dS: -13.1 },
+		CT: { dH: -5.2, dS: -15.0 },
+		AT: { dH: -3.8, dS: -12.6 },
+	},
+});
+
 /*****************************************************************************************/
 /************************************ Primary Function ***********************************/
 /*****************************************************************************************/
@@ -780,7 +827,7 @@ async function calculateMeltingTempDifferences(
 	// 9) Compute absolute Tm differences with API results
 	const meltingTempDiffSamePrimerMatchWild = Math.abs(
 		sameWild_base - sameVar_withWildTail
-	);
+	); // remember the tail is what we choose and what stays the same. What it anneals to causese the melting temperatature differences.
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
 		sameVar_base - sameWild_withVariantTail
 	);
