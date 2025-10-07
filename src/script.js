@@ -100,12 +100,12 @@ const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = deepFreeze({
 });
 
 /**
- * Bommarito, Peyret & SantaLucia (2000) dangling-end parameters.
+ * Bommarito (2000) dangling-end parameters.
  * Units: dH (kcal/mol), dS (cal/K/mol).
  *
- * Orientation rules (important):
- *   - 5′-dangling end on step XY: dangling base must be complement(Y).
- *   - 3′-dangling end on step XY: dangling base must be complement(X).
+ * Orientation rules:
+ *   - 5′-dangling end of form XY: dangling base is X.
+ *   - 3′-dangling end of form XY: dangling base is Y.
  */
 const DANGLING_END_PARAMS_BOMMARITO_2000 = deepFreeze({
 	fivePrime: {
