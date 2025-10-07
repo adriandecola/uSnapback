@@ -413,8 +413,8 @@ async function createSnapback(
  * Parameters
  * ──────────────────────────────────────────────────────────────────────────
  * @param {string} targetStrandSeqSnapPrimerRefPoint	Sequence in the snapback primer’s reference orientation (5' -> 3')
- * 														on the strand that shares the same nucleotide pattern as the snapback
- * 														3' end of the snapback primer
+ * 														on the strand that shares the same nucleotide pattern as the snapback's
+ * 														3' end
  * @param {SNVSite} snvSiteSnapPrimerRefPoint			SNV object in the snapback primer’s reference orientation
  * @param {{start:number,end:number}} bestStemLoc      	Inclusive start/end indices of the best stem (wild type melting temperature
  * 														is closest to the desired melting temperature given by the user) in snapback
@@ -588,8 +588,8 @@ async function calculateMeltingTempDifferences(
 		);
 
 	console.group('Step 5 — Stem sequences at fixed bestStemLoc');
-
 	// Shared context for step 5
+	console.log('bestStemLoc, ', bestStemLoc);
 	console.log(
 		'bestStemLoc (same-primer frame): start=%d, end=%d, len=%d',
 		bestStemLoc.start,
@@ -779,16 +779,16 @@ async function calculateMeltingTempDifferences(
 
 	// 9) Compute absolute Tm differences with API results
 	const meltingTempDiffSamePrimerMatchWild = Math.abs(
-		sameWild_base - sameWild_withVariantTail
+		sameWild_base - sameVar_withWildTail
 	);
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		sameVar_base - sameVar_withWildTail
+		sameVar_base - sameWild_withVariantTail
 	);
 	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		revWild_base - revWild_withVariantTail
+		revWild_base - revVar_withWildTail
 	);
 	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		revVar_base - revVar_withWildTail
+		revVar_base - revWild_withVariantTail
 	);
 
 	// 10) Map Tm difference values to their correct orientation depending on `tailOnForwardPrimer`.)
