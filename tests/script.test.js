@@ -31,6 +31,11 @@ import {
 	getRochesterHairpinLoopParams,
 	getSantaLuciaHicksHairpinParams,
 
+	// Dangling end helper functions
+	getDanglingEndParams,
+	normalizeDanglingOrientation,
+	normalizeNNStep,
+
 	// Constants
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
@@ -40,6 +45,7 @@ import {
 	MAX_AMPLICON_LEN,
 	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
 	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
+	DANGLING_END_PARAMS_BOMMARITO_2000,
 } from '../dist/script.js';
 
 /****************************************************************/
@@ -2823,6 +2829,218 @@ describe('getSantaLuciaHicksHairpinParams()', () => {
 			expect(Number.isFinite(dH)).toBe(true);
 			expect(Number.isFinite(dS)).toBe(true);
 			expect(dH).toBeCloseTo(0.0, 12);
+		}
+	});
+});
+
+describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
+	//---------------------------------------------------------------------//
+	// Sanity checks on the table shape & immutability
+	//---------------------------------------------------------------------//
+	test('DANGLING_END_PARAMS_BOMMARITO_2000 is deeply frozen and has 16 steps per orientation', () => {
+		expect(Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000)).toBe(true);
+		expect(
+			Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime)
+		).toBe(true);
+		expect(
+			Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.threePrime)
+		).toBe(true);
+
+		const fiveKeys = Object.keys(
+			DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime
+		);
+		const threeKeys = Object.keys(
+			DANGLING_END_PARAMS_BOMMARITO_2000.threePrime
+		);
+
+		expect(fiveKeys).toHaveLength(16);
+		expect(threeKeys).toHaveLength(16);
+
+		// All keys should be valid 2-letter DNA steps and rows should be frozen
+		for (const k of fiveKeys) {
+			expect(k).toMatch(/^[ATCG]{2}$/);
+			expect(
+				Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime[k])
+			).toBe(true);
+		}
+		for (const k of threeKeys) {
+			expect(k).toMatch(/^[ATCG]{2}$/);
+			expect(
+				Object.isFrozen(
+					DANGLING_END_PARAMS_BOMMARITO_2000.threePrime[k]
+				)
+			).toBe(true);
+		}
+
+		// Both orientations should cover all 16 ordered steps
+		const ALL_STEPS = (() => {
+			const bases = ['A', 'C', 'G', 'T'];
+			const out = new Set();
+			for (const x of bases) for (const y of bases) out.add(x + y);
+			return out;
+		})();
+		expect(new Set(fiveKeys)).toEqual(ALL_STEPS);
+		expect(new Set(threeKeys)).toEqual(ALL_STEPS);
+	});
+
+	//---------------------------------------------------------------------//
+	// normalizeNNStep(step)
+	//---------------------------------------------------------------------//
+	test('normalizeNNStep uppercases and validates exactly two DNA letters', () => {
+		expect(normalizeNNStep('ac')).toBe('AC');
+		expect(normalizeNNStep('tG')).toBe('TG');
+		expect(normalizeNNStep('AA')).toBe('AA');
+	});
+
+	const badSteps = [
+		['non-string', 123],
+		['null', null],
+		['undefined', undefined],
+		['empty', ''],
+		['one char', 'A'],
+		['three chars', 'AAA'],
+		['invalid char X', 'AX'],
+		['digit', 'A1'],
+		['whitespace padded', ' AC'], // length !== 2
+		['tabbed', 'A\t'], // length !== 2
+		['object', {}],
+		['array', ['A', 'C']],
+	];
+
+	for (const [label, s] of badSteps) {
+		test(`normalizeNNStep throws for invalid step (${label})`, () => {
+			expect(() => normalizeNNStep(s)).toThrow(/NN step/i);
+		});
+	}
+
+	//---------------------------------------------------------------------//
+	// normalizeDanglingOrientation(orientation)
+	//---------------------------------------------------------------------//
+	test('normalizeDanglingOrientation accepts 5p/3p and fivePrime/threePrime (case-insensitive, trims)', () => {
+		expect(normalizeDanglingOrientation('5p')).toBe(
+			DANGLING_ORIENTATION.FIVE_PRIME
+		);
+		expect(normalizeDanglingOrientation('3p')).toBe(
+			DANGLING_ORIENTATION.THREE_PRIME
+		);
+
+		expect(normalizeDanglingOrientation('fivePrime')).toBe(
+			DANGLING_ORIENTATION.FIVE_PRIME
+		);
+		expect(normalizeDanglingOrientation('ThreePrime')).toBe(
+			DANGLING_ORIENTATION.THREE_PRIME
+		);
+
+		expect(normalizeDanglingOrientation('  5P  ')).toBe(
+			DANGLING_ORIENTATION.FIVE_PRIME
+		);
+		expect(normalizeDanglingOrientation('\tthreePRIME\n')).toBe(
+			DANGLING_ORIENTATION.THREE_PRIME
+		);
+	});
+
+	const badOrientations = [
+		['number', 5],
+		['null', null],
+		['empty string', ''],
+		['random word', 'north'],
+		['partial token', 'five'], // not accepted
+		['typo', 'threePrim'],
+	];
+
+	for (const [label, o] of badOrientations) {
+		test(`normalizeDanglingOrientation throws for invalid orientation (${label})`, () => {
+			expect(() => normalizeDanglingOrientation(o)).toThrow(
+				/orientation must be a string/i
+			);
+		});
+	}
+
+	//---------------------------------------------------------------------//
+	// getDanglingEndParams(step, orientation)
+	//---------------------------------------------------------------------//
+	test('getDanglingEndParams returns the frozen row for known examples (case-insensitive step/orientation)', () => {
+		// 5′ on AC
+		const r1 = getDanglingEndParams('AC', '5p');
+		expect(r1).toEqual({ dH: -6.3, dS: -17.1 });
+		expect(Object.isFrozen(r1)).toBe(true);
+
+		// Upper/lower case normalization
+		const r1b = getDanglingEndParams('ac', 'FivePrime');
+		expect(r1b).toEqual(r1);
+
+		// Identity: should be the same object stored in the table (no cloning)
+		expect(r1).toBe(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime.AC);
+
+		// 3′ on TA
+		const r2 = getDanglingEndParams('TA', '3p');
+		expect(r2).toEqual({ dH: -0.7, dS: -0.8 });
+		expect(Object.isFrozen(r2)).toBe(true);
+
+		// Another 3′ entry with positive values (sanity for sign handling)
+		const r3 = getDanglingEndParams('TC', 'threePrime');
+		expect(r3).toEqual({ dH: 4.4, dS: 7.3 });
+
+		// 5′ on TA (different from 3′ on TA)
+		const r4 = getDanglingEndParams('TA', 'fivePrime');
+		expect(r4).toEqual({ dH: -6.9, dS: -20.0 });
+
+		// 3′ on AC (different sign than 5′ on AC)
+		const r5 = getDanglingEndParams('AC', '3p');
+		expect(r5).toEqual({ dH: 4.7, dS: 14.2 });
+	});
+
+	test('getDanglingEndParams result is immutable (attempted mutation does not change values)', () => {
+		const r = getDanglingEndParams('GG', 'threePrime');
+		const dH = r.dH;
+		const dS = r.dS;
+
+		// Try to mutate (in strict mode this would throw; regardless, values must remain)
+		try {
+			r.dH = 999;
+		} catch (_) {}
+		try {
+			r.extra = 'x';
+		} catch (_) {}
+
+		expect(r.dH).toBe(dH);
+		expect(r.dS).toBe(dS);
+		expect(r).not.toHaveProperty('extra');
+	});
+
+	test('getDanglingEndParams throws on invalid orientation tokens', () => {
+		expect(() => getDanglingEndParams('AC', 'west')).toThrow(
+			/orientation/i
+		);
+		expect(() => getDanglingEndParams('AC', '')).toThrow(/orientation/i);
+		expect(() => getDanglingEndParams('AC', null)).toThrow(/orientation/i);
+	});
+
+	test('getDanglingEndParams throws on invalid NN steps (delegates to normalizer)', () => {
+		expect(() => getDanglingEndParams('A', '5p')).toThrow(/NN step/i);
+		expect(() => getDanglingEndParams('AX', '5p')).toThrow(/NN step/i);
+		expect(() => getDanglingEndParams('', '3p')).toThrow(/NN step/i);
+		expect(() => getDanglingEndParams(null, '3p')).toThrow(/NN step/i);
+	});
+
+	test('getDanglingEndParams matches table values for ALL steps in both orientations', () => {
+		for (const [orientationKey, table] of Object.entries(
+			DANGLING_END_PARAMS_BOMMARITO_2000
+		)) {
+			// orientationKey is 'fivePrime' or 'threePrime'
+			const token = orientationKey === 'fivePrime' ? '5p' : '3p';
+			for (const [step, expected] of Object.entries(table)) {
+				const got = getDanglingEndParams(step, token);
+				expect(got).toEqual(expected);
+
+				// Case-insensitive step should match as well
+				const lower = step.toLowerCase();
+				const gotLower = getDanglingEndParams(
+					lower,
+					token.toUpperCase()
+				);
+				expect(gotLower).toEqual(expected);
+			}
 		}
 	});
 });

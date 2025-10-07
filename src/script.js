@@ -409,6 +409,16 @@ async function createSnapback(
 	};
 }
 
+/**
+ * Orientation queries used by the lookup helpers.
+ * Accepted inputs for 5′:  '5p', 'fivePrime'
+ * Accepted inputs for 3′:  '3p', 'threePrime'
+ */
+const DANGLING_ORIENTATION = deepFreeze({
+	FIVE_PRIME: 'fivePrime',
+	THREE_PRIME: 'threePrime',
+});
+
 /*****************************************************************************************/
 /********************************** Secondary Functions **********************************/
 /*****************************************************************************************/
@@ -2639,6 +2649,55 @@ function getSantaLuciaHicksHairpinParams(N) {
 	return { dH: 0.0, dS };
 }
 
+/**
+ * Returns the Bommarito dangling-end parameters (delta H, delta S) for a given
+ * nearest-neighbor and the end on which the dangling base is located (5' or 3').
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Interpretation/Orientation Rules
+ * ──────────────────────────────────────────────────────────────────────────
+ * - The NN step is written 5'->3' as XY which contains the dangling nucleotide
+ * - Orientation rule used:
+ *      • 5'-dangling end of form XY -> the dangling base is X
+ *      • 3'-dangling end of form XY -> the dangling base is Y
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `DANGLING_END_PARAMS` is a deep-frozen object with two
+ *   top-level keys: `fivePrime` and `threePrime`, each mapping every possible
+ *   dangling end to `{ dH, dS }` in units of kcal/mol and cal/K/mol respectively.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string} step
+ *        Two-letter NN step (e.g., "AC"), 5'->3'
+ *
+ * @param {string} orientation
+ *        Accepts '5p'|'3p' or 'fivePrime'|'threePrime' (case-insensitive).
+ *
+ * @returns {{ dH:number, dS:number }}
+ *        Frozen object with ΔH° (kcal/mol) and ΔS° (cal/K/mol).
+ *
+ * @throws {Error}
+ *        If `step` is not exactly two of A/T/C/G, orientation is invalid,
+ *        or the pair is not present in the Bommarito table for that orientation.
+ */
+function getDanglingEndParams(step, orientation) {
+	const s = normalizeNNStep(step);
+	const o = normalizeDanglingOrientation(orientation);
+
+	const row = DANGLING_END_PARAMS_BOMMARITO_2000[o][s];
+
+	if (!row) {
+		throw new Error(
+			`No Bommarito 2000 entry for orientation "${o}" on step "${s}". `
+		);
+	}
+	return row; // deep-frozen via deepFreeze()
+}
+
 /*****************************************************************************************/
 /************************************** Small Helpers ************************************/
 /*****************************************************************************************/
@@ -2661,6 +2720,48 @@ function deepFreeze(obj) {
 		}
 	}
 	return obj;
+}
+
+/**
+ * Normalizes an orientation token to the map key: 'fivePrime' | 'threePrime'.
+ * @param {string} orientation  '5p'|'3p'|'fivePrime'|'threePrime' (case-insensitive)
+ * @returns {'fivePrime'|'threePrime'}
+ * @throws {Error} If the token is not recognized.
+ */
+function normalizeDanglingOrientation(orientation) {
+	if (typeof orientation !== 'string') {
+		throw new Error(
+			`orientation must be a string; got ${typeof orientation}`
+		);
+	}
+	const o = orientation.trim().toLowerCase();
+	if (o === '5p' || o === 'fiveprime') return DANGLING_ORIENTATION.FIVE_PRIME;
+	if (o === '3p' || o === 'threeprime')
+		return DANGLING_ORIENTATION.THREE_PRIME;
+	throw new Error(
+		`Unrecognized orientation "${orientation}". Use '5p'|'3p' or 'fivePrime'|'threePrime'.`
+	);
+}
+
+/**
+ * Ensures the NN query string (for entropy and enthalpy summations) is exactly two DNA bases (A/T/C/G),
+ * uppercases it, and returns it.
+ *
+ * @param {string} step  Two-character nearest-neighbor query string 5'->3'
+ * @returns {string}     Uppercased two-letter step
+ * @throws {Error}       If not exactly 2 bases A/T/C/G.
+ */
+function normalizeNNStep(step) {
+	if (typeof step !== 'string' || step.length !== 2) {
+		throw new Error(
+			`NN step must be a 2-character string like "AC"; got: ${step}`
+		);
+	}
+	const s = step.toUpperCase();
+	if (!VALID_BASES.has(s[0]) || !VALID_BASES.has(s[1])) {
+		throw new Error(`NN step must contain only A/T/C/G; got: ${step}`);
+	}
+	return s;
 }
 
 /*****************************************************************************************/
@@ -2699,6 +2800,11 @@ export {
 	getRochesterHairpinLoopParams,
 	getSantaLuciaHicksHairpinParams,
 
+	// Dangling end helper functions
+	getDanglingEndParams,
+	normalizeDanglingOrientation,
+	normalizeNNStep,
+
 	// Constants
 	SNV_BASE_BUFFER,
 	NUCLEOTIDE_COMPLEMENT,
@@ -2708,4 +2814,5 @@ export {
 	MAX_AMPLICON_LEN,
 	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
 	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
+	DANGLING_END_PARAMS_BOMMARITO_2000,
 };
