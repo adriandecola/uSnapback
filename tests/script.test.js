@@ -31,10 +31,14 @@ import {
 	getRochesterHairpinLoopParams,
 	getSantaLuciaHicksHairpinParams,
 
-	// Dangling end helper functions
+	// Dangling end and terminal mismatch helper functions
 	getDanglingEndParams,
 	normalizeDanglingOrientation,
 	normalizeNNStep,
+	buildTerminalMismatchKey,
+	parseTerminalMismatchToken,
+	getTerminalMismatchParamsFromToken,
+	getTerminalMismatchParams,
 
 	// Constants
 	SNV_BASE_BUFFER,
@@ -45,8 +49,9 @@ import {
 	MAX_AMPLICON_LEN,
 	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
 	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
-	DANGLING_END_PARAMS_BOMMARITO_2000,
+	DANGLING_END_PARAMS,
 	DANGLING_ORIENTATION,
+	TERMINAL_MISMATCH_PARAMS,
 } from '../dist/script.js';
 
 /****************************************************************/
@@ -2838,21 +2843,13 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 	//---------------------------------------------------------------------//
 	// Sanity checks on the table shape & immutability
 	//---------------------------------------------------------------------//
-	test('DANGLING_END_PARAMS_BOMMARITO_2000 is deeply frozen and has 16 steps per orientation', () => {
-		expect(Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000)).toBe(true);
-		expect(
-			Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime)
-		).toBe(true);
-		expect(
-			Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.threePrime)
-		).toBe(true);
+	test('DANGLING_END_PARAMS is deeply frozen and has 16 steps per orientation', () => {
+		expect(Object.isFrozen(DANGLING_END_PARAMS)).toBe(true);
+		expect(Object.isFrozen(DANGLING_END_PARAMS.fivePrime)).toBe(true);
+		expect(Object.isFrozen(DANGLING_END_PARAMS.threePrime)).toBe(true);
 
-		const fiveKeys = Object.keys(
-			DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime
-		);
-		const threeKeys = Object.keys(
-			DANGLING_END_PARAMS_BOMMARITO_2000.threePrime
-		);
+		const fiveKeys = Object.keys(DANGLING_END_PARAMS.fivePrime);
+		const threeKeys = Object.keys(DANGLING_END_PARAMS.threePrime);
 
 		expect(fiveKeys).toHaveLength(16);
 		expect(threeKeys).toHaveLength(16);
@@ -2860,17 +2857,15 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 		// All keys should be valid 2-letter DNA steps and rows should be frozen
 		for (const k of fiveKeys) {
 			expect(k).toMatch(/^[ATCG]{2}$/);
-			expect(
-				Object.isFrozen(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime[k])
-			).toBe(true);
+			expect(Object.isFrozen(DANGLING_END_PARAMS.fivePrime[k])).toBe(
+				true
+			);
 		}
 		for (const k of threeKeys) {
 			expect(k).toMatch(/^[ATCG]{2}$/);
-			expect(
-				Object.isFrozen(
-					DANGLING_END_PARAMS_BOMMARITO_2000.threePrime[k]
-				)
-			).toBe(true);
+			expect(Object.isFrozen(DANGLING_END_PARAMS.threePrime[k])).toBe(
+				true
+			);
 		}
 
 		// Both orientations should cover all 16 ordered steps
@@ -2971,7 +2966,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 		expect(r1b).toEqual(r1);
 
 		// Identity: should be the same object stored in the table (no cloning)
-		expect(r1).toBe(DANGLING_END_PARAMS_BOMMARITO_2000.fivePrime.AC);
+		expect(r1).toBe(DANGLING_END_PARAMS.fivePrime.AC);
 
 		// 3′ on TA
 		const r2 = getDanglingEndParams('TA', '3p');
@@ -3030,7 +3025,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 
 	test('getDanglingEndParams matches table values for ALL steps in both orientations', () => {
 		for (const [orientationKey, table] of Object.entries(
-			DANGLING_END_PARAMS_BOMMARITO_2000
+			DANGLING_END_PARAMS
 		)) {
 			// orientationKey is 'fivePrime' or 'threePrime'
 			const token = orientationKey === 'fivePrime' ? '5p' : '3p';
@@ -3047,5 +3042,170 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 				expect(gotLower).toEqual(expected);
 			}
 		}
+	});
+});
+
+describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
+	//──────────────────────────────────────────────────────────────────//
+	// Table shape & immutability
+	//──────────────────────────────────────────────────────────────────//
+	test('TERMINAL_MISMATCH_PARAMS is deeply frozen with 96 keys', () => {
+		expect(Object.isFrozen(TERMINAL_MISMATCH_PARAMS)).toBe(true);
+
+		const keys = Object.keys(TERMINAL_MISMATCH_PARAMS);
+		// 48 physical motifs × 2 printed forms = 96 entries
+		expect(keys.length).toBe(96);
+
+		for (const k of keys) {
+			expect(k).toMatch(/^[ATCG]{2}\/[ATCG]{2}$/);
+			const row = TERMINAL_MISMATCH_PARAMS[k];
+			expect(Object.isFrozen(row)).toBe(true);
+			expect(typeof row.dH).toBe('number');
+			expect(typeof row.dS).toBe('number');
+		}
+	});
+
+	// Quick audit that both printed forms exist for some representative lines
+	test('table includes both printed forms for a few representative motifs', () => {
+		const pairs = [
+			['AA/TA', 'AT/AA'], // A/T neighbor
+			['TC/AT', 'TA/CT'], // T/A neighbor
+			['CG/GT', 'TG/GC'], // C/G neighbor (with corrected partner)
+			['GG/CT', 'TC/GG'], // G/C neighbor
+		];
+		for (const [a, b] of pairs) {
+			expect(TERMINAL_MISMATCH_PARAMS[a]).toBeDefined();
+			expect(TERMINAL_MISMATCH_PARAMS[b]).toBeDefined();
+			expect(TERMINAL_MISMATCH_PARAMS[a]).toEqual(
+				TERMINAL_MISMATCH_PARAMS[b]
+			);
+		}
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Normalizers & key helpers (use your normalizeNNStep internally)
+	//──────────────────────────────────────────────────────────────────//
+	test('buildTerminalMismatchKey normalizes case & validates dinucleotides', () => {
+		expect(buildTerminalMismatchKey('ac', 'tg')).toBe('AC/TG');
+		expect(() => buildTerminalMismatchKey('A', 'TG')).toThrow(/NN step/i);
+		expect(() => buildTerminalMismatchKey('AC', 'T')).toThrow(/NN step/i);
+		expect(() => buildTerminalMismatchKey('AX', 'TG')).toThrow(
+			/contain only A\/T\/C\/G/i
+		);
+	});
+
+	test('parseTerminalMismatchToken parses "TOP2/BOTTOM2" with whitespace and mixed case', () => {
+		const { top2, bottom2 } = parseTerminalMismatchToken('  tA /  aA ');
+		expect(top2).toBe('TA');
+		expect(bottom2).toBe('AA');
+
+		expect(() => parseTerminalMismatchToken('TAAA')).toThrow(/Malformed/);
+		expect(() => parseTerminalMismatchToken('TA/AX')).toThrow(
+			/contain only A\/T\/C\/G/i
+		);
+		expect(() => parseTerminalMismatchToken(42)).toThrow(/string/i);
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Core lookup: known values across all neighbor classes
+	//──────────────────────────────────────────────────────────────────//
+	test('A/T neighbor: AA/TA (and AT/AA) → dH=4.0, dS=15.2', () => {
+		const r1 = getTerminalMismatchParams('AA', 'TA');
+		expect(r1).toEqual({ dH: 4.0, dS: 15.2 });
+
+		const r2 = getTerminalMismatchParamsFromToken('AT/AA');
+		expect(r2).toEqual({ dH: 4.0, dS: 15.2 });
+	});
+
+	test('T/A neighbor: TG/AT (and TA/GT) → dH=-5.8, dS=-17.1', () => {
+		const r1 = getTerminalMismatchParamsFromToken('TG/AT');
+		expect(r1).toEqual({ dH: -5.8, dS: -17.1 });
+
+		const r2 = getTerminalMismatchParams('TA', 'GT');
+		expect(r2).toEqual({ dH: -5.8, dS: -17.1 });
+	});
+
+	test('C/G neighbor: CG/GT (and TG/GC) → dH=-5.0, dS=-12.9', () => {
+		const r1 = getTerminalMismatchParams('CG', 'GT');
+		expect(r1).toEqual({ dH: -5.0, dS: -12.9 });
+
+		const r2 = getTerminalMismatchParamsFromToken('TG/GC');
+		expect(r2).toEqual({ dH: -5.0, dS: -12.9 });
+	});
+
+	test('G/C neighbor: GG/CT (and TC/GG) → dH=-0.9, dS=-0.3', () => {
+		const r1 = getTerminalMismatchParams('GG', 'CT');
+		expect(r1).toEqual({ dH: -0.9, dS: -0.3 });
+
+		const r2 = getTerminalMismatchParamsFromToken('TC/GG');
+		expect(r2).toEqual({ dH: -0.9, dS: -0.3 });
+	});
+
+	//──────── Additional spot checks to cover positive/negative enthalpies ───────//
+	test('spot checks: positive enthalpy/entropy (A/T neighbor)', () => {
+		expect(getTerminalMismatchParams('AT', 'TT')).toEqual({
+			dH: 4.3,
+			dS: 15.2,
+		});
+		expect(getTerminalMismatchParams('AG', 'TT')).toEqual({
+			dH: 4.3,
+			dS: 15.5,
+		});
+	});
+
+	test('spot checks: negative enthalpy/entropy (T/A, C/G, G/C neighbors)', () => {
+		expect(getTerminalMismatchParams('TC', 'AT')).toEqual({
+			dH: -5.8,
+			dS: -17.1,
+		});
+		expect(getTerminalMismatchParams('CT', 'GT')).toEqual({
+			dH: -5.0,
+			dS: -13.2,
+		});
+		expect(getTerminalMismatchParams('GT', 'CG')).toEqual({
+			dH: -5.1,
+			dS: -13.5,
+		});
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Immutability of returned rows
+	//──────────────────────────────────────────────────────────────────//
+	test('returned rows are frozen (attempted mutation has no effect)', () => {
+		const row = getTerminalMismatchParams('TT', 'AT'); // -5.8, -17.7
+		expect(Object.isFrozen(row)).toBe(true);
+		const { dH, dS } = row;
+		try {
+			row.dH = 999;
+		} catch (_) {}
+		try {
+			row.extra = 'x';
+		} catch (_) {}
+		expect(row.dH).toBe(dH);
+		expect(row.dS).toBe(dS);
+		expect(row).not.toHaveProperty('extra');
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Error handling
+	//──────────────────────────────────────────────────────────────────//
+	test('unknown motifs throw a clear error', () => {
+		// Valid shape but not in table
+		expect(() => getTerminalMismatchParams('AA', 'AA')).toThrow(
+			/No DNA terminal-mismatch entry/
+		);
+
+		// Correct the known transcription error ("T/GC" isn’t valid)
+		expect(() => getTerminalMismatchParamsFromToken('T/GC')).toThrow(
+			/Malformed|NN step/i
+		);
+	});
+
+	test('malformed inputs throw (delegated to normalizeNNStep and parser)', () => {
+		expect(() => getTerminalMismatchParams('A', 'TA')).toThrow(/NN step/i);
+		expect(() => getTerminalMismatchParams('AA', 'T')).toThrow(/NN step/i);
+		expect(() => getTerminalMismatchParamsFromToken('AATA')).toThrow(
+			/Malformed/
+		);
 	});
 });

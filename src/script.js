@@ -107,7 +107,7 @@ const HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS = deepFreeze({
  *   - 5′-dangling end of form XY: dangling base is X.
  *   - 3′-dangling end of form XY: dangling base is Y.
  */
-const DANGLING_END_PARAMS_BOMMARITO_2000 = deepFreeze({
+const DANGLING_END_PARAMS = deepFreeze({
 	fivePrime: {
 		AA: { dH: 0.2, dS: 2.3 },
 		AC: { dH: -6.3, dS: -17.1 },
@@ -144,6 +144,169 @@ const DANGLING_END_PARAMS_BOMMARITO_2000 = deepFreeze({
 		CT: { dH: -5.2, dS: -15.0 },
 		AT: { dH: -3.8, dS: -12.6 },
 	},
+});
+
+//──────────────────────────────────────────────────────────────────────────//
+// Terminal Mismatches (Rochester)
+// Units: dH (kcal/mol), dS (cal/K/mol)
+// Key format: "TOP2/BOTTOM2"
+//   • TOP2    is the 5'3' NN pair on the top strand
+//   • BOTTOM2 is the 3'5' NN pair on the bottom strand
+//
+// Both printed forms from NNDB (“X/Y or Y'/X'”) are included as distinct keys
+// mapping to the SAME numeric values.
+//
+// Remember to only use these parameters when the last base pair is a mismatch.
+// Do not use this on penultimate mismatches.
+//──────────────────────────────────────────────────────────────────────────//
+const TERMINAL_MISMATCH_PARAMS = deepFreeze({
+	// ── A/T neighbor match ────────────────────────────────────────────────
+	'AA/TA': { dH: 4.0, dS: 15.2 },
+	'AT/AA': { dH: 4.0, dS: 15.2 },
+
+	'AA/TC': { dH: 5.2, dS: 17.7 },
+	'CT/AA': { dH: 5.2, dS: 17.7 },
+
+	'AA/TG': { dH: 4.7, dS: 16.8 },
+	'GT/AA': { dH: 4.7, dS: 16.8 },
+
+	'AC/TA': { dH: 4.0, dS: 14.8 },
+	'AT/CA': { dH: 4.0, dS: 14.8 },
+
+	'AC/TC': { dH: 5.2, dS: 17.4 },
+	'CT/CA': { dH: 5.2, dS: 17.4 },
+
+	'AC/TT': { dH: 4.3, dS: 14.8 },
+	'TT/CA': { dH: 4.3, dS: 14.8 },
+
+	'AG/TA': { dH: 4.0, dS: 14.8 },
+	'AT/GA': { dH: 4.0, dS: 14.8 },
+
+	'AG/TG': { dH: 4.7, dS: 16.4 },
+	'GT/GA': { dH: 4.7, dS: 16.4 },
+
+	'AG/TT': { dH: 4.3, dS: 15.5 },
+	'TT/GA': { dH: 4.3, dS: 15.5 },
+
+	'AT/TC': { dH: 5.2, dS: 17.7 },
+	'CT/TA': { dH: 5.2, dS: 17.7 },
+
+	'AT/TG': { dH: 4.7, dS: 16.8 },
+	'GT/TA': { dH: 4.7, dS: 16.8 },
+
+	'AT/TT': { dH: 4.3, dS: 15.2 },
+	'TT/TA': { dH: 4.3, dS: 15.2 },
+
+	// ── T/A neighbor match ────────────────────────────────────────────────
+	'TA/AA': { dH: 2.3, dS: 9.4 },
+	'AA/AT': { dH: 2.3, dS: 9.4 },
+
+	'TA/AC': { dH: 1.7, dS: 6.8 },
+	'CA/AT': { dH: 1.7, dS: 6.8 },
+
+	'TA/AG': { dH: 0.7, dS: 3.9 },
+	'GA/AT': { dH: 0.7, dS: 3.9 },
+
+	'TC/AA': { dH: 2.3, dS: 9.0 },
+	'AA/CT': { dH: 2.3, dS: 9.0 },
+
+	'TC/AC': { dH: 1.7, dS: 6.1 },
+	'CA/CT': { dH: 1.7, dS: 6.1 },
+
+	'TC/AT': { dH: -5.8, dS: -17.1 },
+	'TA/CT': { dH: -5.8, dS: -17.1 },
+
+	'TG/AA': { dH: 2.3, dS: 9.4 },
+	'AA/GT': { dH: 2.3, dS: 9.4 },
+
+	'TG/AG': { dH: 0.7, dS: 3.5 },
+	'GA/GT': { dH: 0.7, dS: 3.5 },
+
+	'TG/AT': { dH: -5.8, dS: -17.1 },
+	'TA/GT': { dH: -5.8, dS: -17.1 },
+
+	'TT/AC': { dH: 1.7, dS: 6.4 },
+	'CA/TT': { dH: 1.7, dS: 6.4 },
+
+	'TT/AG': { dH: 0.7, dS: 4.2 },
+	'GA/TT': { dH: 0.7, dS: 4.2 },
+
+	'TT/AT': { dH: -5.8, dS: -17.7 },
+	'TA/TT': { dH: -5.8, dS: -17.7 },
+
+	// ── C/G neighbor match ────────────────────────────────────────────────
+	'CA/GA': { dH: -4.6, dS: -11.6 },
+	'AG/AC': { dH: -4.6, dS: -11.6 },
+
+	'CA/GC': { dH: -4.2, dS: -11.0 },
+	'CG/AC': { dH: -4.2, dS: -11.0 },
+
+	'CA/GG': { dH: -4.7, dS: -12.3 },
+	'GG/AC': { dH: -4.7, dS: -12.3 },
+
+	'CC/GA': { dH: -4.6, dS: -12.3 },
+	'AG/CC': { dH: -4.6, dS: -12.3 },
+
+	'CC/GC': { dH: -4.2, dS: -11.9 },
+	'CG/CC': { dH: -4.2, dS: -11.9 },
+
+	'CC/GT': { dH: -5.0, dS: -13.9 },
+	'TG/CC': { dH: -5.0, dS: -13.9 },
+
+	'CG/GA': { dH: -4.6, dS: -11.6 },
+	'AG/GC': { dH: -4.6, dS: -11.6 },
+
+	'CG/GG': { dH: -4.7, dS: -12.3 },
+	'GG/GC': { dH: -4.7, dS: -12.3 },
+
+	'CG/GT': { dH: -5.0, dS: -12.9 },
+	'TG/GC': { dH: -5.0, dS: -12.9 },
+
+	'CT/GC': { dH: -4.2, dS: -11.6 },
+	'CG/TC': { dH: -4.2, dS: -11.6 },
+
+	'CT/GG': { dH: -4.7, dS: -12.3 },
+	'GG/TC': { dH: -4.7, dS: -12.3 },
+
+	'CT/GT': { dH: -5.0, dS: -13.2 },
+	'TG/TC': { dH: -5.0, dS: -13.2 },
+
+	// ── G/C neighbor match ────────────────────────────────────────────────
+	'GA/CA': { dH: -6.2, dS: -16.8 },
+	'AC/AG': { dH: -6.2, dS: -16.8 },
+
+	'GA/CC': { dH: -3.3, dS: -8.4 },
+	'CC/AG': { dH: -3.3, dS: -8.4 },
+
+	'GA/CG': { dH: -5.1, dS: -13.9 },
+	'GC/AG': { dH: -5.1, dS: -13.9 },
+
+	'GC/CA': { dH: -6.2, dS: -16.8 },
+	'AC/CG': { dH: -6.2, dS: -16.8 },
+
+	'GC/CC': { dH: -3.3, dS: -8.7 },
+	'CC/CG': { dH: -3.3, dS: -8.7 },
+
+	'GC/CT': { dH: -0.9, dS: -0.6 },
+	'TC/CG': { dH: -0.9, dS: -0.6 },
+
+	'GG/CA': { dH: -6.2, dS: -16.8 },
+	'AC/GG': { dH: -6.2, dS: -16.8 },
+
+	'GG/CG': { dH: -5.1, dS: -13.2 },
+	'GC/GG': { dH: -5.1, dS: -13.2 },
+
+	'GG/CT': { dH: -0.9, dS: -0.3 },
+	'TC/GG': { dH: -0.9, dS: -0.3 },
+
+	'GT/CC': { dH: -3.3, dS: -8.7 },
+	'CC/TG': { dH: -3.3, dS: -8.7 },
+
+	'GT/CG': { dH: -5.1, dS: -13.5 },
+	'GC/TG': { dH: -5.1, dS: -13.5 },
+
+	'GT/CT': { dH: -0.9, dS: 0.0 },
+	'TC/TG': { dH: -0.9, dS: 0.0 },
 });
 
 /*****************************************************************************************/
@@ -2688,7 +2851,7 @@ function getDanglingEndParams(step, orientation) {
 	const s = normalizeNNStep(step);
 	const o = normalizeDanglingOrientation(orientation);
 
-	const row = DANGLING_END_PARAMS_BOMMARITO_2000[o][s];
+	const row = DANGLING_END_PARAMS[o][s];
 
 	if (!row) {
 		throw new Error(
@@ -2764,6 +2927,94 @@ function normalizeNNStep(step) {
 	return s;
 }
 
+/**
+ * Builds a canonical "TOP2/BOTTOM2" key after validating each dinucleotide.
+ *
+ *
+ *
+ * @param 		{string} 	top2    	Two-letter 5'→3' top-strand dinucleotide
+ * @param 		{string} 	bottom2 	Two-letter 3'←5' bottom-strand dinucleotide
+ * @returns 	{string} 				e.g., "AC/TG"
+ * @throws 		{Error} 				if either part is not exactly two A/T/C/G
+ */
+function buildTerminalMismatchKey(top2, bottom2) {
+	return `${normalizeNNStep(top2)}/${normalizeNNStep(bottom2)}`;
+}
+
+/**
+ * Parses "TOP2/BOTTOM2" into { top2, bottom2 } using normalizeNNStep.
+ * Accepts mixed case and internal whitespace.
+ *
+ * This function may be helpful in the future.
+ *
+ * @param 		{string} 			token 		e.g., " aa /  gt "
+ * @returns 	{{top2:string, bottom2:string}}
+ * @throws 		{Error} 						if malformed or contains invalid bases
+ */
+function parseTerminalMismatchToken(token) {
+	if (typeof token !== 'string') {
+		throw new Error(
+			`token must be a string like "AA/GT"; got: ${typeof token}`
+		);
+	}
+
+	// Remove all types of whitespace and upper case string
+	const cleaned = token.replace(/\s+/g, '').toUpperCase();
+	const parts = cleaned.split('/');
+	if (parts.length !== 2) {
+		throw new Error(
+			`Malformed terminal mismatch token; expected "NN/NN", got: "${token}"`
+		);
+	}
+	return {
+		top2: normalizeNNStep(parts[0]),
+		bottom2: normalizeNNStep(parts[1]),
+	};
+}
+
+/**
+ * Returns the terminal-mismatch delta_H and delta_S for a given NN
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Interpretation
+ * ──────────────────────────────────────────────────────────────────────────
+ * - Keys represent the two terminal nucleotide paires at the duplex end:
+ *     "TOP2/BOTTOM2" where TOP2 is 5'3' on the top strand,
+ *     BOTTOM2 is 3'5' on the bottom strand.
+ * - Top/bottom is really just a distinction between 5' end mismatches and
+ *   3' end mismatches
+ * - Both degenerate forms of ("XY/ST", "TS/YX")  are present in the table.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {string} 			top2      					Two-letter top-strand dinucleotide (5'->3')
+ * @param {string} 			bottom2   					Two-letter bottom-strand dinucleotide (3'->5')
+ *
+ * @returns 				{{ dH:number, dS:number }} 	(kcal/mol, cal/K/mol)
+ * @throws 					{Error} 					If the NN pair is not found in the table
+ */
+function getTerminalMismatchParams(top2, bottom2) {
+	const key = buildTerminalMismatchKey(top2, bottom2);
+	const row = TERMINAL_MISMATCH_PARAMS[key];
+	if (!row) {
+		throw new Error(`No DNA terminal-mismatch entry for "${key}"`);
+	}
+	return row; // frozen via deepFreeze()
+}
+
+/**
+ * Helper function (that we may eventually use) that accepts a single "TOP2/BOTTOM2" token.
+ *
+ *
+ * @param 		{string} 					token 		e.g., "AT/AA"
+ * @returns 	{{ dH:number, dS:number }}
+ */
+function getTerminalMismatchParamsFromToken(token) {
+	const { top2, bottom2 } = parseTerminalMismatchToken(token);
+	return getTerminalMismatchParams(top2, bottom2);
+}
+
 /*****************************************************************************************/
 /************************************ Export Function ************************************/
 /*****************************************************************************************/
@@ -2800,10 +3051,14 @@ export {
 	getRochesterHairpinLoopParams,
 	getSantaLuciaHicksHairpinParams,
 
-	// Dangling end helper functions
+	// Dangling end and terminal mismatch helper functions
 	getDanglingEndParams,
 	normalizeDanglingOrientation,
 	normalizeNNStep,
+	buildTerminalMismatchKey,
+	parseTerminalMismatchToken,
+	getTerminalMismatchParamsFromToken,
+	getTerminalMismatchParams,
 
 	// Constants
 	SNV_BASE_BUFFER,
@@ -2814,6 +3069,7 @@ export {
 	MAX_AMPLICON_LEN,
 	HAIRPIN_LOOP_PARAMETER_ROCHESTER,
 	HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
-	DANGLING_END_PARAMS_BOMMARITO_2000,
+	DANGLING_END_PARAMS,
 	DANGLING_ORIENTATION,
+	TERMINAL_MISMATCH_PARAMS,
 };
