@@ -16,6 +16,7 @@ import {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
+	calculateTm,
 
 	// DNA utility functions
 	isValidDNASequence,
@@ -25,7 +26,7 @@ import {
 	reverseComplement,
 	revCompSNV,
 	reverseSequence,
-	calculateSnapbackTm,
+	calculateSnapbackTmWittwer,
 
 	// Loop parameter functions
 	getRochesterHairpinLoopParams,
@@ -2249,7 +2250,7 @@ describe('reverseSequence()', () => {
 	}
 });
 
-describe('calculateSnapbackTm()', () => {
+describe('calculateSnapbackTmWittwer()', () => {
 	////////////////////////////////////////////////////////
 	//////////////////// Function Logic ////////////////////
 	////////////////////////////////////////////////////////
@@ -2257,53 +2258,69 @@ describe('calculateSnapbackTm()', () => {
 
 	test('returns correct Tm with no mismatch for wild-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
 		const stemSeq = 'AAAGCATCT';
-		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		const result = await calculateSnapbackTmWittwer(stemSeq, loopLen);
 		expect(result).toBe(41.78);
 	});
 
 	test('returns correct Tm with mismatch for wild-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
 		const stemSeq = 'AAAGTATCT';
 		const mismatch = { position: 4, type: 'G' };
-		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		const result = await calculateSnapbackTmWittwer(
+			stemSeq,
+			loopLen,
+			mismatch
+		);
 		expect(result).toBe(20.54);
 	});
 
 	test('returns correct Tm with no mismatch for variant-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
 		const stemSeq = 'AAAGTATCT';
-		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		const result = await calculateSnapbackTmWittwer(stemSeq, loopLen);
 		expect(result).toBe(34.71);
 	});
 
 	test('returns correct Tm with mismatch for variant-type match snapback for rs12248560 on target strand (given by uVariants)', async () => {
 		const stemSeq = 'AAAGCATCT';
 		const mismatch = { position: 4, type: 'A' };
-		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		const result = await calculateSnapbackTmWittwer(
+			stemSeq,
+			loopLen,
+			mismatch
+		);
 		expect(result).toBe(8.31);
 	});
 
 	test('returns correct Tm with no mismatch for wild-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
 		const stemSeq = 'AGATGCTTT'; // reverse complement of AAAGCATCT
-		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		const result = await calculateSnapbackTmWittwer(stemSeq, loopLen);
 		expect(result).toBe(41.78);
 	});
 
 	test('returns correct Tm with mismatch for wild-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
 		const stemSeq = 'AGATACTTT'; // reverse complement of AAAGCATCT
 		const mismatch = { position: 4, type: 'C' };
-		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		const result = await calculateSnapbackTmWittwer(
+			stemSeq,
+			loopLen,
+			mismatch
+		);
 		expect(result).toBe(8.31);
 	});
 
 	test('returns correct Tm with no mismatch for variant-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
 		const stemSeq = 'AGATACTTT'; // reverse complement of AAAGCATCT
-		const result = await calculateSnapbackTm(stemSeq, loopLen);
+		const result = await calculateSnapbackTmWittwer(stemSeq, loopLen);
 		expect(result).toBe(34.71);
 	});
 
 	test('returns correct Tm with mismatch for variant-type match snapback for rs12248560 on complement strand (given by uVariants)', async () => {
 		const stemSeq = 'AGATGCTTT'; // reverse complement of AAAGCATCT
 		const mismatch = { position: 4, type: 'T' };
-		const result = await calculateSnapbackTm(stemSeq, loopLen, mismatch);
+		const result = await calculateSnapbackTmWittwer(
+			stemSeq,
+			loopLen,
+			mismatch
+		);
 		expect(result).toBe(20.54);
 	});
 
@@ -2337,7 +2354,7 @@ describe('calculateSnapbackTm()', () => {
 	// Valid Input Test //
 	//////////////////////
 	test('returns number for valid input with mismatch', async () => {
-		const result = await calculateSnapbackTm(
+		const result = await calculateSnapbackTmWittwer(
 			validStem,
 			validLoopLen,
 			validMismatch
@@ -2347,13 +2364,20 @@ describe('calculateSnapbackTm()', () => {
 	});
 
 	test('returns number for valid input with out a mismatch', async () => {
-		const result = await calculateSnapbackTm(validStem, validLoopLen);
+		const result = await calculateSnapbackTmWittwer(
+			validStem,
+			validLoopLen
+		);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
 	});
 
 	test('returns number for valid input with a null mismatch', async () => {
-		const result = await calculateSnapbackTm(validStem, validLoopLen, null);
+		const result = await calculateSnapbackTmWittwer(
+			validStem,
+			validLoopLen,
+			null
+		);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
 	});
@@ -2364,7 +2388,7 @@ describe('calculateSnapbackTm()', () => {
 	for (const [label, badStem] of badStems) {
 		test(`throws for invalid stemSeq (${label})`, async () => {
 			await expect(
-				calculateSnapbackTm(badStem, validLoopLen, validMismatch)
+				calculateSnapbackTmWittwer(badStem, validLoopLen, validMismatch)
 			).rejects.toThrow(/invalid dna sequence/i);
 		});
 	}
@@ -2375,7 +2399,7 @@ describe('calculateSnapbackTm()', () => {
 	for (const [label, badLoop] of badLoopLens) {
 		test(`throws for invalid loopLen (${label})`, async () => {
 			await expect(
-				calculateSnapbackTm(validStem, badLoop, validMismatch)
+				calculateSnapbackTmWittwer(validStem, badLoop, validMismatch)
 			).rejects.toThrow(/loopLen/i);
 		});
 	}
@@ -2447,7 +2471,7 @@ describe('calculateSnapbackTm()', () => {
 	for (const [label, badMismatch] of badMismatchGroups) {
 		test(`throws for invalid mismatch (${label})`, async () => {
 			await expect(
-				calculateSnapbackTm(validStem, validLoopLen, badMismatch)
+				calculateSnapbackTmWittwer(validStem, validLoopLen, badMismatch)
 			).rejects.toThrow(/mismatch/i);
 		});
 	}
@@ -2455,7 +2479,7 @@ describe('calculateSnapbackTm()', () => {
 	for (const [label, badMismatch] of badMismatchPositionBounds) {
 		test(`throws for out-of-bounds mismatch (${label})`, async () => {
 			await expect(
-				calculateSnapbackTm(validStem, validLoopLen, badMismatch)
+				calculateSnapbackTmWittwer(validStem, validLoopLen, badMismatch)
 			).rejects.toThrow(/position/i);
 		});
 	}
@@ -3206,6 +3230,156 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 		expect(() => getTerminalMismatchParams('AA', 'T')).toThrow(/NN step/i);
 		expect(() => getTerminalMismatchParamsFromToken('AATA')).toThrow(
 			/Malformed/
+		);
+	});
+});
+
+describe('calculateTm()', () => {
+	const DH = -100.0; // kcal/mol  (example: exothermic duplex)
+	const DS = -300.0; // cal/K/mol (example: negative entropy change)
+	const Aeq = 1; // 1 µM
+	const Beq = 1; // 1 µM
+
+	//──────────────────────────────────────────────────────────────────//
+	// Parameter validation
+	//──────────────────────────────────────────────────────────────────//
+	const badDH = [
+		['null', null],
+		['NaN', NaN],
+		['infinite', Infinity],
+		['string', 'hot'],
+		['object', {}],
+	];
+
+	for (const [label, v] of badDH) {
+		test(`throws for invalid sumDeltaH (${label})`, () => {
+			expect(() => calculateTm(v, DS, Aeq, Beq, false)).toThrow(
+				/sumDeltaH/i
+			);
+		});
+	}
+
+	const badDS = [
+		['null', null],
+		['NaN', NaN],
+		['infinite', -Infinity],
+		['string', 'cold'],
+		['object', {}],
+	];
+
+	for (const [label, v] of badDS) {
+		test(`throws for invalid sumDeltaS (${label})`, () => {
+			expect(() => calculateTm(DH, v, Aeq, Beq, false)).toThrow(
+				/sumDeltaS/i
+			);
+		});
+	}
+
+	const badConcA = [
+		['null', null],
+		['zero', 0],
+		['negative', -1e-6],
+		['NaN', NaN],
+		['string', '1e-6'],
+	];
+
+	for (const [label, v] of badConcA) {
+		test(`throws for invalid concA (${label})`, () => {
+			expect(() => calculateTm(DH, DS, v, Beq, false)).toThrow(/concA/i);
+		});
+	}
+
+	const badConcB = [
+		['null', null],
+		['zero', 0],
+		['negative', -2e-6],
+		['NaN', NaN],
+		['string', '1e-6'],
+	];
+
+	for (const [label, v] of badConcB) {
+		test(`throws for invalid concB (${label}) when non-self-complementary`, () => {
+			expect(() => calculateTm(DH, DS, Aeq, v, false)).toThrow(/concB/i);
+		});
+	}
+
+	test('throws for invalid selfComplementary flag type', () => {
+		// @ts-expect-error - intentionally wrong type for testing
+		expect(() => calculateTm(DH, DS, Aeq, Beq, 'yes')).toThrow(
+			/selfComplementary/i
+		);
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Core numeric scenarios (rounded to TM_DECIMAL_PLACES)
+	//──────────────────────────────────────────────────────────────────//
+
+	test('equimolar strands (A = B): concentration term reduces to Ct/4', () => {
+		// Using DH = -100 kcal/mol, DS = -300 cal/K/mol, A = B = 1 uM
+		// Expected ≈ 30.96 °C
+		const tm = calculateTm(DH, DS, 1, 1, false);
+		expect(tm).toBeCloseTo(30.96, 2);
+	});
+
+	test('self-complementary case uses concentration term = [A] (Ct)', () => {
+		// Using DH = -100 kcal/mol, DS = -300 cal/K/mol, [A] = 1 uM
+		// Expected ≈ 32.24 °C
+		const tm = calculateTm(DH, DS, 1, undefined, true);
+		expect(tm).toBeCloseTo(32.24, 2);
+	});
+
+	test('[A] > [B] (limiting strand half-duplexed): term = [A] - [B]/2', () => {
+		// A = 2 uM, B = 0.5 uM  → expected ≈ 33.28 °C
+		const tm = calculateTm(DH, DS, 2, 0.5, false);
+		expect(tm).toBeCloseTo(33.28, 2);
+	});
+
+	test('B > A (A limiting): term reduces to [B] - [A]/2 (µM) and gives expected Tm', () => {
+		// Choose A = 0.5 µM, B = 2.0 µM.
+		// At Tm: term = B - A/2 = 2.0 - 0.25 = 1.75 µM  → 1.75e-6 M
+		// With DH = -100 kcal/mol, DS = -300 cal/K/mol ⇒ Tm ≈ 33.28 °C
+		const tm = calculateTm(DH, DS, 0.5, 2.0, false);
+		expect(tm).toBeCloseTo(33.28, 2);
+	});
+
+	test('B > A (A limiting), different numbers: still uses [B] - [A]/2', () => {
+		// A = 0.2 µM, B = 3.0 µM → term = 3.0 - 0.1 = 2.9 µM → 2.9e-6 M
+		// Expected Tm ≈ 34.22 °C (computed from ΔH/ΔS + R ln(2.9e-6))
+		const tm = calculateTm(DH, DS, 0.2, 3.0, false);
+		expect(tm).toBeCloseTo(34.22, 2);
+	});
+
+	test('symmetry: swapping labels of A and B yields identical Tm', () => {
+		const t1 = calculateTm(DH, DS, 2, 0.5, false);
+		const t2 = calculateTm(DH, DS, 0.5, 2, false);
+		expect(t1).toBeCloseTo(t2, 12);
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Rounding behavior (to TM_DECIMAL_PLACES)
+	//──────────────────────────────────────────────────────────────────//
+	test('result is rounded to TM_DECIMAL_PLACES', () => {
+		const tm = calculateTm(DH, DS, 1, 1, false);
+		// Exact value ≈ 30.956964761... → with 2 decimals it should be 30.96
+		expect(tm).toBe(30.96);
+	});
+
+	//──────────────────────────────────────────────────────────────────//
+	// Non-physical / singular cases
+	//──────────────────────────────────────────────────────────────────//
+	test('throws if denominator is ~0 (infinite Tm)', () => {
+		// Choose DS = 0 and equimolar A=B=2 M so term = (Ct/4) = 1 ⇒ ln(1)=0 ⇒ denom = 0
+		expect(() => calculateTm(-10, 0, 2000000, 2000000, false)).toThrow(
+			/Denominator is ~0|infinite Tm/i
+		);
+	});
+
+	test('throws if computed Tm(K) ≤ 0 (non-physical)', () => {
+		// Force positive denominator with negative enthalpy large magnitude → negative T
+		// Example: DS = +1 cal/K/mol, term = 10 (ln>0), DH = +1 kcal/mol but then T positive; we need T ≤ 0
+		// Instead, pick DH very small negative and denom large positive
+		expect(() => calculateTm(-0.000001, 100, 1.0, 1.0, false)).toThrow(
+			/non-physical Tm/i
 		);
 	});
 });

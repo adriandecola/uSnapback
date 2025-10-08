@@ -610,7 +610,7 @@ const DANGLING_ORIENTATION = deepFreeze({
  * - The mismatch objects used in calculating Tm are derived from valid
  *   wild/variant bases and aligned to the correct positions in their stem
  *   sequences.
- * - The Santa Lucia nearest-neighbour model (via `calculateSnapbackTm`) is
+ * - The Santa Lucia nearest-neighbour model (via `calculateSnapbackTmWittwer`) is
  *   used to compute Tm values.
  *
  *
@@ -923,38 +923,38 @@ async function calculateMeltingTempDifferences(
 	};
 
 	// 8) Parallelized Tm computations (batch the API calls and then do the math)
-	//    - Fires ALL required calculateSnapbackTm() requests concurrently
+	//    - Fires ALL required calculateSnapbackTmWittwer() requests concurrently
 	//    - Validates that every call succeeded before computing absolute ΔTm’s
 
 	// 		Kick off ALL eight calls immediately (no awaiting yet):
 	const launches = [
 		// Same primer, wild stem
-		calculateSnapbackTm(stemSeqWildSamePrimer, loopLenSamePrimer), // 0: same-wild baseline
-		calculateSnapbackTm(
+		calculateSnapbackTmWittwer(stemSeqWildSamePrimer, loopLenSamePrimer), // 0: same-wild baseline
+		calculateSnapbackTmWittwer(
 			stemSeqWildSamePrimer,
 			loopLenSamePrimer,
 			variantTailSamePrimerMismatch
 		), // 1: same-wild + variant tail
 
 		// Same primer, variant stem
-		calculateSnapbackTm(stemSeqVariantSamePrimer, loopLenSamePrimer), // 2: same-variant baseline
-		calculateSnapbackTm(
+		calculateSnapbackTmWittwer(stemSeqVariantSamePrimer, loopLenSamePrimer), // 2: same-variant baseline
+		calculateSnapbackTmWittwer(
 			stemSeqVariantSamePrimer,
 			loopLenSamePrimer,
 			wildTailSamePrimerMismatch
 		), // 3: same-variant + wild tail
 
 		// Reverse primer, wild stem
-		calculateSnapbackTm(stemSeqWildRevPrimer, loopLenRevPrimer), // 4: rev-wild baseline
-		calculateSnapbackTm(
+		calculateSnapbackTmWittwer(stemSeqWildRevPrimer, loopLenRevPrimer), // 4: rev-wild baseline
+		calculateSnapbackTmWittwer(
 			stemSeqWildRevPrimer,
 			loopLenRevPrimer,
 			variantTailRevPrimerMismatch
 		), // 5: rev-wild + variant tail
 
 		// Reverse primer, variant stem
-		calculateSnapbackTm(stemSeqVariantRevPrimer, loopLenRevPrimer), // 6: rev-variant baseline
-		calculateSnapbackTm(
+		calculateSnapbackTmWittwer(stemSeqVariantRevPrimer, loopLenRevPrimer), // 6: rev-variant baseline
+		calculateSnapbackTmWittwer(
 			stemSeqVariantRevPrimer,
 			loopLenRevPrimer,
 			wildTailRevPrimerMismatch
@@ -979,7 +979,7 @@ async function calculateMeltingTempDifferences(
 		const reason = settled[failIdx].reason;
 		// Surface a precise, actionable error (bubbles to your existing try/catch)
 		throw new Error(
-			`calculateSnapbackTm failed for ${labels[failIdx]}: ${
+			`calculateSnapbackTmWittwer failed for ${labels[failIdx]}: ${
 				reason?.message ?? String(reason)
 			}`
 		);
@@ -1673,7 +1673,7 @@ async function createStem(
 		}
 
 		// 3e. Compute the wild type allele melting temperature of the snapback
-		const wildTm = await calculateSnapbackTm(
+		const wildTm = await calculateSnapbackTmWittwer(
 			currentStem,
 			loopLen,
 			wildMismatch
@@ -1689,7 +1689,7 @@ async function createStem(
 			bestStemLoc.start = stemStart;
 			bestStemLoc.end = stemEnd;
 			// Compute and save the corresponding best variant type snapback temperature
-			correspondingVariantStemTm = await calculateSnapbackTm(
+			correspondingVariantStemTm = await calculateSnapbackTmWittwer(
 				currentVariantStem,
 				loopLen,
 				variantMismatch
@@ -2223,7 +2223,7 @@ function parseTmFromResponse(rawHtml, mismatch) {
  *
  * @throws  {Error}                 If parameters are invalid
  */
-async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
+async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
@@ -2275,6 +2275,203 @@ async function calculateSnapbackTm(stemSeq, loopLen, mismatch) {
 
 	// 3. Round result
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
+}
+
+/**
+ * Calculate snapback melting temperature with Rochester loop parameters, Bummarito dangling
+ * parameters (if applicable), and SantaLucia Hicks terminal mismatch parameters (if applicable).
+ *
+ *
+ */
+async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
+
+/**
+ * Calculates the duplex melting temperature (Tm) at which 50% of the nucleic acid
+ * is in the double-stranded state, using standard thermodynamic relations:
+ *
+ *      Tm = ΔH° / (ΔS° - R·ln([AB]/([A][B])))
+ *         = ΔH° / (ΔS° + R·ln(([A][B])/[AB]))
+ *
+ * Concentration term at Tm (50% duplex):
+ *  - General case (A ≠ B): let [AB]_50 = min([A],[B]) / 2.
+ *        [A]_50 = [A] - [AB]_50
+ *        [B]_50 = [B] - [AB]_50
+ *        concentrationTerm = ([A]_50 · [B]_50) / [AB]_50
+ *
+ *    This reduces to the well-known special cases:
+ *      • Equimolar, [A] = [B] = C0:
+ *            [AB]_50 = C0/2,  [A]_50 = [B]_50 = C0/2
+ *            ([A]_50 · [B]_50)/[AB]_50 = (C0/2 · C0/2)/(C0/2) = C0/2 = (Ct / 4)
+ *            where Ct = [A] + [B] = 2·C0
+ * 			  K = [A]/2
+ *
+ *      • Limiting strand B < A:
+ *            [AB]_50 = [B]/2 ⇒ K = [A] - [B]/2
+ * 					(this case works even is [A]=[B])
+ *
+ *  - Self-complementary (A + A ↔ AA):
+ *        At Tm: [A]_50 = Ct/2, [AA]_50 = Ct/4  ⇒  ([A]_50·[A]_50)/[AA]_50 = Ct
+ *        We expose this via a boolean flag `selfComplementary = true` and use:
+ *            concentrationTerm = [A]
+ *
+ *
+ *
+ * Units and constants:
+ *  - ΔH° must be provided in kcal/mol (internally converted to cal/mol).
+ *  - ΔS° must be provided in cal/(K·mol).
+ *  - R (gas constant) = 1.98720425864 cal/(K·mol).
+ *  - Concentrations are in micro Moles
+ *
+ * Returns:
+ *  - Tm in degrees Celsius, rounded to TM_DECIMAL_PLACES.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - sumDeltaH is the total enthalpy change (kcal/mol) for the duplex of interest,
+ *   e.g., summed nearest-neighbor + correction terms (dangling ends, terminal mismatches, etc.).
+ * - sumDeltaS is the total entropy change (cal/K/mol) for the same duplex.
+ * - concA and concB are initial single-strand concentrations (uM).
+ * - For self-complementary duplexes, pass selfComplementary = true and provide concA (> 0).
+ *   concB is ignored in that case. Only do this if the DNA is self-complimentary AND there
+ *   is a degeneracy (the dna can combine both ways uniquely).
+ *
+ * 			(For hairpins, is this a relavant case?)
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param {number} sumDeltaH    Total ΔH° in kcal/mol (finite number)
+ * @param {number} sumDeltaS    Total ΔS° in cal/K/mol (finite number)
+ * @param {number} concA        Initial concentration of strand A, in same units as concB ( > 0 )
+ * @param {number} [concB]      Initial concentration of strand B ( > 0 if non-self-complementary )
+ * @param {boolean} [selfComplementary=false]  Set true for self-complimentary DNA
+ *
+ * @returns {number} Tm in °C (rounded to TM_DECIMAL_PLACES)
+ *
+ * @throws {Error}
+ *   - If any parameter is missing/invalid
+ *   - If any required concentration ≤ 0
+ *   - If the concentration term computed for ln(·) is ≤ 0
+ *   - If the computed denominator (ΔS° + R·ln(term)) is ~0 or yields non-physical Tm (≤ 0 K)
+ */
+function calculateTm(
+	sumDeltaH,
+	sumDeltaS,
+	concA,
+	concB,
+	selfComplementary = false
+) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1) Validate thermodynamic inputs
+	if (typeof sumDeltaH !== 'number' || !Number.isFinite(sumDeltaH)) {
+		throw new Error(
+			`sumDeltaH must be a finite number (kcal/mol). Received: ${sumDeltaH}`
+		);
+	}
+	if (typeof sumDeltaS !== 'number' || !Number.isFinite(sumDeltaS)) {
+		throw new Error(
+			`sumDeltaS must be a finite number (cal/K/mol). Received: ${sumDeltaS}`
+		);
+	}
+
+	// 2) Validate concentrations
+	if (typeof concA !== 'number' || !Number.isFinite(concA) || concA <= 0) {
+		throw new Error(
+			`concA must be a positive, finite number in M. Received: ${concA}`
+		);
+	}
+	if (!selfComplementary) {
+		if (
+			typeof concB !== 'number' ||
+			!Number.isFinite(concB) ||
+			concB <= 0
+		) {
+			throw new Error(
+				`concB must be a positive, finite number in M for non-self-complementary duplexes. Received: ${concB}`
+			);
+		}
+	}
+
+	// 3) Validate boolean flag
+	if (typeof selfComplementary !== 'boolean') {
+		throw new Error(
+			`selfComplementary must be a boolean. Received: ${selfComplementary}`
+		);
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	//								Function Logic								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// Use consistent units: convert ΔH° to cal/mol; ΔS° already in cal/K/mol.
+	const DELTA_H_CAL = sumDeltaH * 1000.0;
+	const DELTA_S = sumDeltaS;
+
+	// Gas constant in cal/(K·mol)
+	const R_CAL = 1.98720425864;
+
+	// Compute the concentration term for the ln() according to the case.
+	let concentrationTerm;
+
+	if (selfComplementary) {
+		// A + A ↔ AA  ⇒ term = Ct = [A] (initial single-strand concentration)
+		concentrationTerm = concA * 1e-6;
+	} else {
+		// General bimolecular A + B ↔ AB at 50% duplex of the limiting strand
+		const AB50 = Math.min(concA, concB) / 2.0; // [AB]_50
+		// Guard against pathological input where AB50 → 0 (should not happen since concs > 0)
+		if (AB50 <= 0) {
+			throw new Error(
+				`Computed [AB]_50 ≤ 0 from inputs (concA=${concA}, concB=${concB}). Check concentrations.`
+			);
+		}
+		const A50 = concA - AB50;
+		const B50 = concB - AB50;
+		// term = ([A]_50·[B]_50)/[AB]_50  → reduces to Ct/4 for equimolar; to [A]-[B]/2 if A>B
+		concentrationTerm = ((A50 * B50) / AB50) * 1e-6;
+	}
+
+	// The ln() requires a strictly positive argument
+	if (!Number.isFinite(concentrationTerm) || concentrationTerm <= 0) {
+		throw new Error(
+			`Invalid concentration term for ln(): ${concentrationTerm}. ` +
+				`Check input concentrations (must yield a positive term).`
+		);
+	}
+
+	// Denominator: ΔS° + R·ln(term)
+	const denom = DELTA_S + R_CAL * Math.log(concentrationTerm);
+
+	// Avoid singularity / non-physical results
+	if (!Number.isFinite(denom)) {
+		throw new Error(
+			'Non-finite denominator encountered in Tm calculation.'
+		);
+	}
+	if (Math.abs(denom) < 1e-12) {
+		throw new Error(
+			'Denominator is ~0 (ΔS° + R·ln(term) ≈ 0), leading to an infinite Tm. ' +
+				'Adjust concentrations or thermodynamic parameters.'
+		);
+	}
+
+	// Tm in Kelvin
+	const Tm_K = DELTA_H_CAL / denom;
+
+	if (!Number.isFinite(Tm_K) || Tm_K <= 0) {
+		throw new Error(
+			`Computed a non-physical Tm (K) = ${Tm_K}. ` +
+				`Check signs/magnitudes of ΔH°, ΔS° and concentrations.`
+		);
+	}
+
+	// Convert to °C and round
+	const Tm_C = Tm_K - 273.15;
+	return parseFloat(Tm_C.toFixed(TM_DECIMAL_PLACES));
 }
 
 /*****************************************************************************************/
@@ -3036,7 +3233,8 @@ export {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
-	calculateSnapbackTm,
+	calculateSnapbackTmWittwer,
+	calculateTm,
 
 	// DNA utility functions
 	isValidDNASequence,
