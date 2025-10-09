@@ -1543,55 +1543,8 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	}
 	const rawHtml = await res.text();
 
-	/*
-	// 5. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
-	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
-
-	// 6. Validate that a numeric Tm was found
-	if (tmVal === null) {
-		throw new Error('Tm value not found or unparsable in server response.');
-	}
-
-	// 7. Return the temperature
-	return tmVal;
-
-	*/
-
-	// Inline helpers (kept inside the single function per your request)
-	const parseNumberTag = (src, tag) => {
-		const re = new RegExp(
-			`<\\s*${tag}\\s*>\\s*([^<]+?)\\s*<\\s*/\\s*${tag}\\s*>`,
-			'i'
-		);
-		const m = re.exec(src);
-		if (!m) return NaN;
-		const v = Number(m[1].trim());
-		return v;
-	};
-
-	// Extract required fields
-	const dH_cal = parseNumberTag(rawHtml, 'dH'); // cal/mol
-	const dS_cal_per_K = parseNumberTag(rawHtml, 'dS'); // cal/K/mol
-	const saltCorr_C = parseNumberTag(rawHtml, 'saltCorrection'); // °C
-
-	// Validate parsing
-	if (!Number.isFinite(dH_cal)) {
-		throw new Error('dH not found or unparsable in server response.');
-	}
-	if (!Number.isFinite(dS_cal_per_K)) {
-		throw new Error('dS not found or unparsable in server response.');
-	}
-	if (!Number.isFinite(saltCorr_C)) {
-		throw new Error(
-			'saltCorrection not found or unparsable in server response.'
-		);
-	}
-
-	// Units: convert cal/mol → kcal/mol for dH
-	const dH_kcal = dH_cal / 1000.0;
-
-	// Return compact object (no warnings)
-	return { dH: dH_kcal, dS: dS_cal_per_K, saltCorrection: saltCorr_C };
+	// 5. Parse thermo parameters and return them  via the dedicated parser
+	return parseThermoParamsFromResponse(rawHtml);
 }
 
 /**
@@ -2352,6 +2305,105 @@ function parseTmFromResponse(rawHtml, mismatch) {
 }
 
 /**
+ * Parses ΔH°, ΔS°, and the salt-correction term from a raw HTML response string
+ * returned by the dna-utah Tm API.
+ *
+ * Expected tags in the HTML body:
+ *   <dH> -148000.0 </dH>             			(cal/mol)
+ *   <dS> -410.0 </dS>                			(cal/K/mol)
+ *   <saltCorrection> -11.32 </saltCorrection>  (cal/K/mol)
+ *
+ * Units:
+ *   - dH is converted from cal/mol to kcal/mol before returning.
+ *   - dS is returned in cal/(K·mol).
+ *   - saltCorrection is returned in cal/K/mol
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `rawHtml` form from API keeps tag on top level and the same.
+ * - Tags appear at most once; numeric payloads may include whitespace.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @param   {string} rawHtml   Raw HTML response as text.
+ *
+ * @returns {{ dH:number, dS:number, saltCorrection:number }}
+ *          dH in kcal/mol, dS in cal/K/mol, saltCorrection in cal/K/mol
+ *
+ * @throws  {Error}
+ *   - If `rawHtml` is not a string.
+ *   - If any of the tags <dH>, <dS>, or <saltCorrection> is missing
+ *     or cannot be parsed into a finite number.
+ */
+function parseThermoParamsFromResponse(rawHtml) {
+	//──────────────────────────────────────────────────────────────────────//
+	// Parameter Checking                                                   //
+	//──────────────────────────────────────────────────────────────────────//
+	if (typeof rawHtml !== 'string') {
+		throw new Error(
+			`rawHtml must be a string. Received: ${typeof rawHtml}`
+		);
+	}
+	if (rawHtml.length === 0) {
+		throw new Error('rawHtml must be a non-empty string.');
+	}
+
+	//──────────────────────────────────────────────────────────────────────//
+	// Function Logic                                                       //
+	//──────────────────────────────────────────────────────────────────────//
+	try {
+		// 1. Parse HTML response
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(rawHtml, 'text/html');
+
+		// 2. Get each tag and checking their existense and values
+		const dHNode = doc.querySelector('dH');
+		const dSNode = doc.querySelector('dS');
+		const saltNode = doc.querySelector('saltCorrection');
+		if (
+			!dHNode ||
+			dHNode.textContent == null ||
+			!Number.isFinite(Number(dHNode.textContent.trim()))
+		) {
+			throw new Error('dH not found or unparsable in server response.');
+		}
+		if (
+			!dSNode ||
+			dSNode.textContent == null ||
+			!Number.isFinite(Number(dSNode.textContent.trim()))
+		) {
+			throw new Error('dS not found or unparsable in server response.');
+		}
+		if (
+			!saltNode ||
+			saltNode.textContent == null ||
+			!Number.isFinite(Number(saltNode.textContent.trim()))
+		) {
+			throw new Error(
+				'saltCorrection not found or unparsable in server response.'
+			);
+		}
+
+		// 3. Parse each tag into a float
+		const dH_cal = parseFloat(dHNode.textContent.trim()); // cal/mol
+		const dS_cal_per_K = parseFloat(dSNode.textContent.trim()); // cal/K/mol
+		const saltCorr_C = parseFloat(saltNode.textContent.trim()); // cal/K/mol
+
+		// 4. Convert delta H to kcal/mol
+		const dH_kcal = dH_cal / 1000;
+
+		// 5. Return the thermo parameters
+		return { dH: dH_kcal, dS: dS_cal_per_K, saltCorrection: saltCorr_C };
+	} catch (err) {
+		// Pass along error
+		console.error('parseThermoParamsFromResponse error:', err);
+		throw err instanceof Error ? err : new Error(String(err));
+	}
+}
+
+/**
  * Estimates the melting temperature (Tm) of a snapback structure using:
  *
  *     Tm = -5.25 * ln(loopLen) + 0.837 * stemTm + 32.9
@@ -2454,8 +2506,8 @@ async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
  * Calculates the duplex melting temperature (Tm) at which 50% of the nucleic acid
  * is in the double-stranded state, using standard thermodynamic relations:
  *
- *      Tm = ΔH° / (ΔS° - R·ln([AB]/([A][B])))
- *         = ΔH° / (ΔS° + R·ln(([A][B])/[AB]))
+ *      Tm = ΔH° / (ΔS° + saltCorrection - R·ln([AB]/([A][B])))
+ *         = ΔH° / (ΔS° + saltCorrection + R·ln(([A][B])/[AB]))
  *
  * Concentration term at Tm (50% duplex):
  *  - General case (A ≠ B): let [AB]_50 = min([A],[B]) / 2.
@@ -2484,6 +2536,7 @@ async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
  * Units and constants:
  *  - ΔH° must be provided in kcal/mol (internally converted to cal/mol).
  *  - ΔS° must be provided in cal/(K·mol).
+ *  - saltCorrection is an additive entropy-like term in cal/(K·mol).
  *  - R (gas constant) = 1.98720425864 cal/(K·mol).
  *  - Concentrations are in micro Moles
  *
@@ -2509,6 +2562,7 @@ async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
  * @param {number} sumDeltaH    Total ΔH° in kcal/mol (finite number)
  * @param {number} sumDeltaS    Total ΔS° in cal/K/mol (finite number)
  * @param {number} concA        Initial concentration of strand A, in same units as concB ( > 0 )
+ * @param {number} [saltCorrection=0]  Additive entropy correction in cal/K/mol
  * @param {number} [concB]      Initial concentration of strand B ( > 0 if non-self-complementary )
  * @param {boolean} [selfComplementary=false]  Set true for self-complimentary DNA
  *
@@ -2525,7 +2579,8 @@ function calculateTm(
 	sumDeltaS,
 	concA,
 	concB,
-	selfComplementary = false
+	selfComplementary = false,
+	saltCorrection = 0
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
@@ -2565,6 +2620,16 @@ function calculateTm(
 	if (typeof selfComplementary !== 'boolean') {
 		throw new Error(
 			`selfComplementary must be a boolean. Received: ${selfComplementary}`
+		);
+	}
+
+	// 4) Validate saltCorrection
+	if (
+		typeof saltCorrection !== 'number' ||
+		!Number.isFinite(saltCorrection)
+	) {
+		throw new Error(
+			`saltCorrection must be a finite number in cal/K/mol. Received: ${saltCorrection}`
 		);
 	}
 
@@ -2609,7 +2674,8 @@ function calculateTm(
 	}
 
 	// Denominator: ΔS° + R·ln(term)
-	const denom = DELTA_S + R_CAL * Math.log(concentrationTerm);
+	const denom =
+		DELTA_S + saltCorrection + R_CAL * Math.log(concentrationTerm);
 
 	// Avoid singularity / non-physical results
 	if (!Number.isFinite(denom)) {
@@ -2619,7 +2685,7 @@ function calculateTm(
 	}
 	if (Math.abs(denom) < 1e-12) {
 		throw new Error(
-			'Denominator is ~0 (ΔS° + R·ln(term) ≈ 0), leading to an infinite Tm. ' +
+			'Denominator is ~0 (ΔS° + saltCorrection + R·ln(term) ≈ 0), leading to an infinite Tm. ' +
 				'Adjust concentrations or thermodynamic parameters.'
 		);
 	}
@@ -3436,6 +3502,7 @@ export {
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
 	getStemTm,
+	getThermoParams,
 	createStem,
 	buildFinalSnapback,
 
@@ -3443,6 +3510,7 @@ export {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
+	parseThermoParamsFromResponse,
 	calculateSnapbackTmWittwer,
 	calculateTm,
 

@@ -9,6 +9,7 @@ import {
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
 	getStemTm,
+	getThermoParams,
 	createStem,
 	buildFinalSnapback,
 
@@ -16,6 +17,7 @@ import {
 	snvTooCloseToPrimer,
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
+	parseThermoParamsFromResponse,
 	calculateTm,
 	calculateSnapbackTmWittwer,
 
@@ -3383,6 +3385,52 @@ describe('calculateTm()', () => {
 			/non-physical Tm/i
 		);
 	});
+
+	// ──────────────────────────────────────────────────────────────────//
+	// saltCorrection behavior
+	// ──────────────────────────────────────────────────────────────────//
+	test('throws for invalid saltCorrection type', () => {
+		// @ts-expect-error - intentionally wrong type for testing
+		expect(() => calculateTm(DH, DS, Aeq, Beq, false, '10')).toThrow(
+			/saltCorrection/i
+		);
+	});
+
+	test('explicit saltCorrection = 0 matches default behavior', () => {
+		const tDefault = calculateTm(DH, DS, Aeq, Beq, false);
+		const tExplicit = calculateTm(DH, DS, Aeq, Beq, false, 0);
+		expect(tDefault).toBeCloseTo(tExplicit, 12);
+	});
+
+	test('positive saltCorrection raises Tm (equimolar A=B=1 µM)', () => {
+		const tm = calculateTm(DH, DS, 1, 1, false, 10); // +10 cal/K/mol
+		expect(tm).toBeCloseTo(40.5, 2);
+	});
+
+	test('negative saltCorrection lowers Tm (equimolar A=B=1 µM)', () => {
+		const tm = calculateTm(DH, DS, 1, 1, false, -10); // -10 cal/K/mol
+		expect(tm).toBeCloseTo(21.98, 2);
+	});
+
+	test('self-complementary also applies saltCorrection', () => {
+		// [A]=1 µM, saltCorrection = +10 cal/K/mol
+		const tm = calculateTm(DH, DS, 1, undefined, true, 10);
+		expect(tm).toBeCloseTo(41.86, 2);
+	});
+
+	test('saltCorrection can drive denominator ~0 and throws', () => {
+		// For A=B=1 µM: term = Ct/4 = 0.5 µM ⇒ ln(5e-7) ≈ -14.508657739
+		// Choose saltCorrection ≈ -DS - R*ln(term) to cancel denom.
+		const sCloseToZero = -DS - 1.98720425864 * Math.log(0.5e-6); // ≈ 328.843
+		expect(() => calculateTm(DH, DS, 1, 1, false, sCloseToZero)).toThrow(
+			/Denominator is ~0|infinite Tm/i
+		);
+	});
+
+	test('non-equimolar case responds to saltCorrection (A=2 µM, B=0.5 µM)', () => {
+		const tm = calculateTm(DH, DS, 2, 0.5, false, 10);
+		expect(tm).toBeCloseTo(42.96, 2);
+	});
 });
 
 describe('isSelfComplimentary()', () => {
@@ -3495,5 +3543,298 @@ describe('isSelfComplimentary()', () => {
 		expect(isSelfComplimentary('CC')).toBe(false);
 		expect(isSelfComplimentary('GG')).toBe(false);
 		expect(isSelfComplimentary('TT')).toBe(false);
+	});
+});
+
+describe('parseThermoParamsFromResponse()', () => {
+	const HTML_OK = `
+	  <html><body>
+	    <dH> -148000.0 </dH>
+	    <dS> -410.0 </dS>
+	    <saltCorrection> -11.32341669897858 </saltCorrection>
+	  </body></html>`;
+
+	test('parses all fields and converts dH to kcal/mol', () => {
+		const out = parseThermoParamsFromResponse(HTML_OK);
+		expect(out.dH).toBeCloseTo(-148.0, 6); // kcal/mol
+		expect(out.dS).toBeCloseTo(-410.0, 6);
+		expect(out.saltCorrection).toBeCloseTo(-11.32341669897858, 12);
+	});
+
+	test('tolerates whitespace/newlines around numbers', () => {
+		const html = `
+		  <html><body>
+		    <dH>
+		      -100000
+		    </dH>
+		    <dS>
+		      -300.0
+		    </dS>
+		    <saltCorrection>
+		      1.2345
+		    </saltCorrection>
+		  </body></html>`;
+		const out = parseThermoParamsFromResponse(html);
+		expect(out.dH).toBeCloseTo(-100.0, 6);
+		expect(out.dS).toBeCloseTo(-300.0, 6);
+		expect(out.saltCorrection).toBeCloseTo(1.2345, 6);
+	});
+
+	test('throws if rawHtml is not a string', () => {
+		// @ts-expect-error intentional
+		expect(() => parseThermoParamsFromResponse(null)).toThrow(
+			/rawHtml must be a string/i
+		);
+	});
+
+	test('throws if rawHtml is empty', () => {
+		expect(() => parseThermoParamsFromResponse('')).toThrow(
+			/non-empty string/i
+		);
+	});
+
+	test('throws if dH tag missing', () => {
+		const html = `<html><body><dS>-1</dS><saltCorrection>0</saltCorrection></body></html>`;
+		expect(() => parseThermoParamsFromResponse(html)).toThrow(
+			/dH not found|unparsable/i
+		);
+	});
+
+	test('throws if dS is not numeric', () => {
+		const html = `<html><body><dH>-1000</dH><dS>abc</dS><saltCorrection>1</saltCorrection></body></html>`;
+		expect(() => parseThermoParamsFromResponse(html)).toThrow(
+			/dS not found|unparsable/i
+		);
+	});
+
+	test('throws if saltCorrection is missing', () => {
+		const html = `<html><body><dH>-1000</dH><dS>-10</dS></body></html>`;
+		expect(() => parseThermoParamsFromResponse(html)).toThrow(
+			/saltCorrection not found|unparsable/i
+		);
+	});
+});
+
+describe('getThermoParams() — parameter checking', () => {
+	// ────────────────────────────────────────────────────────────────
+	// Sequence validation
+	// ────────────────────────────────────────────────────────────────
+	test('throws if seq is empty', async () => {
+		await expect(() => getThermoParams('', 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq is lowercase', async () => {
+		await expect(() => getThermoParams('atgc', 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq has invalid characters', async () => {
+		await expect(() => getThermoParams('ATGXAT', 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq is not a string (number)', async () => {
+		await expect(() => getThermoParams(12345, 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq is not a string (array)', async () => {
+		await expect(() => getThermoParams(['A', 'T'], 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq is null', async () => {
+		await expect(() => getThermoParams(null, 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq is undefined', async () => {
+		await expect(() => getThermoParams(undefined, 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('throws if seq includes whitespace', async () => {
+		await expect(() => getThermoParams('ATG C', 1, 1)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Concentration validation (concentration)
+	// ────────────────────────────────────────────────────────────────
+	for (const [label, v] of [
+		['zero', 0],
+		['negative', -1],
+		['NaN', NaN],
+		['Infinity', Infinity],
+		['null', null],
+		['undefined', undefined],
+		['non-number', '1.0'],
+	]) {
+		test(`throws if concentration is ${label}`, async () => {
+			await expect(() => getThermoParams('ATGCT', v, 1)).rejects.toThrow(
+				/concentration.*positive.*µm/i
+			);
+		});
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Concentration validation (limitingConc)
+	// ────────────────────────────────────────────────────────────────
+	for (const [label, v] of [
+		['zero', 0],
+		['negative', -2],
+		['NaN', NaN],
+		['Infinity', Infinity],
+		['null', null],
+		['undefined', undefined],
+		['non-number', '0.5'],
+	]) {
+		test(`throws if limitingConc is ${label}`, async () => {
+			await expect(() => getThermoParams('ATGCT', 1, v)).rejects.toThrow(
+				/limitingconc.*positive.*µm/i
+			);
+		});
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Mismatch validation: non-object / wrong types
+	// ────────────────────────────────────────────────────────────────
+	test('throws if mismatch is a string', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, 'oops')
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch is a number', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, 42)
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch is an array', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, [{ position: 2, type: 'A' }])
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Mismatch validation: missing / extra fields
+	// ────────────────────────────────────────────────────────────────
+	test('throws if mismatch missing position', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { type: 'A' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch missing type', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2 })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch has extra keys', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, {
+				position: 2,
+				type: 'A',
+				extra: true,
+			})
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Mismatch validation: position
+	// ────────────────────────────────────────────────────────────────
+	test('throws if mismatch.position is negative', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: -1, type: 'A' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch.position not integer', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2.5, type: 'A' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch.position equals seq.length', async () => {
+		const s = 'ATGCT'; // len 5; valid last index is 4
+		await expect(() =>
+			getThermoParams(s, 1, 1, { position: 5, type: 'A' })
+		).rejects.toThrow(/exceeds sequence length/i);
+	});
+
+	test('throws if mismatch.position exceeds seq.length', async () => {
+		const s = 'ATGCT'; // len 5
+		await expect(() =>
+			getThermoParams(s, 1, 1, { position: 99, type: 'A' })
+		).rejects.toThrow(/exceeds sequence length/i);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Mismatch validation: type (base)
+	// ────────────────────────────────────────────────────────────────
+	test('throws if mismatch.type is invalid base', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'Z' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch.type is lowercase', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'g' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	test('throws if mismatch.type length > 1', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'AG' })
+		).rejects.toThrow(/invalid mismatch object/i);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Combination cases (first failing guard should trigger)
+	// ────────────────────────────────────────────────────────────────
+	test('sequence check occurs before concentration checks', async () => {
+		await expect(() => getThermoParams('bad$x', 0, 0)).rejects.toThrow(
+			/invalid dna sequence/i
+		);
+	});
+
+	test('concentration check occurs before mismatch checks', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 0, 1, { position: 2, type: 'A' })
+		).rejects.toThrow(/concentration.*positive.*µm/i);
+	});
+
+	test('limitingConc check occurs before mismatch checks', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 0, { position: 2, type: 'A' })
+		).rejects.toThrow(/limitingconc.*positive.*µm/i);
+	});
+
+	// ────────────────────────────────────────────────────────────────
+	// Safe-noop mismatch inputs that should still be validated later
+	// (We do NOT assert non-throw on valid inputs to avoid fetch().)
+	// ────────────────────────────────────────────────────────────────
+	test('null mismatch is accepted as "no mismatch" (later checks may fail)', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 0, 1, null)
+		).rejects.toThrow(/concentration.*positive.*µm/i);
+	});
+
+	test('undefined mismatch is treated as "no mismatch" (later checks may fail)', async () => {
+		await expect(() =>
+			getThermoParams('ATGCTAGC', 1, 0, undefined)
+		).rejects.toThrow(/limitingconc.*positive.*µm/i);
 	});
 });
