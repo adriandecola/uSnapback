@@ -17,6 +17,7 @@ import {
 	buildMismatchSequenceForAPI,
 	parseTmFromResponse,
 	calculateTm,
+	calculateSnapbackTmWittwer,
 
 	// DNA utility functions
 	isValidDNASequence,
@@ -26,7 +27,7 @@ import {
 	reverseComplement,
 	revCompSNV,
 	reverseSequence,
-	calculateSnapbackTmWittwer,
+	isSelfComplimentary,
 
 	// Loop parameter functions
 	getRochesterHairpinLoopParams,
@@ -3381,5 +3382,118 @@ describe('calculateTm()', () => {
 		expect(() => calculateTm(-0.000001, 100, 1.0, 1.0, false)).toThrow(
 			/non-physical Tm/i
 		);
+	});
+});
+
+describe('isSelfComplimentary()', () => {
+	// ──────────────────────────────────────────────────────────────────
+	// Parameter validation
+	// ──────────────────────────────────────────────────────────────────
+	const badInputs = [
+		['null', null],
+		['undefined', undefined],
+		['empty', ''],
+		['number', 123],
+		['array', ['A', 'T']],
+		['object', { s: 'AT' }],
+		['lowercase', 'atcg'],
+		['mixed case', 'AtCG'],
+		['invalid char', 'ATN'],
+	];
+
+	for (const [label, v] of badInputs) {
+		test(`throws for invalid DNA sequence (${label})`, () => {
+			// @ts-expect-error – intentionally wrong types for testing
+			expect(() => isSelfComplimentary(v)).toThrow(
+				/Invalid DNA sequence/i
+			);
+		});
+	}
+
+	// ──────────────────────────────────────────────────────────────────
+	// True cases (even-length palindromic / self-complementary)
+	// ──────────────────────────────────────────────────────────────────
+	test('returns true for classic palindromic restriction sites', () => {
+		// EcoRI
+		expect(isSelfComplimentary('GAATTC')).toBe(true);
+		// BamHI
+		expect(isSelfComplimentary('GGATCC')).toBe(true);
+		// SmaI
+		expect(isSelfComplimentary('CCCGGG')).toBe(true);
+		// Simple even palindrome
+		expect(isSelfComplimentary('ACGT')).toBe(true);
+		// Two-base pairs that are complements reversed
+		expect(isSelfComplimentary('AT')).toBe(true);
+		expect(isSelfComplimentary('TA')).toBe(true);
+		expect(isSelfComplimentary('GC')).toBe(true);
+		expect(isSelfComplimentary('CG')).toBe(true);
+	});
+
+	// ──────────────────────────────────────────────────────────────────
+	// False cases
+	// ──────────────────────────────────────────────────────────────────
+	test('returns false for non-palindromic sequences', () => {
+		expect(isSelfComplimentary('GATTACA')).toBe(false);
+		expect(isSelfComplimentary('AGCTTC')).toBe(false);
+		expect(isSelfComplimentary('AAAAAA')).toBe(false);
+		expect(isSelfComplimentary('ATGCGA')).toBe(false);
+	});
+
+	test('returns false for single-nucleotide sequences', () => {
+		expect(isSelfComplimentary('A')).toBe(false);
+		expect(isSelfComplimentary('C')).toBe(false);
+		expect(isSelfComplimentary('G')).toBe(false);
+		expect(isSelfComplimentary('T')).toBe(false);
+	});
+
+	test('returns false for all odd-length sequences (no base self-complements)', () => {
+		expect(isSelfComplimentary('ATG')).toBe(false);
+		expect(isSelfComplimentary('ATGTA')).toBe(false);
+		expect(isSelfComplimentary('GAATTCG')).toBe(false);
+	});
+
+	// ──────────────────────────────────────────────────────────────────
+	// Consistency with reverseComplement (sanity property)
+	// ──────────────────────────────────────────────────────────────────
+	test('agrees with equality to reverseComplement(seq)', () => {
+		const samples = [
+			'GAATTC', // true
+			'GGATCC', // true
+			'CCCGGG', // true
+			'ACGT', // true
+			'GATTACA', // false
+			'ATGC', // false
+		];
+		for (const s of samples) {
+			const rc = reverseComplement(s);
+			expect(isSelfComplimentary(s)).toBe(s === rc);
+		}
+	});
+
+	// ──────────────────────────────────────────────────────────────────
+	// Constructed palindromes: generate and test
+	// ──────────────────────────────────────────────────────────────────
+	test('constructed even-length palindromes always return true', () => {
+		// Build some palindromes of varying even lengths by mirroring a random half
+		const halves = ['AT', 'GC', 'AGTC', 'GCGC', 'AAGGTTCC'];
+		for (const half of halves) {
+			// Mirror via reverse-complement of the half
+			const pal = half + reverseComplement(half);
+			// Sanity: pal should equal its own reverse complement
+			expect(reverseComplement(pal)).toBe(pal);
+			// Function under test
+			expect(isSelfComplimentary(pal)).toBe(true);
+		}
+	});
+
+	// ──────────────────────────────────────────────────────────────────
+	// Boundary: minimal even-length that is NOT self-complementary
+	// ──────────────────────────────────────────────────────────────────
+	test('two bases that are not reverse-complement pairs return false', () => {
+		// e.g., "AA" reverse-complement is "TT" → not equal
+		expect(isSelfComplimentary('AA')).toBe(false);
+		expect(isSelfComplimentary('CC')).toBe(false);
+		expect(isSelfComplimentary('GG')).toBe(false);
+		expect(isSelfComplimentary('TT')).toBe(false);
 	});
 });

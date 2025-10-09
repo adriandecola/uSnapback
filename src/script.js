@@ -1405,6 +1405,7 @@ async function getStemTm(seq, mismatch) {
 	if (mmSeq) {
 		apiURL += `&mmseq=${mmSeq}`;
 	}
+
 	// 3. If proxying, encode the target and prepend the proxy URL
 	const finalURL = USE_PROXY
 		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
@@ -1427,6 +1428,170 @@ async function getStemTm(seq, mismatch) {
 
 	// 7. Return the temperature
 	return tmVal;
+}
+
+/**
+ * Retrieves ΔH°, ΔS°, and the salt-correction term for a DNA duplex by querying
+ * the dna-utah Tm API. Inputs for concentrations are in µM.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ──────────────────────────────────────────────────────────────────────────
+ * - `seq` is a valid uppercase DNA string (A/T/C/G) validated via isValidDNASequence.
+ * - If `mismatch` is supplied it must pass isValidMismatchObject and be in-bounds.
+ * - Global constants (MG, MONO, T_PARAM, SALT_CALC_TYPE, O_TYPE, TM_DECIMAL_PLACES,
+ *   API_URL, API_TOKEN, USE_PROXY, PROXY_URL) are defined in module scope.
+ * - The endpoint returns:
+ *     <dH> cal/mol </dH>
+ *     <dS> cal/K/mol </dS>
+ *     <saltCorrection> °C </saltCorrection>
+ *   We convert dH → kcal/mol for convenience/consistency with your Tm code.
+ *
+ * ──────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ──────────────────────────────────────────────────────────────────────────
+ * @typedef {Object} Mismatch
+ * @property {number} 	position   			Zero-based index within `seq`
+ * @property {string} 	type       			Intended base on the opposite strand (A/T/C/G)
+ *
+ * @param  {string}   	seq               	DNA sequence 5'→3' (uppercase A/T/C/G)
+ * @param  {number}   	concentration     	Main strand concentration in µM (> 0)
+ * @param  {number}   	limitingConc      	Limiting strand concentration in µM (> 0)
+ * @param  {Mismatch} 	[mismatch]        	Optional mismatch specification
+ *
+ * @returns {Promise<{ dH:number, dS:number, saltCorrection:number }>}
+ *          dH in kcal/mol, dS in cal/K/mol, saltCorrection in °C.
+ *
+ * @throws  {Error} 						on invalid params, network failure,
+ * 											or unparsable response.
+ */
+async function getThermoParams(seq, concentration, limitingConc, mismatch) {
+	//──────────────────────────────────────────────────────────────────────//
+	// Parameter Checking                                                   //
+	//──────────────────────────────────────────────────────────────────────//
+
+	// 1) Sequence
+	if (!isValidDNASequence(seq)) {
+		throw new Error(
+			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`
+		);
+	}
+
+	// 2) Concentrations (µM, positive finite)
+	for (const [label, v] of [
+		['concentration', concentration],
+		['limitingConc', limitingConc],
+	]) {
+		if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+			throw new Error(
+				`${label} must be a positive, finite number in µM. Received: ${v}`
+			);
+		}
+	}
+
+	// 3) Mismatch (optional)
+	if (mismatch !== undefined && mismatch !== null) {
+		if (!isValidMismatchObject(mismatch)) {
+			throw new Error(
+				`Invalid mismatch object: ${JSON.stringify(
+					mismatch
+				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`
+			);
+		}
+		if (mismatch.position >= seq.length) {
+			throw new Error(
+				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
+			);
+		}
+	}
+
+	//──────────────────────────────────────────────────────────────────────//
+	// Request construction                                                //
+	//──────────────────────────────────────────────────────────────────────//
+
+	// 1. Build the mmseq string if a mismatch is present
+	let mmSeq = null;
+	if (mismatch) {
+		mmSeq = buildMismatchSequenceForAPI(seq, mismatch);
+	}
+
+	// 2. Assemble the query URL
+	let apiURL = API_URL;
+	apiURL += `?mg=${MG}`;
+	apiURL += `&mono=${MONO}`;
+	apiURL += `&seq=${seq.toLowerCase()}`;
+	apiURL += `&tparam=${T_PARAM}`;
+	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
+	apiURL += `&concentration=${concentration}`;
+	apiURL += `&limitingconc=${limitingConc}`;
+	apiURL += `&otype=${O_TYPE}`;
+	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
+	apiURL += `&token=${API_TOKEN}`;
+	if (mmSeq) {
+		apiURL += `&mmseq=${mmSeq}`;
+	}
+
+	// 3. If proxying, encode the target and prepend the proxy URL
+	const finalURL = USE_PROXY
+		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
+		: apiURL;
+
+	// 4. Fetch the response
+	const res = await fetch(finalURL);
+	if (!res.ok) {
+		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
+	}
+	const rawHtml = await res.text();
+
+	/*
+	// 5. Extract the Tm (wild-type <tm> or mismatch <mmtm>)
+	const tmVal = parseTmFromResponse(rawHtml, Boolean(mismatch));
+
+	// 6. Validate that a numeric Tm was found
+	if (tmVal === null) {
+		throw new Error('Tm value not found or unparsable in server response.');
+	}
+
+	// 7. Return the temperature
+	return tmVal;
+
+	*/
+
+	// Inline helpers (kept inside the single function per your request)
+	const parseNumberTag = (src, tag) => {
+		const re = new RegExp(
+			`<\\s*${tag}\\s*>\\s*([^<]+?)\\s*<\\s*/\\s*${tag}\\s*>`,
+			'i'
+		);
+		const m = re.exec(src);
+		if (!m) return NaN;
+		const v = Number(m[1].trim());
+		return v;
+	};
+
+	// Extract required fields
+	const dH_cal = parseNumberTag(rawHtml, 'dH'); // cal/mol
+	const dS_cal_per_K = parseNumberTag(rawHtml, 'dS'); // cal/K/mol
+	const saltCorr_C = parseNumberTag(rawHtml, 'saltCorrection'); // °C
+
+	// Validate parsing
+	if (!Number.isFinite(dH_cal)) {
+		throw new Error('dH not found or unparsable in server response.');
+	}
+	if (!Number.isFinite(dS_cal_per_K)) {
+		throw new Error('dS not found or unparsable in server response.');
+	}
+	if (!Number.isFinite(saltCorr_C)) {
+		throw new Error(
+			'saltCorrection not found or unparsable in server response.'
+		);
+	}
+
+	// Units: convert cal/mol → kcal/mol for dH
+	const dH_kcal = dH_cal / 1000.0;
+
+	// Return compact object (no warnings)
+	return { dH: dH_kcal, dS: dS_cal_per_K, saltCorrection: saltCorr_C };
 }
 
 /**
@@ -2603,6 +2768,51 @@ function reverseComplement(seqStrand) {
 }
 
 /**
+ * Determines whether `seqStrand` is a self-complimentary
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Assumptions
+ * ─────────────────────────────────────────────────────────────────────────────
+ * - A valid DNA sequence must be uppercase and contain at least one nucleotide.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Parameters, Returns, and Errors
+ * ─────────────────────────────────────────────────────────────────────────────
+ * @param   {string}  seqStrand   DNA sequence
+ *
+ * @returns {boolean}             true  → sequence is self-complimentary
+ *                                false → sequence is not self-complimentary
+ */
+function isSelfComplimentary(seqStrand) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//							Parameter Checking								//
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. seqStrand
+	if (!isValidDNASequence(seqStrand)) {
+		throw new Error(
+			`Invalid DNA sequence: ${seqStrand}. ` +
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+		);
+	}
+	//──────────────────────────────────────────────────────────────────────//
+	//                           Function Logic                             //
+	//──────────────────────────────────────────────────────────────────────//
+	// 1. If sequence is odd-length, it can't be self-complimentary
+	if (seqStrand.length % 2 === 1) return false;
+
+	// 2. Checks self-complementation base by base
+	for (let i = 0, j = seqStrand.length - 1; i < j; i++, j--) {
+		if (seqStrand[i] !== NUCLEOTIDE_COMPLEMENT[seqStrand[j]]) {
+			return false;
+		}
+	}
+
+	// 3. If we passed all other checks, the sequence is self-complimentary
+	return true;
+}
+
+/**
  * Determines whether a given object is a valid SNVSite object.
  *
  * ──────────────────────────────────────────────────────────────────────────
@@ -3244,6 +3454,7 @@ export {
 	reverseComplement,
 	revCompSNV,
 	reverseSequence,
+	isSelfComplimentary,
 
 	// Loop parameter functions
 	getRochesterHairpinLoopParams,
