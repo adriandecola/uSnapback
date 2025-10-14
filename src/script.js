@@ -146,6 +146,16 @@ const DANGLING_END_PARAMS = deepFreeze({
 	},
 });
 
+/**
+ * Orientation queries used by the lookup helpers.
+ * Accepted inputs for 5′:  '5p', 'fivePrime'
+ * Accepted inputs for 3′:  '3p', 'threePrime'
+ */
+const DANGLING_ORIENTATION = deepFreeze({
+	FIVE_PRIME: 'fivePrime',
+	THREE_PRIME: 'threePrime',
+});
+
 //──────────────────────────────────────────────────────────────────────────//
 // Terminal Mismatches (Rochester)
 // Units: dH (kcal/mol), dS (cal/K/mol)
@@ -537,7 +547,7 @@ async function createSnapback(
 	);
 
 	// 4) Create a final snapback primer (in its reference point)
-	const snapback = buildFinalSnapback(
+	const snapback = buildSnapbackAndFinalProducts(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
@@ -571,16 +581,6 @@ async function createSnapback(
 		meltingTempDiffs: meltingTempDiffs,
 	};
 }
-
-/**
- * Orientation queries used by the lookup helpers.
- * Accepted inputs for 5′:  '5p', 'fivePrime'
- * Accepted inputs for 3′:  '3p', 'threePrime'
- */
-const DANGLING_ORIENTATION = deepFreeze({
-	FIVE_PRIME: 'fivePrime',
-	THREE_PRIME: 'threePrime',
-});
 
 /*****************************************************************************************/
 /********************************** Secondary Functions **********************************/
@@ -1253,7 +1253,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Get Tm for a stem with the wild base where the snapback tail matches it
-	const wildMatchTmPromise = await getStemTm(initStem);
+	const wildMatchTmPromise = await getOligoTm(initStem);
 
 	// 2) Get Tm for a stem with the variant allele where the snapback tail matches it
 	const variantInitStem =
@@ -1261,7 +1261,7 @@ async function evaluateSnapbackTailMatchingOptions(
 		variantBase +
 		initStem.slice(mismatchPos + 1);
 
-	const variantMatchTmPromise = await getStemTm(variantInitStem);
+	const variantMatchTmPromise = await getOligoTm(variantInitStem);
 
 	// 3) Resolve both promises
 	//    I did this to learn more about aynchronous code, I could do it more
@@ -1278,7 +1278,7 @@ async function evaluateSnapbackTailMatchingOptions(
 		// At the mismatch location, the snapback tail matches the wild type base
 		type: NUCLEOTIDE_COMPLEMENT[wildBase],
 	};
-	const wildMatchingSnapbackTailToVariantTm = await getStemTm(
+	const wildMatchingSnapbackTailToVariantTm = await getOligoTm(
 		variantInitStem,
 		wildMatchingSnapbackTailToVariantMismatchObj
 	);
@@ -1293,7 +1293,7 @@ async function evaluateSnapbackTailMatchingOptions(
 		// At the mismatch, the snapback nucleotide will be the complement of the variant type base
 		type: NUCLEOTIDE_COMPLEMENT[variantBase],
 	};
-	const variantMatchingSnapbackTailToWildTm = await getStemTm(
+	const variantMatchingSnapbackTailToWildTm = await getOligoTm(
 		initStem,
 		variantMatchingSnapbackTailToWildMismatchObj
 	);
@@ -1352,7 +1352,7 @@ async function evaluateSnapbackTailMatchingOptions(
  *                                      request fails, or the CGI response
  *                                      cannot be parsed
  */
-async function getStemTm(seq, mismatch) {
+async function getOligoTm(seq, mismatch) {
 	//──────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────//
@@ -1918,7 +1918,7 @@ async function createStem(
  *
  * @throws {Error}                        If inputs are malformed or out of bounds.
  */
-function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
+function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//                            Parameter Checking                            //
 	//──────────────────────────────────────────────────────────────────────────//
@@ -2015,15 +2015,74 @@ function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 0. Aliases and destructuring
-	const { primerLen } = primers;
+	const { primerLen, compPrimerLen } = primers;
 	const { start: stemStart, end: stemEnd } = stem;
 	const snvIndex = snv.index;
 
-	// 1. Initialize the snapback Primer
+	// 1. Initialize the snapback Primer and the products as descriptive objects
+	//	  All of these are 5' to 3'
 	let snapback = '';
+	const descriptiveUnExtendedSnapbackPrimer = {
+		fivePrimerLimSnapExtMismatches: '',
+		fivePrimeStem: '',
+		fivePrimeInnerLoopMismatches: '',
+		forwardPrimer: '',
+	};
+	const descriptiveExtendedSnapback = {
+		fivePrimerLimSnapExtMismatches: '',
+		fivePrimeStem: '',
+		fivePrimeInnerLoopMismatches: '',
+		stuffBetween: '', // Includes most if not all of forward primer, and more (also maybe)
+		threePrimeInnerLoopMismatches: '',
+		threePrimeStem: '',
+		threePrimerLimSnapExtMismatches: '',
+		threePrimerRestOfAmplicon: '', // Includes most if not all of reverse complement of reverse primer, and more (also maybe)
+		// SNV in 3' stem's reference point
+		snvOnThreePrimeStem: {
+			indexInThreePrimeStem: -1,
+			wildBase: '',
+			variantBase: '',
+		},
+		// SNV in 5' stem's reference point
+		snvOnFivePrimeStem: {
+			indexInFivePrimeStem: -1,
+			tailBaseAtSNV: '',
+			matchesWild: false,
+			matchesVariant: false,
+			compWildBase: '',
+			compVariantBase: '',
+		},
+	};
 
-	// 2. Add the strong mismatches that prevent extension on the 3' end of the complement
+	const descriptiveExendedLimSnapback = {
+		threePrimerLimSnapExtMismatches: '',
+		threePrimeStem: '',
+		threePrimeInnerLoopMismatches: '',
+		stuffBetween: '', // Includes most if not all of rev complement of forward primer, and more (also maybe)
+		fivePrimeInnerLoopMismatches: '',
+		fivePrimeStem: '',
+		fivePrimerLimSnapExtMismatches: '',
+		fivePrimerRestOfAmplicon: '', // Includes most if not all of reverse primer, and more (also maybe)
+		// SNV in 3' stem's reference point
+		snvOnThreePrimeStem: {
+			indexInThreePrimeStem: -1,
+			wildBase: '',
+			variantBase: '',
+		},
+		// SNV in 5' stem's reference point
+		snvOnFivePrimeStem: {
+			indexInFivePrimeStem: -1,
+			tailBaseAtSNV: '',
+			matchesWild: false,
+			matchesVariant: false,
+			compWildBase: '',
+			compVariantBase: '',
+		},
+	};
+
+	// 2. Create the strong mismatches that prevent extension on the 3' end of the complement
 	//    snapback primer
+	let fivePrimerLimSnapExtMismatches = '';
 	for (
 		let i = stemEnd + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
 		i > stemEnd;
@@ -2042,26 +2101,27 @@ function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 		// 2d. We insert the COMPLEMENT of the mismatch into the snapback strand
 		const mismatchBaseToInsert = NUCLEOTIDE_COMPLEMENT[mismatchAgainstComp];
 
-		// 2e. Append to the snapback primer (5' → 3')
-		snapback += mismatchBaseToInsert;
+		// 2e. Insert mismatch (5' → 3')
+		fivePrimerLimSnapExtMismatches += mismatchBaseToInsert;
 	}
 
-	// 3. Add the stem region to the snapback primer.
+	// 3. Create the 5' end stem region to the snapback primer.
 	//    We are adding the reverse complement of the stem region on the sequence strand in the snapback
 	//    primer's reference point.
 	//    At the SNV site, insert the base chosen earlier (tailBaseAtSNV).
+	let fivePrimeStem = '';
 	for (let i = stemEnd; i >= stemStart; i--) {
 		// If this is the SNV position, insert the selected tail base
 		const baseToInsert =
 			i === snvIndex ? tailBaseAtSNV : NUCLEOTIDE_COMPLEMENT[seq[i]];
 
-		snapback += baseToInsert;
+		fivePrimeStem += baseToInsert;
 	}
 
-	// 4. Add strong mismatches in the inner-loop region (before the stem).
+	// 4. Create strong mismatches in the inner-loop region (before the stem) (5'->3').
 	//    These mismatch the snapback prevent intramolecular hybridization
 	//    (the loop zipping).
-
+	let fivePrimeInnerLoopMismatches = '';
 	for (
 		let i = stemStart - 1;
 		i >= stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
@@ -2069,14 +2129,149 @@ function buildFinalSnapback(seq, snv, primers, stem, tailBaseAtSNV) {
 	) {
 		const base = seq[i];
 		const mismatch = STRONG_NUCLEOTIDE_MISMATCH[base];
-		snapback += mismatch;
+		fivePrimeInnerLoopMismatches += mismatch;
 	}
 
-	// 5. Append the primer itself
-	snapback += seq.slice(0, primers.primerLen);
+	// 5. Grab the forward primer sequence
+	const forwardPrimer = seq.slice(0, primerLen);
 
-	// 6. return the build up snapback primer (5'->3')
-	return snapback;
+	// 6. Assemble the unextended snapback primer and fill its descriptive JSON.
+	snapback += fivePrimerLimSnapExtMismatches;
+	snapback += fivePrimeStem;
+	snapback += fivePrimeInnerLoopMismatches;
+	snapback += forwardPrimer;
+
+	descriptiveUnExtendedSnapbackPrimer.fivePrimerLimSnapExtMismatches =
+		fivePrimerLimSnapExtMismatches;
+	descriptiveUnExtendedSnapbackPrimer.fivePrimeStem = fivePrimeStem;
+	descriptiveUnExtendedSnapbackPrimer.fivePrimeInnerLoopMismatches =
+		fivePrimeInnerLoopMismatches;
+	descriptiveUnExtendedSnapbackPrimer.forwardPrimer = forwardPrimer;
+
+	// 7) Build the extended snapback descriptive parts directly from `seq`.
+	//    Let the stem location bound everything. Immediately before the stem
+	//    are the 3′ inner-loop mismatches . Immediately after the stem are the
+	// 	  complements to strong mismatches that prevent extension on the
+	//    reverse-complement snapback. Everything between the end of the forward
+	//    primer and the left inner-loop block is "stuffBetween"; everything after
+	//    the right-side end-mismatch block is "threePrimerRestOfAmplicon".
+
+	// Indices around the left-side (5′) inner-loop block
+	const innerLoopMismatchesStartLoc =
+		stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED; // inclusive
+
+	// stuffBetween: includes the forward primer and every base up to (but not including)
+	// the first 5′ inner-loop mismatch base at innerLoopMismatchesStartLoc.
+	const stuffBetween = seq.slice(0, innerLoopMismatchesStartLoc);
+
+	// Inner loop mismatches are right next to the stem
+	const threePrimeInnerLoopMismatches = seq.slice(
+		innerLoopMismatchesStartLoc,
+		stemStart
+	);
+
+	const threePrimeStem = seq.slice(stemStart, stemEnd + 1);
+
+	// threePrimerLimSnapExtMismatches are right to the right of the stem
+	const threePrimerLimSnapExtMismatches = seq.slice(
+		stemEnd + 1,
+		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+	);
+
+	const threePrimerRestOfAmplicon = seq.slice(
+		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+	);
+
+	// 7a) SNV annotations for the extended products.
+	// Canonical SNV index is relative to descriptiveExtendedSnapback.threePrimeStem.
+	const wildBaseAtSNV = seq[snvIndex];
+	const variantBaseAtSNV = snv.variantBase;
+
+	const indexInThreePrimeStem = snvIndex - stemStart; // 0-based within threePrimeStem
+	const indexInFivePrimeStem = stemEnd - snvIndex; // 0-based within fivePrimeStem (reverse order)
+
+	const compWildBaseAtSNV = NUCLEOTIDE_COMPLEMENT[wildBaseAtSNV];
+	const compVariantBaseAtSNV = NUCLEOTIDE_COMPLEMENT[variantBaseAtSNV];
+
+	const tailMatchesWild = tailBaseAtSNV === compWildBaseAtSNV;
+	const tailMatchesVariant = tailBaseAtSNV === compVariantBaseAtSNV;
+
+	// Attach SNV metadata to the extended snapback descriptor.
+	// NOTE: indexInThreePrimeStem is the canonical reference (relative to descriptiveExtendedSnapback.threePrimeStem).
+	descriptiveExtendedSnapback.snvOnThreePrimeStem = {
+		indexInThreePrimeStem: indexInThreePrimeStem,
+		wildBase: wildBaseAtSNV,
+		variantBase: variantBaseAtSNV,
+	};
+
+	descriptiveExtendedSnapback.snvOnFivePrimeStem = {
+		indexInFivePrimeStem: indexInFivePrimeStem,
+		tailBaseAtSNV: tailBaseAtSNV,
+		matchesWild: tailMatchesWild,
+		matchesVariant: tailMatchesVariant,
+		compWildBase: compWildBaseAtSNV,
+		compVariantBase: compVariantBaseAtSNV,
+	};
+
+	// Fill the rest of descriptive object using the established naming
+	descriptiveExtendedSnapback.fivePrimerLimSnapExtMismatches =
+		fivePrimerLimSnapExtMismatches;
+	descriptiveExtendedSnapback.fivePrimeStem = fivePrimeStem;
+	descriptiveExtendedSnapback.fivePrimeInnerLoopMismatches =
+		fivePrimeInnerLoopMismatches;
+	descriptiveExtendedSnapback.stuffBetween = stuffBetween;
+	descriptiveExtendedSnapback.threePrimeInnerLoopMismatches =
+		threePrimeInnerLoopMismatches;
+	descriptiveExtendedSnapback.threePrimeStem = threePrimeStem;
+	descriptiveExtendedSnapback.threePrimerLimSnapExtMismatches =
+		threePrimerLimSnapExtMismatches;
+	descriptiveExtendedSnapback.threePrimerRestOfAmplicon =
+		threePrimerRestOfAmplicon;
+
+	// 8) Extended limiting snapback descriptors by symmetry (reverse-complement)
+	const rc = (s) => reverseComplement(s);
+
+	descriptiveExendedLimSnapback.threePrimerLimSnapExtMismatches = rc(
+		fivePrimerLimSnapExtMismatches
+	);
+	descriptiveExendedLimSnapback.threePrimeStem = rc(fivePrimeStem);
+	descriptiveExendedLimSnapback.threePrimeInnerLoopMismatches = rc(
+		fivePrimeInnerLoopMismatches
+	);
+	descriptiveExendedLimSnapback.stuffBetween = rc(stuffBetween);
+	descriptiveExendedLimSnapback.fivePrimeInnerLoopMismatches = rc(
+		threePrimeInnerLoopMismatches
+	);
+	descriptiveExendedLimSnapback.fivePrimeStem = rc(threePrimeStem);
+	descriptiveExendedLimSnapback.fivePrimerLimSnapExtMismatches = rc(
+		threePrimerLimSnapExtMismatches
+	);
+	descriptiveExendedLimSnapback.fivePrimerRestOfAmplicon = rc(
+		threePrimerRestOfAmplicon
+	);
+	// 8a) SNV indices/bases on the extended *limiting* snapback
+	descriptiveExendedLimSnapback.snvOnThreePrimeStem = {
+		indexInThreePrimeStem: indexInThreePrimeStem,
+		wildBase: wildBaseAtSNV,
+		variantBase: variantBaseAtSNV,
+	};
+
+	descriptiveExendedLimSnapback.snvOnFivePrimeStem = {
+		indexInFivePrimeStem: threePrimeStem.length - 1 - indexInThreePrimeStem,
+		tailBaseAtSNV: '',
+		matchesWild: false,
+		matchesVariant: false,
+		compWildBase: NUCLEOTIDE_COMPLEMENT[wildBaseAtSNV],
+		compVariantBase: NUCLEOTIDE_COMPLEMENT[variantBaseAtSNV],
+	};
+
+	// 9) Return only requested artifacts
+	return {
+		snapback,
+		descriptiveUnExtendedSnapbackPrimer,
+		descriptiveExtendedSnapback,
+		descriptiveExendedLimSnapback,
+	};
 }
 
 /*****************************************************************************************/
@@ -2418,7 +2613,7 @@ function parseThermoParamsFromResponse(rawHtml) {
  *     - mismatch.position ∈ [SNV_BASE_BUFFER, stemSeq.length - SNV_BASE_BUFFER - 1]
  *     - mismatch.type ∈ { A, T, C, G }
  * - The returned Tm is in degrees Celsius.
- * - getStemTm(stemSeq, mismatch) returns a numeric Tm.
+ * - getOligoTm(stemSeq, mismatch) returns a numeric Tm.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters and Returns
@@ -2485,7 +2680,7 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1. Calculate stem Tm from external method
-	const stemTm = await getStemTm(stemSeq, mismatch ?? undefined);
+	const stemTm = await getOligoTm(stemSeq, mismatch ?? undefined);
 
 	// 2. Apply snapback Tm formula
 	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTm + 32.9;
@@ -3501,10 +3696,10 @@ export {
 	calculateMeltingTempDifferences,
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
-	getStemTm,
+	getOligoTm,
 	getThermoParams,
 	createStem,
-	buildFinalSnapback,
+	buildSnapbackAndFinalProducts,
 
 	// Helper/logic functions
 	snvTooCloseToPrimer,

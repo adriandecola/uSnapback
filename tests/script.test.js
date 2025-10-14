@@ -8,10 +8,10 @@ import {
 	calculateMeltingTempDifferences,
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
-	getStemTm,
+	getOligoTm,
 	getThermoParams,
 	createStem,
-	buildFinalSnapback,
+	buildSnapbackAndFinalProducts,
 
 	// Helper/logic functions
 	snvTooCloseToPrimer,
@@ -790,98 +790,98 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 	});
 });
 
-describe('getStemTm()', () => {
+describe('getOligoTm()', () => {
 	// Valid parameters
 	test('returns 47.27 for sequence "gaaaaggagtgca" with no mismatch', async () => {
-		const result = await getStemTm('GAAAAGGAGTGCA');
+		const result = await getOligoTm('GAAAAGGAGTGCA');
 		expect(result).toBeCloseTo(47.27, 2);
 	});
 
 	test('returns 47.27 for sequence "gaaaaggagtgca" with null mismatch', async () => {
-		const result = await getStemTm('GAAAAGGAGTGCA', null);
+		const result = await getOligoTm('GAAAAGGAGTGCA', null);
 		expect(result).toBeCloseTo(47.27, 2);
 	});
 
 	test('returns 37.54 with valid mismatch', async () => {
 		const mismatch = { position: 4, type: 'G' };
-		const result = await getStemTm('GAAAAGGAGTGCA', mismatch);
+		const result = await getOligoTm('GAAAAGGAGTGCA', mismatch);
 		expect(result).toBeCloseTo(37.54, 2);
 	});
 
 	test('does NOT throw if mismatch is null', async () => {
-		await expect(getStemTm('GAAAAGGAGTGCA', null)).resolves.not.toThrow();
+		await expect(getOligoTm('GAAAAGGAGTGCA', null)).resolves.not.toThrow();
 	});
 
 	// Invalid parameters
 	test('throws if sequence is not a string', async () => {
-		await expect(() => getStemTm(12345)).rejects.toThrow(
+		await expect(() => getOligoTm(12345)).rejects.toThrow(
 			/invalid dna sequence/i
 		);
 	});
 
 	test('throws if sequence has invalid characters', async () => {
-		await expect(() => getStemTm('GAXXXC')).rejects.toThrow(
+		await expect(() => getOligoTm('GAXXXC')).rejects.toThrow(
 			/invalid dna sequence/i
 		);
 	});
 
 	test('throws if mismatch is not an object', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', 'not-an-object')
+			getOligoTm('GAAAAGGAGTGC', 'not-an-object')
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is an array', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }])
+			getOligoTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }])
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "position"', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { type: 'G' })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "type"', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: 3 })
+			getOligoTm('GAAAAGGAGTGC', { position: 3 })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is out of bounds', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: 100, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: 100, type: 'G' })
 		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws if mismatch.position is negative', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: -1, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: -1, type: 'G' })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is not an integer', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is invalid base', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'X' })
+			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'X' })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is too long', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', { position: 4, type: 'GA' })
+			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'GA' })
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch has extra keys', async () => {
 		await expect(() =>
-			getStemTm('GAAAAGGAGTGC', {
+			getOligoTm('GAAAAGGAGTGC', {
 				position: 3,
 				type: 'A',
 				unexpected: true,
@@ -1201,7 +1201,7 @@ describe('createStem() parameter validation', () => {
 	}
 });
 
-describe('buildFinalSnapback', () => {
+describe('buildSnapbackAndFinalProducts', () => {
 	test('returns correct snapback sequence for known input case', () => {
 		const seq =
 			'GACACCTGTTGGTGCCACACAGCTCATAGCTGGCAGAACTGGGATTTGAGCTGAGGTCTTCTGATGCCCATCGTGGCGCATTATCTCTTACATCAGAGATGCTTTGAGAACAGAAGACACAAATTTGAAAAAAAAAATCGTTTGCTAAAACTTTGTTTTAGCAAAACAAAACAACTTCCAAACATTAGTTATTCTGAATAT';
@@ -1226,7 +1226,7 @@ describe('buildFinalSnapback', () => {
 		const expectedSnapback =
 			'GAGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC';
 
-		const result = buildFinalSnapback(
+		const result = buildSnapbackAndFinalProducts(
 			seq,
 			snv,
 			primers,
@@ -1250,7 +1250,7 @@ describe('buildFinalSnapback', () => {
 	const validSnapBase = 'T';
 
 	const baselineCall = () =>
-		buildFinalSnapback(
+		buildSnapbackAndFinalProducts(
 			validSeq,
 			validSNV,
 			validPrimerLens,
@@ -1271,7 +1271,13 @@ describe('buildFinalSnapback', () => {
 			snapBase = validSnapBase,
 		} = overrides;
 		return () =>
-			buildFinalSnapback(seq, snv, primerLens, stemLoc, snapBase);
+			buildSnapbackAndFinalProducts(
+				seq,
+				snv,
+				primerLens,
+				stemLoc,
+				snapBase
+			);
 	};
 
 	// ─────────────────────────────────────────────────────────────────────────────
