@@ -335,9 +335,20 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  *     further growth is possible.  This temperature must exceed `minSnapbackMeltTemp`.
  *  3. Building the final 5'→3' sequence:
  *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
- *  4. Returns the snapback melting temperature differences if, using the same stem
- * 	   location, we changed which primer we matched the snapback tail to or changed
- *     which allele we match the tail base to at the SNV location.
+ *  4. Constructing descriptive objects for the unextended and extended products:
+ *        - Unextended: a 5'→3' breakdown of the snapback primer itself.
+ *        - Extended: segment strings taken directly from seq using the stem position as the guide:
+ *            stuffBetween (includes the forward primer and any additional bases up to but not including the inner-loop block) •
+ *            5' inner-loop mismatches (left of the stem) •
+ *            threePrimeStem (the stem interval) •
+ *            threePrimerLimSnapExtMismatches (right of the stem) •
+ *            threePrimerRestOfAmplicon (everything after).
+ *  5. Annotating the SNV location in both extended descriptors:
+ *        - snvOnThreePrimeStem.indexInThreePrimeStem is 0-based and relative to descriptiveExtendedSnapback.threePrimeStem.
+ *        - snvOnFivePrimeStem.indexInFivePrimeStem is 0-based and relative to the 5' stem on that object
+ *          (reverse-ordered relative to seq for the snapback side; derived by reversal on the limiting side).
+ *        - For the snapback object, tailBaseAtSNV and matchesWild/matchesVariant indicate which allele the tail complements.
+ *  6. Returning the snapback sequence, the limiting primer, Tm values and ΔTms, and the descriptive objects.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Assumptions
@@ -355,6 +366,12 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  *   the loop, if the polymerase can easily attach to that location. A 2 base pair, strong mismatch,
  *   is added after the 5' end of the stem (on the snapback primer) help avoid this extension
  *   on its complement snapback
+ * - All sequences are expressed 5'→3' in the frame of the primer that receives the tail.
+ * - The inner-loop strong mismatches are immediately 5' of the stem (left of the stem).
+ * - The strong end-of-stem mismatches used to block extension on the complementary snapback
+ *   occur immediately 3' of the stem (right of the stem on this strand).
+ * - For the extended descriptive object, stuffBetween includes the forward primer and all
+ *   subsequent bases up to (but not including) the first inner-loop mismatch base.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Possible improvements
@@ -384,6 +401,10 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  *
  * @typedef {Object} SnapbackPrimerResult
  * @property {string}						snapbackSeq			Entire snapback primer written 5' → 3'
+ * @property {DescriptiveUnExtendedSnapbackPrimer} descriptiveUnExtendedSnapbackPrimer  Segment breakdown of the unextended snapback primer.
+ * @property {DescriptiveExtendedSnapback}         descriptiveExtendedSnapback          Extended product segments and SNV indices (canonical threePrimeStem index).
+ * @property {DescriptiveExtendedLimitingSnapback} descriptiveExendedLimSnapback        Limiting extended product segments and SNV indices.
+
  *                                                   			(tail → primer).
  * @property {string}						limitingPrimerSeq	The limiting primmer written 5' → 3'
  * @property {boolean}						tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
@@ -393,6 +414,52 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  *                                			       				the wild-type allele
  * @property {SnapbackMeltingTm}			snapbackMeltingTms	Object holding wild/variant snapback Tm values.
  * @property {SnapbackMeltingTempDiffs}		meltingTempDiffs 	Wild/variant ΔTm values for both primer orientations.
+ *
+ *
+ * @typedef {Object} DescriptiveUnExtendedSnapbackPrimer
+ * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed 3' of the stem on the snapback’s complement side (5' segment in snapback).
+ * @property {string} fivePrimeStem                    Reverse-complement of seq[stem.start..stem.end], with the chosen tail base at the SNV.
+ * @property {string} fivePrimeInnerLoopMismatches     Strong mismatches immediately 5' of the stem.
+ * @property {string} forwardPrimer                    The forward primer sequence (seq.slice(0, primerLen)).
+ *
+ * @typedef {Object} SNVOnThreePrimeStem
+ * @property {number} indexInThreePrimeStem  0-based index of the SNV relative to threePrimeStem.
+ * @property {string} wildBase               Base in seq at the SNV index (wild-type).
+ * @property {string} variantBase            Variant base at the SNV site.
+ *
+ * @typedef {Object} SNVOnFivePrimeStem
+ * @property {number} indexInFivePrimeStem  0-based index of the SNV relative to fivePrimeStem for that object.
+ * @property {string} tailBaseAtSNV         Base used on the snapback tail at the SNV (empty for limiting object).
+ * @property {boolean} matchesWild          True if tailBaseAtSNV complements wildBase.
+ * @property {boolean} matchesVariant       True if tailBaseAtSNV complements variantBase.
+ * @property {string} compWildBase          Complement of wildBase.
+ * @property {string} compVariantBase       Complement of variantBase.
+ *
+ * @typedef {Object} DescriptiveExtendedSnapback
+ * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed to prevent extension on the complementary snapback.
+ * @property {string} fivePrimeStem                    Snapback 5' stem segment (reverse-complement orientation).
+ * @property {string} fivePrimeInnerLoopMismatches     Inner-loop strong mismatches immediately 5' of the stem.
+ * @property {string} stuffBetween                     seq.slice(0, stem.start - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED),
+ *                                                     i.e., includes the forward primer and any bases up to (but not including) the inner-loop block.
+ * @property {string} threePrimeInnerLoopMismatches    seq slice of the inner-loop block directly left of the stem.
+ * @property {string} threePrimeStem                   seq.slice(stem.start, stem.end+1).
+ * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing strong mismatches.
+ * @property {string} threePrimerRestOfAmplicon        Remainder of seq to the 3' end after the right-side mismatch block.
+ * @property {SNVOnThreePrimeStem} snvOnThreePrimeStem SNV info indexed to threePrimeStem.
+ * @property {SNVOnFivePrimeStem}  snvOnFivePrimeStem  SNV info indexed to fivePrimeStem (snapback side).
+ *
+ * @typedef {Object} DescriptiveExtendedLimitingSnapback
+ * @property {string} threePrimerLimSnapExtMismatches
+ * @property {string} threePrimeStem
+ * @property {string} threePrimeInnerLoopMismatches
+ * @property {string} stuffBetween
+ * @property {string} fivePrimeInnerLoopMismatches
+ * @property {string} fivePrimeStem
+ * @property {string} fivePrimerLimSnapExtMismatches
+ * @property {string} fivePrimerRestOfAmplicon
+ * @property {SNVOnThreePrimeStem} snvOnThreePrimeStem SNV info using the same canonical index as the main object.
+ * @property {SNVOnFivePrimeStem}  snvOnFivePrimeStem  SNV info indexed to fivePrimeStem on the limiting object
+ *                                                     (tailBaseAtSNV is empty; indices derived by reversal).
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
@@ -405,8 +472,8 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
  * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
  *
- * @returns {Promise<SnapbackPrimerResult>}						An object representing the formed snapback primer, Tms, and ΔTms of
- * 																other snapback options.
+ * @returns {Promise<SnapbackPrimerResult>} 	 				Final snapback and limiting primers, snapback Tms and ΔTms,
+ *                                           					and descriptive objects for unextended/extended products with SNV indices.
  *
  * @throws {Error} 												If any input is invalid, the SNV is too close to a primer,
  *             													or an acceptable stem cannot be constructed.
@@ -547,7 +614,12 @@ async function createSnapback(
 	);
 
 	// 4) Create a final snapback primer (in its reference point)
-	const snapback = buildSnapbackAndFinalProducts(
+	const {
+		snapback,
+		descriptiveUnExtendedSnapbackPrimer,
+		descriptiveExtendedSnapback,
+		descriptiveExendedLimSnapback,
+	} = buildSnapbackAndFinalProducts(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
@@ -579,6 +651,10 @@ async function createSnapback(
 		matchesWild: matchesWild,
 		snapbackMeltingTms: meltingTemps,
 		meltingTempDiffs: meltingTempDiffs,
+
+		descriptiveUnExtendedSnapbackPrimer,
+		descriptiveExtendedSnapback,
+		descriptiveExendedLimSnapback,
 	};
 }
 
