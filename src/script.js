@@ -2918,10 +2918,7 @@ async function calculateSnapbackTmRochester(extended) {
 			]; // from seq, 5' of stem
 		const topFirstInStem = threePrimeStem[0];
 
-		const bottomOutsideLeft =
-			fivePrimeInnerLoopMismatches[
-				fivePrimeInnerLoopMismatches.length - 1
-			]; // from snapback side
+		const bottomOutsideLeft = fivePrimeInnerLoopMismatches[0]; // 3' end of TM
 		const bottomFirstInStem = NUCLEOTIDE_COMPLEMENT[topFirstInStem];
 
 		const top2_left = `${topOutsideLeft}${topFirstInStem}`; // 5'→3' on top
@@ -2936,73 +2933,61 @@ async function calculateSnapbackTmRochester(extended) {
 		};
 	}
 
-	//──────────────────────────────────────────────────────────────────────────//
-	// 3) Designed terminal mismatch correction at the 3′ end of the stem
-	//    Build the terminal dinuc on top (5'→3') and bottom (3'→5').
-	//    top2 = lastPairedTop + firstTopMismatch
-	//    bottom2 = lastPairedBottom + firstBottomMismatch
-	//──────────────────────────────────────────────────────────────────────────//
+	// 3) Terminal mismatch at the 3′ end of the stem (right side)
+	//    Use the last base inside the stem and the base immediately outside (right).
 	let terminal3p = null;
 	if (
 		threePrimeStem.length >= 1 &&
 		threePrimerLimSnapExtMismatches.length >= 1 &&
 		fivePrimerLimSnapExtMismatches.length >= 1
 	) {
-		const topLast = threePrimeStem[threePrimeStem.length - 1];
-		const topNext = threePrimerLimSnapExtMismatches[0];
+		const topLastInStem = threePrimeStem[threePrimeStem.length - 1];
+		const topOutsideRight = threePrimerLimSnapExtMismatches[0];
 
-		// Bottom “last paired” base is complement of topLast; first bottom mismatch comes from the 5′-mismatch block
-		const bottomLast = NUCLEOTIDE_COMPLEMENT[topLast];
-		const bottomNext = fivePrimerLimSnapExtMismatches[0];
+		const bottomLastInStem = NUCLEOTIDE_COMPLEMENT[topLastInStem];
+		const bottomOutsideRight =
+			fivePrimerLimSnapExtMismatches[
+				fivePrimerLimSnapExtMismatches.length - 1
+			];
 
-		const top2 = `${topLast}${topNext}`; // 5'→3'
-		const bottom2 = `${bottomLast}${bottomNext}`; // 3'→5' by construction for our key
+		const top2_right = `${topLastInStem}${topOutsideRight}`; // 5'→3' on top
+		const bottom2_right = `${bottomLastInStem}${bottomOutsideRight}`; // 3'→5' on bottom
 
-		const tmParams = getTerminalMismatchParams(top2, bottom2); // { dH, dS }
-		terminal3p = { top2, bottom2, dH: tmParams.dH, dS: tmParams.dS };
+		const tm3 = getTerminalMismatchParams(top2_right, bottom2_right); // { dH, dS }
+		terminal3p = {
+			top2: top2_right,
+			bottom2: bottom2_right,
+			dH: tm3.dH,
+			dS: tm3.dS,
+		};
 	}
 
-	//──────────────────────────────────────────────────────────────────────────//
-	// 4) Stem nearest-neighbor thermodynamics, with/without the SNV mismatch
-	//    Mismatch.type is the base on the opposite strand (the snapback tail base).
-	//──────────────────────────────────────────────────────────────────────────//
-	// Matched (no mismatch object)
-	const stemMatched = await getThermoParams(
-		threePrimeStem,
-		concSnap_uM,
-		concLimit_uM
-	); // { dH(kcal/mol), dS(cal/K/mol), saltCorrection(°C or model-defined) }
+	// 4) Stem NN thermodynamics with/without SNV mismatch
+	// Matched stem: no mismatch object
+	const stemMatched = await getThermoParams(threePrimeStem);
 
-	// Mismatched (inject at snvIdx with other-strand base = tailBaseAtSNV)
-	const stemMismatchSpec = {
-		position: snvIdx,
-		type: tailBaseAtSNV,
-	};
+	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
+	const stemMismatchSpec = { position: snvIdx, type: tailBaseAtSNV };
 	const stemMismatched = await getThermoParams(
 		threePrimeStem,
-		concSnap_uM,
-		concLimit_uM,
+		undefined,
+		undefined,
 		stemMismatchSpec
 	);
 
-	//──────────────────────────────────────────────────────────────────────────//
-	// 5) Decide which case is wild vs variant based on tail complementarity
-	//──────────────────────────────────────────────────────────────────────────//
-	const matchesWild = !!extended.snvOnFivePrimeStem.matchesWild;
-	const matchesVariant = !!extended.snvOnFivePrimeStem.matchesVariant;
+	// 5) Route matched vs mismatched to wild/variant using flags
+	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
+	const matchesVariant = extended.snvOnFivePrimeStem.matchesVariant;
 
-	// Components common to both alleles (loop + dangling + terminal mismatch)
 	const common_dH =
 		loopParams.dH +
-		(dangling5p ? dangling5p.dH : 0) +
+		(terminal5p ? terminal5p.dH : 0) +
 		(terminal3p ? terminal3p.dH : 0);
 	const common_dS =
 		loopParams.dS +
-		(dangling5p ? dangling5p.dS : 0) +
+		(terminal5p ? terminal5p.dS : 0) +
 		(terminal3p ? terminal3p.dS : 0);
 
-	// Construct per-allele totals
-	// Note: saltCorrection originates from the NN API; apply exactly as your calculateTm expects.
 	const wildStem = matchesWild ? stemMatched : stemMismatched;
 	const variantStem = matchesVariant ? stemMatched : stemMismatched;
 
@@ -3014,29 +2999,25 @@ async function calculateSnapbackTmRochester(extended) {
 	const variantSum_dS = common_dS + variantStem.dS;
 	const variantSalt = variantStem.saltCorrection || 0;
 
-	//──────────────────────────────────────────────────────────────────────────//
-	// 6) Compute Tm (°C) using your calculateTm helper
-	//──────────────────────────────────────────────────────────────────────────//
+	// 6) Compute Tm (°C)
 	const wildTm = calculateTm(
 		wildSum_dH,
 		wildSum_dS,
-		concSnap_uM,
-		concLimit_uM,
+		undefined,
+		undefined,
 		false,
 		wildSalt
 	);
 	const variantTm = calculateTm(
 		variantSum_dH,
 		variantSum_dS,
-		concSnap_uM,
-		concLimit_uM,
+		undefined,
+		undefined,
 		false,
 		variantSalt
 	);
 
-	//──────────────────────────────────────────────────────────────────────────//
 	// 7) Return breakdown and totals
-	//──────────────────────────────────────────────────────────────────────────//
 	return {
 		wildTm,
 		variantTm,
@@ -3047,11 +3028,12 @@ async function calculateSnapbackTmRochester(extended) {
 				dS: loopParams.dS,
 				model: 'Rochester',
 			},
-			dangling5p: dangling5p
+			terminalMismatch5p: terminal5p
 				? {
-						step: dangling5p.step,
-						dH: dangling5p.dH,
-						dS: dangling5p.dS,
+						top2: terminal5p.top2,
+						bottom2: terminal5p.bottom2,
+						dH: terminal5p.dH,
+						dS: terminal5p.dS,
 				  }
 				: null,
 			terminalMismatch3p: terminal3p
@@ -3078,11 +3060,7 @@ async function calculateSnapbackTmRochester(extended) {
 			},
 		},
 		sums: {
-			wild: {
-				dH: wildSum_dH,
-				dS: wildSum_dS,
-				saltCorrection: wildSalt,
-			},
+			wild: { dH: wildSum_dH, dS: wildSum_dS, saltCorrection: wildSalt },
 			variant: {
 				dH: variantSum_dH,
 				dS: variantSum_dS,
