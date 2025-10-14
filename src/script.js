@@ -1553,14 +1553,26 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 		);
 	}
 
-	// 2) Concentrations (µM, positive finite)
-	for (const [label, v] of [
-		['concentration', concentration],
-		['limitingConc', limitingConc],
-	]) {
-		if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) {
+	// 2) Concentrations (µM) — optional. Validate only if provided.
+	if (concentration != null) {
+		if (
+			typeof concentration !== 'number' ||
+			!Number.isFinite(concentration) ||
+			concentration <= 0
+		) {
 			throw new Error(
-				`${label} must be a positive, finite number in µM. Received: ${v}`
+				`concentration must be a positive, finite number in µM when provided. Received: ${concentration}`
+			);
+		}
+	}
+	if (limitingConc != null) {
+		if (
+			typeof limitingConc !== 'number' ||
+			!Number.isFinite(limitingConc) ||
+			limitingConc <= 0
+		) {
+			throw new Error(
+				`limitingConc must be a positive, finite number in µM when provided. Received: ${limitingConc}`
 			);
 		}
 	}
@@ -1598,8 +1610,13 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	apiURL += `&seq=${seq.toLowerCase()}`;
 	apiURL += `&tparam=${T_PARAM}`;
 	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
-	apiURL += `&concentration=${concentration}`;
-	apiURL += `&limitingconc=${limitingConc}`;
+	// Only include concentrations if they were provided
+	if (concentration != null) {
+		apiURL += `&concentration=${concentration}`;
+	}
+	if (limitingConc != null) {
+		apiURL += `&limitingconc=${limitingConc}`;
+	}
 	apiURL += `&otype=${O_TYPE}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
 	apiURL += `&token=${API_TOKEN}`;
@@ -2766,12 +2783,314 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 }
 
 /**
- * Calculate snapback melting temperature with Rochester loop parameters, Bummarito dangling
- * parameters (if applicable), and SantaLucia Hicks terminal mismatch parameters (if applicable).
+ * Calculates snapback Tm (wild vs variant) for the extended snapback using:
+ *   1) Rochester hairpin-loop initiation parameters (loop size = stuffBetween + fivePrimeInnerLoopMismatches)
+ *   2) A 5′-dangling-end correction on the loop side of the stem
+ *   3) Designed terminal-mismatch correction on the 3′ end of the stem
+ *   4) Stem nearest-neighbor thermodynamics with/without the SNV mismatch
  *
+ * The “wild” vs “variant” difference is applied only at the stem via getThermoParams:
+ *   - If descriptiveExtendedSnapback.snvOnFivePrimeStem.matchesWild === true,
+ *     then the WILD case uses the matched stem (no mismatch object),
+ *     and the VARIANT case uses the mismatch (position=indexInThreePrimeStem, type=tailBaseAtSNV).
+ *   - If matchesVariant === true, the roles are reversed.
  *
+ * Concentrations are in µM to match getThermoParams; they default to global constants if provided.
+ *
+ * Returns per-allele Tm in °C plus a detailed breakdown of the summed ΔH/ΔS components.
+ *
+ * Assumptions
+ * - All strings on descriptiveExtendedSnapback are 5'→3' and already validated upstream.\
+ * - Designed terminal-mismatch correction is applied once, using the last paired base on threePrimeStem and the
+ *   first mismatch base on each strand (threePrimerLimSnapExtMismatches[0] and fivePrimerLimSnapExtMismatches[0]).
+ *
+ * Parameters
+ * @param {DescriptiveExtendedSnapback}  extended
+ *
+ * @returns {Promise<{
+ *   wildTm: number,
+ *   variantTm: number,
+ *   components: {
+ *     loop: { N: number, dH: number, dS: number, model: 'Rochester' },
+ *     dangling5p: null | { step: string, dH: number, dS: number },
+ *     terminalMismatch3p: null | { top2: string, bottom2: string, dH: number, dS: number },
+ *     stem: {
+ *       matched: { dH: number, dS: number, saltCorrection: number, mismatch: null },
+ *       mismatched: { dH: number, dS: number, saltCorrection: number, mismatch: { position: number, type: string } }
+ *     }
+ *   },
+ *   sums: {
+ *     wild: { dH: number, dS: number, saltCorrection: number },
+ *     variant: { dH: number, dS: number, saltCorrection: number }
+ *   }
+ * }>}
+ *
+ * Throws
+ * - If extended object is malformed or any sequence constraint would make indices out of bounds.
  */
-async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
+async function calculateSnapbackTmRochester(extended) {
+	//──────────────────────────────────────────────────────────────────────────//
+	//                            Parameter Checking                            //
+	//──────────────────────────────────────────────────────────────────────────//
+
+	if (typeof extended !== 'object' || !extended) {
+		throw new Error('extended must be a non-null object.');
+	}
+
+	const requiredStrings = [
+		'fivePrimerLimSnapExtMismatches',
+		'fivePrimeStem',
+		'fivePrimeInnerLoopMismatches',
+		'stuffBetween',
+		'threePrimeInnerLoopMismatches',
+		'threePrimeStem',
+		'threePrimerLimSnapExtMismatches',
+		'threePrimerRestOfAmplicon',
+	];
+	for (const key of requiredStrings) {
+		if (
+			typeof extended[key] !== 'string' ||
+			!/^[ACGT]*$/.test(extended[key])
+		) {
+			throw new Error(
+				`extended.${key} must be an uppercase DNA string (A/T/C/G).`
+			);
+		}
+	}
+	if (
+		typeof extended.snvOnThreePrimeStem !== 'object' ||
+		extended.snvOnThreePrimeStem === null ||
+		!Number.isInteger(extended.snvOnThreePrimeStem.indexInThreePrimeStem) ||
+		extended.snvOnThreePrimeStem.indexInThreePrimeStem < 0 ||
+		typeof extended.snvOnThreePrimeStem.wildBase !== 'string' ||
+		typeof extended.snvOnThreePrimeStem.variantBase !== 'string'
+	) {
+		throw new Error(
+			'extended.snvOnThreePrimeStem must be { indexInThreePrimeStem:int≥0, wildBase:str, variantBase:str }.'
+		);
+	}
+	if (
+		typeof extended.snvOnFivePrimeStem !== 'object' ||
+		extended.snvOnFivePrimeStem === null ||
+		!Number.isInteger(extended.snvOnFivePrimeStem.indexInFivePrimeStem) ||
+		extended.snvOnFivePrimeStem.indexInFivePrimeStem < 0 ||
+		typeof extended.snvOnFivePrimeStem.tailBaseAtSNV !== 'string' ||
+		typeof extended.snvOnFivePrimeStem.compWildBase !== 'string' ||
+		typeof extended.snvOnFivePrimeStem.compVariantBase !== 'string'
+	) {
+		throw new Error(
+			'extended.snvOnFivePrimeStem must include indexInFivePrimeStem:int≥0, tailBaseAtSNV, compWildBase, compVariantBase.'
+		);
+	}
+
+	// Aliases
+	const fivePrimerLimSnapExtMismatches =
+		extended.fivePrimerLimSnapExtMismatches;
+	const fivePrimeStem = extended.fivePrimeStem;
+	const fivePrimeInnerLoopMismatches = extended.fivePrimeInnerLoopMismatches;
+	const stuffBetween = extended.stuffBetween;
+	const threePrimeInnerLoopMismatches =
+		extended.threePrimeInnerLoopMismatches;
+	const threePrimeStem = extended.threePrimeStem;
+	const threePrimerLimSnapExtMismatches =
+		extended.threePrimerLimSnapExtMismatches;
+
+	const snvIdx = extended.snvOnThreePrimeStem.indexInThreePrimeStem;
+	const tailBaseAtSNV = extended.snvOnFivePrimeStem.tailBaseAtSNV;
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 1) Loop initiation (Rochester): N = stuffBetween + fivePrimeInnerLoopMismatches
+	//──────────────────────────────────────────────────────────────────────────//
+	const loopN = stuffBetween.length + 2 * fivePrimeInnerLoopMismatches.length;
+	const loopParams = getRochesterHairpinLoopParams(loopN); // { dH (kcal/mol), dS (cal/K/mol) }
+
+	// 2) Terminal mismatch at the 5′ end of the stem (loop side)
+	//    Use the base immediately outside the stem (loop) and the first base inside the stem.
+	let terminal5p = null;
+	if (
+		threePrimeStem.length >= 1 &&
+		threePrimeInnerLoopMismatches.length >= 1 &&
+		fivePrimeInnerLoopMismatches.length >= 1
+	) {
+		const topOutsideLeft =
+			threePrimeInnerLoopMismatches[
+				threePrimeInnerLoopMismatches.length - 1
+			]; // from seq, 5' of stem
+		const topFirstInStem = threePrimeStem[0];
+
+		const bottomOutsideLeft =
+			fivePrimeInnerLoopMismatches[
+				fivePrimeInnerLoopMismatches.length - 1
+			]; // from snapback side
+		const bottomFirstInStem = NUCLEOTIDE_COMPLEMENT[topFirstInStem];
+
+		const top2_left = `${topOutsideLeft}${topFirstInStem}`; // 5'→3' on top
+		const bottom2_left = `${bottomOutsideLeft}${bottomFirstInStem}`; // 3'→5' on bottom
+
+		const tm5 = getTerminalMismatchParams(top2_left, bottom2_left); // { dH, dS }
+		terminal5p = {
+			top2: top2_left,
+			bottom2: bottom2_left,
+			dH: tm5.dH,
+			dS: tm5.dS,
+		};
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 3) Designed terminal mismatch correction at the 3′ end of the stem
+	//    Build the terminal dinuc on top (5'→3') and bottom (3'→5').
+	//    top2 = lastPairedTop + firstTopMismatch
+	//    bottom2 = lastPairedBottom + firstBottomMismatch
+	//──────────────────────────────────────────────────────────────────────────//
+	let terminal3p = null;
+	if (
+		threePrimeStem.length >= 1 &&
+		threePrimerLimSnapExtMismatches.length >= 1 &&
+		fivePrimerLimSnapExtMismatches.length >= 1
+	) {
+		const topLast = threePrimeStem[threePrimeStem.length - 1];
+		const topNext = threePrimerLimSnapExtMismatches[0];
+
+		// Bottom “last paired” base is complement of topLast; first bottom mismatch comes from the 5′-mismatch block
+		const bottomLast = NUCLEOTIDE_COMPLEMENT[topLast];
+		const bottomNext = fivePrimerLimSnapExtMismatches[0];
+
+		const top2 = `${topLast}${topNext}`; // 5'→3'
+		const bottom2 = `${bottomLast}${bottomNext}`; // 3'→5' by construction for our key
+
+		const tmParams = getTerminalMismatchParams(top2, bottom2); // { dH, dS }
+		terminal3p = { top2, bottom2, dH: tmParams.dH, dS: tmParams.dS };
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 4) Stem nearest-neighbor thermodynamics, with/without the SNV mismatch
+	//    Mismatch.type is the base on the opposite strand (the snapback tail base).
+	//──────────────────────────────────────────────────────────────────────────//
+	// Matched (no mismatch object)
+	const stemMatched = await getThermoParams(
+		threePrimeStem,
+		concSnap_uM,
+		concLimit_uM
+	); // { dH(kcal/mol), dS(cal/K/mol), saltCorrection(°C or model-defined) }
+
+	// Mismatched (inject at snvIdx with other-strand base = tailBaseAtSNV)
+	const stemMismatchSpec = {
+		position: snvIdx,
+		type: tailBaseAtSNV,
+	};
+	const stemMismatched = await getThermoParams(
+		threePrimeStem,
+		concSnap_uM,
+		concLimit_uM,
+		stemMismatchSpec
+	);
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 5) Decide which case is wild vs variant based on tail complementarity
+	//──────────────────────────────────────────────────────────────────────────//
+	const matchesWild = !!extended.snvOnFivePrimeStem.matchesWild;
+	const matchesVariant = !!extended.snvOnFivePrimeStem.matchesVariant;
+
+	// Components common to both alleles (loop + dangling + terminal mismatch)
+	const common_dH =
+		loopParams.dH +
+		(dangling5p ? dangling5p.dH : 0) +
+		(terminal3p ? terminal3p.dH : 0);
+	const common_dS =
+		loopParams.dS +
+		(dangling5p ? dangling5p.dS : 0) +
+		(terminal3p ? terminal3p.dS : 0);
+
+	// Construct per-allele totals
+	// Note: saltCorrection originates from the NN API; apply exactly as your calculateTm expects.
+	const wildStem = matchesWild ? stemMatched : stemMismatched;
+	const variantStem = matchesVariant ? stemMatched : stemMismatched;
+
+	const wildSum_dH = common_dH + wildStem.dH;
+	const wildSum_dS = common_dS + wildStem.dS;
+	const wildSalt = wildStem.saltCorrection || 0;
+
+	const variantSum_dH = common_dH + variantStem.dH;
+	const variantSum_dS = common_dS + variantStem.dS;
+	const variantSalt = variantStem.saltCorrection || 0;
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 6) Compute Tm (°C) using your calculateTm helper
+	//──────────────────────────────────────────────────────────────────────────//
+	const wildTm = calculateTm(
+		wildSum_dH,
+		wildSum_dS,
+		concSnap_uM,
+		concLimit_uM,
+		false,
+		wildSalt
+	);
+	const variantTm = calculateTm(
+		variantSum_dH,
+		variantSum_dS,
+		concSnap_uM,
+		concLimit_uM,
+		false,
+		variantSalt
+	);
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// 7) Return breakdown and totals
+	//──────────────────────────────────────────────────────────────────────────//
+	return {
+		wildTm,
+		variantTm,
+		components: {
+			loop: {
+				N: loopN,
+				dH: loopParams.dH,
+				dS: loopParams.dS,
+				model: 'Rochester',
+			},
+			dangling5p: dangling5p
+				? {
+						step: dangling5p.step,
+						dH: dangling5p.dH,
+						dS: dangling5p.dS,
+				  }
+				: null,
+			terminalMismatch3p: terminal3p
+				? {
+						top2: terminal3p.top2,
+						bottom2: terminal3p.bottom2,
+						dH: terminal3p.dH,
+						dS: terminal3p.dS,
+				  }
+				: null,
+			stem: {
+				matched: {
+					dH: stemMatched.dH,
+					dS: stemMatched.dS,
+					saltCorrection: stemMatched.saltCorrection || 0,
+					mismatch: null,
+				},
+				mismatched: {
+					dH: stemMismatched.dH,
+					dS: stemMismatched.dS,
+					saltCorrection: stemMismatched.saltCorrection || 0,
+					mismatch: { position: snvIdx, type: tailBaseAtSNV },
+				},
+			},
+		},
+		sums: {
+			wild: {
+				dH: wildSum_dH,
+				dS: wildSum_dS,
+				saltCorrection: wildSalt,
+			},
+			variant: {
+				dH: variantSum_dH,
+				dS: variantSum_dS,
+				saltCorrection: variantSalt,
+			},
+		},
+	};
+}
 
 /**
  * Calculates the duplex melting temperature (Tm) at which 50% of the nucleic acid
@@ -2824,6 +3143,8 @@ async function calculateSnapbackTmRochester(stemSeq, loopLen, mismatch) {}
  * - For self-complementary duplexes, pass selfComplementary = true and provide concA (> 0).
  *   concB is ignored in that case. Only do this if the DNA is self-complimentary AND there
  *   is a degeneracy (the dna can combine both ways uniquely).
+ * - concA/concB are optional; if both are omitted, the concentration term R·ln(term) is excluded (treated as 0).
+
  *
  * 			(For hairpins, is this a relavant case?)
  *
@@ -2869,21 +3190,53 @@ function calculateTm(
 		);
 	}
 
-	// 2) Validate concentrations
-	if (typeof concA !== 'number' || !Number.isFinite(concA) || concA <= 0) {
-		throw new Error(
-			`concA must be a positive, finite number in M. Received: ${concA}`
-		);
-	}
-	if (!selfComplementary) {
-		if (
-			typeof concB !== 'number' ||
-			!Number.isFinite(concB) ||
-			concB <= 0
-		) {
-			throw new Error(
-				`concB must be a positive, finite number in M for non-self-complementary duplexes. Received: ${concB}`
-			);
+	// 2) Concentrations — optional. Validate only if provided.
+	const concAProvided = concA !== undefined && concA !== null;
+	const concBProvided = concB !== undefined && concB !== null;
+	const anyConcProvided = concAProvided || concBProvided;
+
+	if (anyConcProvided) {
+		// Self-complementary: only concA is required if any conc is provided
+		if (selfComplementary) {
+			if (!concAProvided) {
+				throw new Error(
+					'concA must be provided for self-complementary duplexes when concentrations are supplied.'
+				);
+			}
+			if (
+				typeof concA !== 'number' ||
+				!Number.isFinite(concA) ||
+				concA <= 0
+			) {
+				throw new Error(
+					`concA must be a positive, finite number in µM. Received: ${concA}`
+				);
+			}
+		} else {
+			// Bimolecular: both concA and concB are required if any conc is provided
+			if (!concAProvided || !concBProvided) {
+				throw new Error(
+					'Both concA and concB must be provided for non-self-complementary duplexes when concentrations are supplied.'
+				);
+			}
+			if (
+				typeof concA !== 'number' ||
+				!Number.isFinite(concA) ||
+				concA <= 0
+			) {
+				throw new Error(
+					`concA must be a positive, finite number in µM. Received: ${concA}`
+				);
+			}
+			if (
+				typeof concB !== 'number' ||
+				!Number.isFinite(concB) ||
+				concB <= 0
+			) {
+				throw new Error(
+					`concB must be a positive, finite number in µM. Received: ${concB}`
+				);
+			}
 		}
 	}
 
@@ -2916,37 +3269,41 @@ function calculateTm(
 	const R_CAL = 1.98720425864;
 
 	// Compute the concentration term for the ln() according to the case.
-	let concentrationTerm;
+	let lnContribution = 0.0;
 
-	if (selfComplementary) {
-		// A + A ↔ AA  ⇒ term = Ct = [A] (initial single-strand concentration)
-		concentrationTerm = concA * 1e-6;
-	} else {
-		// General bimolecular A + B ↔ AB at 50% duplex of the limiting strand
-		const AB50 = Math.min(concA, concB) / 2.0; // [AB]_50
-		// Guard against pathological input where AB50 → 0 (should not happen since concs > 0)
-		if (AB50 <= 0) {
+	if (anyConcProvided) {
+		let concentrationTerm;
+
+		if (selfComplementary) {
+			// A + A ↔ AA ⇒ term = Ct = [A] (initial single-strand concentration)
+			concentrationTerm = concA * 1e-6; // convert µM → M
+		} else {
+			// General A + B ↔ AB at 50% duplex of the limiting strand
+			const AB50 = Math.min(concA, concB) / 2.0; // µM
+			if (AB50 <= 0) {
+				throw new Error(
+					`Computed [AB]_50 ≤ 0 from inputs (concA=${concA}, concB=${concB}).`
+				);
+			}
+			const A50 = concA - AB50; // µM
+			const B50 = concB - AB50; // µM
+			// term = ([A]_50·[B]_50)/[AB]_50  (units µM)
+			concentrationTerm = ((A50 * B50) / AB50) * 1e-6; // M
+		}
+
+		// The ln() requires a strictly positive argument
+		if (!Number.isFinite(concentrationTerm) || concentrationTerm <= 0) {
 			throw new Error(
-				`Computed [AB]_50 ≤ 0 from inputs (concA=${concA}, concB=${concB}). Check concentrations.`
+				`Invalid concentration term for ln(): ${concentrationTerm}. ` +
+					`Check input concentrations (must yield a positive term).`
 			);
 		}
-		const A50 = concA - AB50;
-		const B50 = concB - AB50;
-		// term = ([A]_50·[B]_50)/[AB]_50  → reduces to Ct/4 for equimolar; to [A]-[B]/2 if A>B
-		concentrationTerm = ((A50 * B50) / AB50) * 1e-6;
-	}
 
-	// The ln() requires a strictly positive argument
-	if (!Number.isFinite(concentrationTerm) || concentrationTerm <= 0) {
-		throw new Error(
-			`Invalid concentration term for ln(): ${concentrationTerm}. ` +
-				`Check input concentrations (must yield a positive term).`
-		);
+		lnContribution = R_CAL * Math.log(concentrationTerm);
 	}
 
 	// Denominator: ΔS° + R·ln(term)
-	const denom =
-		DELTA_S + saltCorrection + R_CAL * Math.log(concentrationTerm);
+	const denom = DELTA_S + saltCorrection + lnContribution;
 
 	// Avoid singularity / non-physical results
 	if (!Number.isFinite(denom)) {
