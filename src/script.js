@@ -633,7 +633,7 @@ async function createSnapback(
 	);
 
 	// Get SantaLucia-model snapback Tm and a full delta H delta S breakdown for the extended product
-	const snapbackTmSantaLucia = await getSantaLuciaHicksHairpinParams(
+	const snapbackTmSantaLucia = await calculateSnapbackTmSantaLucia(
 		descriptiveExtendedSnapback
 	);
 
@@ -2647,27 +2647,45 @@ function parseThermoParamsFromResponse(rawHtml) {
 	//──────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────//
-	if (typeof rawHtml !== 'string') {
+	if (typeof rawHtml !== 'string' || rawHtml.length === 0) {
 		throw new Error(
-			`rawHtml must be a string. Received: ${typeof rawHtml}`
+			`rawHtml must be a non-empty string. Received: ${typeof rawHtml}`
 		);
-	}
-	if (rawHtml.length === 0) {
-		throw new Error('rawHtml must be a non-empty string.');
 	}
 
 	//──────────────────────────────────────────────────────────────────────//
 	// Function Logic                                                       //
 	//──────────────────────────────────────────────────────────────────────//
 	try {
-		// 1. Parse HTML response
-		const parser = new DOMParser();
-		const doc = parser.parseFromString(rawHtml, 'text/html');
+		// 1. Normalize the input:
+		//    - unwrap JSON { contents: "<html>...</html>" }
+		//    - drop any preface before first '<'
+		//    - fix JSON-escaped closing tags: <\/tag> -> </tag>
+		let html = rawHtml;
+		const trimmed = html.trim();
+		if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+			try {
+				const obj = JSON.parse(trimmed);
+				if (obj && typeof obj.contents === 'string') {
+					html = obj.contents;
+				}
+			} catch {}
+		}
+		const firstTag = html.indexOf('<');
+		if (firstTag > 0) html = html.slice(firstTag);
+		html = html.replace(/<\\\//g, '</');
 
-		// 2. Get each tag and checking their existense and values
+		// 2. Parse HTML response
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+
+		// 3. Get each tag and check existence and values
 		const dHNode = doc.querySelector('dH');
 		const dSNode = doc.querySelector('dS');
 		const saltNode = doc.querySelector('saltCorrection');
+
+		console.log(rawHtml);
+
 		if (
 			!dHNode ||
 			dHNode.textContent == null ||
@@ -2692,15 +2710,15 @@ function parseThermoParamsFromResponse(rawHtml) {
 			);
 		}
 
-		// 3. Parse each tag into a float
+		// 4. Parse each tag into a float
 		const dH_cal = parseFloat(dHNode.textContent.trim()); // cal/mol
 		const dS_cal_per_K = parseFloat(dSNode.textContent.trim()); // cal/K/mol
 		const saltCorr_C = parseFloat(saltNode.textContent.trim()); // cal/K/mol
 
-		// 4. Convert delta H to kcal/mol
+		// 5. Convert delta H to kcal/mol
 		const dH_kcal = dH_cal / 1000;
 
-		// 5. Return the thermo parameters
+		// 6. Return the thermo parameters
 		return { dH: dH_kcal, dS: dS_cal_per_K, saltCorrection: saltCorr_C };
 	} catch (err) {
 		// Pass along error
@@ -3280,6 +3298,16 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		undefined,
 		stemMismatchSpec
 	);
+	console.log('tm santa lucia thermo params no mismatch:', stemMatched);
+	console.log('three prime stem santa lucia:', threePrimeStem);
+	console.log('stem mismatch spec santa lucia:', stemMismatchSpec);
+	console.log('tm santa lucia thermo params mismatch:', stemMismatched);
+
+	const stemTmMatched = await getOligoTm(threePrimeStem, undefined);
+	const stemTmMismatched = await getOligoTm(threePrimeStem, stemMismatchSpec);
+
+	console.log('StemTm:', stemTmMatched);
+	console.log('StemTm Mismatched:', stemTmMismatched);
 
 	// 5) Route matched vs mismatched to wild/variant using flags
 	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
@@ -3294,6 +3322,9 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		(terminal5p ? terminal5p.dS : 0) +
 		(terminal3p ? terminal3p.dS : 0);
 
+	console.log('common dH:', common_dH);
+	console.log('common dS:', common_dS);
+
 	const wildStem = matchesWild ? stemMatched : stemMismatched;
 	const variantStem = matchesVariant ? stemMatched : stemMismatched;
 
@@ -3304,6 +3335,11 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	const variantSum_dH = common_dH + variantStem.dH;
 	const variantSum_dS = common_dS + variantStem.dS;
 	const variantSalt = variantStem.saltCorrection || 0;
+
+	console.log('variantSum_dH:', variantSum_dH);
+	console.log('variantSum_dS:', variantSum_dS);
+	console.log('wildSum_dH:', wildSum_dH);
+	console.log('wildSum_dS:', wildSum_dS);
 
 	// 6) Compute Tm (°C)
 	const wildTm = calculateTm(
@@ -3322,6 +3358,9 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		false,
 		variantSalt
 	);
+
+	console.log('Wild tm:', wildTm);
+	console.log('Variant tm:', variantTm);
 
 	// 7) Return breakdown and totals
 	return {
