@@ -27,6 +27,8 @@ const MONO = 20.0;
 const T_PARAM = 'UnifiedSantaLucia';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
+const CONC = 1100000;
+const LIMITING_CONC = 200000;
 // This gets replaced by build.js
 const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
@@ -1398,6 +1400,108 @@ async function evaluateSnapbackTailMatchingOptions(
 		variantMatchTm - variantMatchingSnapbackTailToWildTm
 	);
 
+	/* ───────────── DEBUG LOG BLOCK (paste before the return) ───────────── */
+
+	console.group('evaluateSnapbackTailMatchingOptions — debug');
+
+	// Inputs & slices
+	console.log('initStem:', initStem, 'len=', initStem.length);
+	console.log('mismatchPos:', mismatchPos);
+	console.log('wildBase @mismatchPos:', initStem[mismatchPos]);
+	console.log('variantBase:', variantBase);
+	console.log('variantInitStem:', variantInitStem);
+
+	// Base complements (for sanity)
+	console.log('comp(wildBase):', NUCLEOTIDE_COMPLEMENT[wildBase]);
+	console.log('comp(variantBase):', NUCLEOTIDE_COMPLEMENT[variantBase]);
+
+	// Top-strand Tms (no mismatch)
+	console.log('wildMatchTm (initStem):', wildMatchTm);
+	console.log('variantMatchTm (variantInitStem):', variantMatchTm);
+
+	// Scenario A (tail matches WILD → mismatch vs VARIANT top)
+	console.log(
+		'Scenario A mismatch obj:',
+		wildMatchingSnapbackTailToVariantMismatchObj
+	);
+	console.log(
+		'Scenario A Tm (variantInitStem + A_mismatch):',
+		wildMatchingSnapbackTailToVariantTm
+	);
+	console.log(
+		'Scenario A ΔTm = |wildMatchTm - A_Tm|:',
+		Math.abs(wildMatchTm - wildMatchingSnapbackTailToVariantTm),
+		'→ stored as wildMatchingSnapbackTailTmDiff=',
+		wildMatchingSnapbackTailTmDiff
+	);
+
+	// Scenario B (tail matches VARIANT → mismatch vs WILD top)
+	console.log(
+		'Scenario B mismatch obj:',
+		variantMatchingSnapbackTailToWildMismatchObj
+	);
+	console.log(
+		'Scenario B Tm (initStem + B_mismatch):',
+		variantMatchingSnapbackTailToWildTm
+	);
+	console.log(
+		'Scenario B ΔTm = |variantMatchTm - B_Tm|:',
+		Math.abs(variantMatchTm - variantMatchingSnapbackTailToWildTm),
+		'→ stored as variantMatchingSnapbackTailTmDiff=',
+		variantMatchingSnapbackTailTmDiff
+	);
+
+	// Summary table
+	console.table([
+		{
+			Scenario: 'A: tail matches WILD',
+			topStrand: 'variantInitStem',
+			mismatchType: wildMatchingSnapbackTailToVariantMismatchObj.type,
+			BasePlacedInTail: NUCLEOTIDE_COMPLEMENT[wildBase],
+			NoMismatchTm: wildMatchTm,
+			ScenarioTm: wildMatchingSnapbackTailToVariantTm,
+			DeltaTm: wildMatchingSnapbackTailTmDiff,
+		},
+		{
+			Scenario: 'B: tail matches VARIANT',
+			topStrand: 'initStem',
+			mismatchType: variantMatchingSnapbackTailToWildMismatchObj.type,
+			BasePlacedInTail: NUCLEOTIDE_COMPLEMENT[variantBase],
+			NoMismatchTm: variantMatchTm,
+			ScenarioTm: variantMatchingSnapbackTailToWildTm,
+			DeltaTm: variantMatchingSnapbackTailTmDiff,
+		},
+	]);
+
+	// Decision preview (before actual return)
+	const _chooseA =
+		wildMatchingSnapbackTailTmDiff > variantMatchingSnapbackTailTmDiff;
+	console.log('Decision preview:', {
+		chooseA: _chooseA,
+		reason: _chooseA
+			? 'Scenario A ΔTm > Scenario B ΔTm'
+			: 'Scenario B ΔTm ≥ Scenario A ΔTm',
+		scenarioA_DeltaTm: wildMatchingSnapbackTailTmDiff,
+		scenarioB_DeltaTm: variantMatchingSnapbackTailTmDiff,
+		chosenTailBase: _chooseA
+			? NUCLEOTIDE_COMPLEMENT[wildBase]
+			: NUCLEOTIDE_COMPLEMENT[variantBase],
+		snapbackTailMatchesWildPreview: _chooseA,
+	});
+
+	// Tie/suspicious conditions
+	if (wildMatchingSnapbackTailTmDiff === variantMatchingSnapbackTailTmDiff) {
+		console.warn('ΔTm tie detected: A == B. Check inputs/orientation.');
+	}
+	if (variantBase === wildBase) {
+		console.warn(
+			'variantBase equals wildBase at mismatchPos (unexpected).'
+		);
+	}
+
+	console.groupEnd();
+	/* ───────────── END DEBUG LOG BLOCK ───────────── */
+
 	// 4) Pick whichever scenario yields the larger difference
 	if (wildMatchingSnapbackTailTmDiff > variantMatchingSnapbackTailTmDiff) {
 		// Scenario A wins
@@ -1497,6 +1601,8 @@ async function getOligoTm(seq, mismatch) {
 	apiURL += `&tparam=${T_PARAM}`;
 	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
 	apiURL += `&otype=${O_TYPE}`;
+	apiURL += `&concentration=${CONC}`;
+	apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
 	apiURL += `&token=${API_TOKEN}`;
 	if (mmSeq) {
@@ -1631,13 +1737,8 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	apiURL += `&seq=${seq.toLowerCase()}`;
 	apiURL += `&tparam=${T_PARAM}`;
 	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
-	// Only include concentrations if they were provided
-	if (concentration != null) {
-		apiURL += `&concentration=${concentration}`;
-	}
-	if (limitingConc != null) {
-		apiURL += `&limitingconc=${limitingConc}`;
-	}
+	apiURL += `&concentration=${CONC}`;
+	apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&otype=${O_TYPE}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
 	apiURL += `&token=${API_TOKEN}`;
@@ -2588,6 +2689,8 @@ function parseTmFromResponse(rawHtml, mismatch) {
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
+		console.log(rawHtml);
+
 		// 2. Getting the <tm> or <mmtm> element
 		var tmElement;
 		if (!mismatch) {
@@ -3004,14 +3107,18 @@ async function calculateSnapbackTmRochester(extended) {
 
 	// 4) Stem NN thermodynamics with/without SNV mismatch
 	// Matched stem: no mismatch object
-	const stemMatched = await getThermoParams(threePrimeStem);
+	const stemMatched = await getThermoParams(
+		threePrimeStem,
+		CONC,
+		LIMITING_CONC
+	);
 
 	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
 	const stemMismatchSpec = { position: snvIdx, type: tailBaseAtSNV };
 	const stemMismatched = await getThermoParams(
 		threePrimeStem,
-		undefined,
-		undefined,
+		CONC,
+		LIMITING_CONC,
 		stemMismatchSpec
 	);
 
@@ -3304,14 +3411,18 @@ async function calculateSnapbackTmSantaLucia(extended) {
 
 	// 4) Stem NN thermodynamics with/without SNV mismatch
 	// Matched stem: no mismatch object
-	const stemMatched = await getThermoParams(threePrimeStem);
+	const stemMatched = await getThermoParams(
+		threePrimeStem,
+		CONC,
+		LIMITING_CONC
+	);
 
 	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
 	const stemMismatchSpec = { position: snvIdx - 1, type: tailBaseAtSNV }; /////////!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! put -1
 	const stemMismatched = await getThermoParams(
 		threePrimeStem,
-		undefined,
-		undefined,
+		CONC,
+		LIMITING_CONC,
 		stemMismatchSpec
 	);
 	console.log('santa lucia thermo params MATCH:', stemMatched);
