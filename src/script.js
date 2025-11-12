@@ -2689,7 +2689,7 @@ function parseTmFromResponse(rawHtml, mismatch) {
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
-		console.log(rawHtml);
+		console.log('TM PARSING HTML', rawHtml);
 
 		// 2. Getting the <tm> or <mmtm> element
 		var tmElement;
@@ -2791,7 +2791,7 @@ function parseThermoParamsFromResponse(rawHtml) {
 		const dSNode = doc.querySelector('dS');
 		const saltNode = doc.querySelector('saltCorrection');
 
-		console.log(rawHtml);
+		console.log('PARSING THERMO PARAMS RESPONSE HTML', rawHtml);
 
 		if (
 			!dHNode ||
