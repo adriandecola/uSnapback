@@ -303,7 +303,6 @@
                     return Number.isFinite(n) ? n.toFixed(1) : '—';
                 };
                 const d = result.meltingTempDiffs ?? {};
-                console.log(d);
                 document.getElementById('dt-fwd-wild').textContent = fmt(d.onForwardPrimer?.matchWild);
                 document.getElementById('dt-fwd-var' ).textContent = fmt(d.onForwardPrimer?.matchVariant);
                 document.getElementById('dt-rev-wild').textContent = fmt(d.onReversePrimer?.matchWild);

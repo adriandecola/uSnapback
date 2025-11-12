@@ -404,7 +404,6 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  * @property {DescriptiveUnExtendedSnapbackPrimer} descriptiveUnExtendedSnapbackPrimer  Segment breakdown of the unextended snapback primer.
  * @property {DescriptiveExtendedSnapback}         descriptiveExtendedSnapback          Extended product segments and SNV indices (canonical threePrimeStem index).
  * @property {DescriptiveExtendedLimitingSnapback} descriptiveExendedLimSnapback        Limiting extended product segments and SNV indices.
-
  *                                                   			(tail → primer).
  * @property {string}						limitingPrimerSeq	The limiting primmer written 5' → 3'
  * @property {boolean}						tailOnForwardPrimer	true if tail is appended to the forward primer, i.e. the
@@ -636,6 +635,7 @@ async function createSnapback(
 	const snapbackTmSantaLucia = await calculateSnapbackTmSantaLucia(
 		descriptiveExtendedSnapback
 	);
+	console.log('snapbackTm SantaLucia Results:', snapbackTmSantaLucia);
 
 	// 5) Calculate melting temperature differences if we kept the same
 	//	  stem location but changed the primer for which we attach the snapback
@@ -1228,7 +1228,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	const mismatchPos = SNV_BASE_BUFFER;
 
 	// 7) Evaluate Tm differences for snapback tail on target strand
-	const tailOnFowardPrimerScenario =
+	const tailOnForwardPrimerScenario =
 		await evaluateSnapbackTailMatchingOptions(
 			targetInitStem,
 			mismatchPos,
@@ -1243,17 +1243,20 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 			revCompSnvSite.variantBase
 		);
 
-	// 9) Compare which scenario yields the bigger Tm difference
+	console.log('tailOnForwardPrimerScenario', tailOnForwardPrimerScenario);
+	console.log('tailOnReversePrimerScenario', tailOnReversePrimerScenario);
+
+	// 0) Compare which scenario yields the bigger Tm difference
 	if (
-		tailOnFowardPrimerScenario.bestDifference >
-		tailOnReversePrimerScenario.bestDifference
+		tailOnForwardPrimerScenario.bestTmDifference >
+		tailOnReversePrimerScenario.bestTmDifference
 	) {
 		return {
 			tailOnForwardPrimer: true,
 			bestSnapbackTailBaseAtSNV:
-				tailOnFowardPrimerScenario.bestSnapbackTailBaseAtSNV,
+				tailOnForwardPrimerScenario.bestSnapbackTailBaseAtSNV,
 			snapbackTailMatchesWild:
-				tailOnFowardPrimerScenario.snapbackTailMatchesWild,
+				tailOnForwardPrimerScenario.snapbackTailMatchesWild,
 		};
 	} else {
 		return {
@@ -1655,7 +1658,8 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	const rawHtml = await res.text();
 
 	// 5. Parse thermo parameters and return them  via the dedicated parser
-	return parseThermoParamsFromResponse(rawHtml);
+	const parsedThermoParams = parseThermoParamsFromResponse(rawHtml);
+	return parsedThermoParams;
 }
 
 /**
@@ -3130,6 +3134,17 @@ async function calculateSnapbackTmRochester(extended) {
  *
  * Parameters
  * @param {DescriptiveExtendedSnapback}  extended
+ * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed to prevent extension on the complementary snapback.
+ * @property {string} fivePrimeStem                    Snapback 5' stem segment (reverse-complement orientation).
+ * @property {string} fivePrimeInnerLoopMismatches     Inner-loop strong mismatches immediately 5' of the stem.
+ * @property {string} stuffBetween                     seq.slice(0, stem.start - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED),
+ *                                                     i.e., includes the forward primer and any bases up to (but not including) the inner-loop block.
+ * @property {string} threePrimeInnerLoopMismatches    seq slice of the inner-loop block directly left of the stem.
+ * @property {string} threePrimeStem                   seq.slice(stem.start, stem.end+1).
+ * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing strong mismatches.
+ * @property {string} threePrimerRestOfAmplicon        Remainder of seq to the 3' end after the right-side mismatch block.
+ * @property {SNVOnThreePrimeStem} snvOnThreePrimeStem SNV info indexed to threePrimeStem.
+ * @property {SNVOnFivePrimeStem}  snvOnFivePrimeStem  SNV info indexed to fivePrimeStem (snapback side).
  *
  * @returns {Promise<{
  *   wildTm: number,
@@ -3156,6 +3171,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//                            Parameter Checking                            //
 	//──────────────────────────────────────────────────────────────────────────//
+	console.log('extended', extended);
 
 	if (typeof extended !== 'object' || !extended) {
 		throw new Error('extended must be a non-null object.');
@@ -3291,18 +3307,19 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	const stemMatched = await getThermoParams(threePrimeStem);
 
 	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
-	const stemMismatchSpec = { position: snvIdx, type: tailBaseAtSNV };
+	const stemMismatchSpec = { position: snvIdx - 1, type: tailBaseAtSNV }; /////////!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! put -1
 	const stemMismatched = await getThermoParams(
 		threePrimeStem,
 		undefined,
 		undefined,
 		stemMismatchSpec
 	);
-	console.log('tm santa lucia thermo params no mismatch:', stemMatched);
+	console.log('santa lucia thermo params MATCH:', stemMatched);
+	console.log('santa lucia thermo params MISMATCH:', stemMismatched);
 	console.log('three prime stem santa lucia:', threePrimeStem);
 	console.log('stem mismatch spec santa lucia:', stemMismatchSpec);
-	console.log('tm santa lucia thermo params mismatch:', stemMismatched);
 
+	// yabadabadoo
 	const stemTmMatched = await getOligoTm(threePrimeStem, undefined);
 	const stemTmMismatched = await getOligoTm(threePrimeStem, stemMismatchSpec);
 
