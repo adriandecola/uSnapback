@@ -27,8 +27,8 @@ const MONO = 20.0;
 const T_PARAM = 'UnifiedSantaLucia';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
-const CONC = 1100000;
-const LIMITING_CONC = 200000;
+const CONC = 0.5;
+const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
 const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
@@ -604,6 +604,7 @@ async function createSnapback(
 		};
 	}
 
+	console.log('CREATING STEM_______________________');
 	// 3) Calculating the stem in the snapback primers reference point (inculsive on both ends)
 	const { bestStemLoc, meltingTemps } = await createStem(
 		targetStrandSeqSnapPrimerRefPoint,
@@ -613,6 +614,7 @@ async function createSnapback(
 		matchesWild,
 		targetSnapMeltTemp
 	);
+	console.log('DONE CREATING STEM_______________________');
 
 	// 4) Create a final snapback primer (in its reference point)
 	const {
@@ -1601,8 +1603,9 @@ async function getOligoTm(seq, mismatch) {
 	apiURL += `&tparam=${T_PARAM}`;
 	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
 	apiURL += `&otype=${O_TYPE}`;
-	apiURL += `&concentration=${CONC}`;
-	apiURL += `&limitingconc=${LIMITING_CONC}`;
+
+	//apiURL += `&concentration=${CONC}`;
+	//apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
 	apiURL += `&token=${API_TOKEN}`;
 	if (mmSeq) {
