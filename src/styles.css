@@ -370,6 +370,139 @@ input[type='number'] {
 	}
 }
 
+/* ---------------------------------- */
+/* Snapback / Extended Primer Diagrams */
+/* ---------------------------------- */
+
+.sequence-raw {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 0.9rem;
+	white-space: pre-wrap;
+	word-break: break-all;
+	margin-bottom: 0.5rem;
+}
+
+.sequence-visual {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 0.75rem 1.5rem;
+	align-items: flex-start;
+	margin: 0.25rem 0 1.25rem;
+}
+
+.sequence-visual__line {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 0.9rem;
+	line-height: 1.6;
+	white-space: nowrap;
+	overflow-x: auto;
+	padding-bottom: 0.25rem;
+}
+
+.sequence-visual__legend {
+	font-size: 0.8rem;
+	max-width: 15rem;
+}
+
+.sequence-visual__legend-title {
+	margin: 0 0 0.25rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+
+.sequence-visual__legend-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.sequence-visual__legend-list li {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	margin-bottom: 0.25rem;
+}
+
+.sequence-visual__legend-list small {
+	display: block;
+	color: #475569;
+	font-size: 0.7rem;
+}
+
+/* Legend color swatches */
+.legend-swatch {
+	display: inline-block;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 2px;
+	flex-shrink: 0;
+}
+
+/* Base styling for sequence segments */
+.dna-segment {
+	padding: 0 1px;
+	border-radius: 2px;
+}
+
+/* Segment palette (tuned to your blue theme) */
+.seg-mismatch-3p {
+	background-color: rgba(220, 38, 38, 0.15); /* red-600-ish */
+	border-bottom: 2px solid rgba(220, 38, 38, 0.55);
+}
+
+.seg-stem,
+.seg-stem-3p {
+	background-color: rgba(37, 99, 235, 0.15); /* blue-600-ish */
+	border-bottom: 2px solid rgba(37, 99, 235, 0.65);
+}
+
+.seg-inner-loop,
+.seg-inner-loop-3p {
+	background-color: rgba(22, 163, 74, 0.15); /* green-600-ish */
+	border-bottom: 2px dashed rgba(22, 163, 74, 0.8);
+}
+
+.seg-primer,
+.seg-stuff {
+	background-color: rgba(129, 140, 248, 0.15); /* indigo-ish */
+	border-bottom: 2px solid rgba(129, 140, 248, 0.7);
+}
+
+.seg-rest {
+	background-color: rgba(15, 23, 42, 0.03); /* very light slate */
+}
+
+/* Separator between functional blocks */
+.dna-segment-separator {
+	opacity: 0.7;
+	padding: 0 0.15rem;
+}
+
+/* SNV highlight inside stem */
+.snv-base {
+	background-color: rgba(251, 146, 60, 0.9); /* orange-400 */
+	border-radius: 2px;
+	font-weight: 600;
+}
+
+/* Legend swatch for SNV */
+.legend-snv {
+	background-color: rgba(251, 146, 60, 0.9);
+}
+
+/* Stack legend under diagram on small screens */
+@media (max-width: 768px) {
+	.sequence-visual {
+		grid-template-columns: 1fr;
+	}
+
+	.sequence-visual__legend {
+		max-width: none;
+	}
+}
+
 /* ------------------------------------ */
 /* ---------- Responsiveness ---------- */
 /* ------------------------------------ */
