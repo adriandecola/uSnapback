@@ -24,7 +24,7 @@ const API_TOKEN = 1;
 // Chemisty parameters
 const MG = 2.2;
 const MONO = 20.0;
-const T_PARAM = 'UnifiedSantaLucia';
+const T_PARAM = 'SantaLuciaHicks';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
 const CONC = 0.5;
@@ -2771,6 +2771,8 @@ function parseThermoParamsFromResponse(rawHtml) {
 		//    - unwrap JSON { contents: "<html>...</html>" }
 		//    - drop any preface before first '<'
 		//    - fix JSON-escaped closing tags: <\/tag> -> </tag>
+		console.log('PARSING THERMO PARAMS RESPONSE HTML', rawHtml);
+
 		let html = rawHtml;
 		const trimmed = html.trim();
 		if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -2793,8 +2795,6 @@ function parseThermoParamsFromResponse(rawHtml) {
 		const dHNode = doc.querySelector('dH');
 		const dSNode = doc.querySelector('dS');
 		const saltNode = doc.querySelector('saltCorrection');
-
-		console.log('PARSING THERMO PARAMS RESPONSE HTML', rawHtml);
 
 		if (
 			!dHNode ||
@@ -3428,6 +3428,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		LIMITING_CONC,
 		stemMismatchSpec
 	);
+
 	console.log('santa lucia thermo params MATCH:', stemMatched);
 	console.log('santa lucia thermo params MISMATCH:', stemMismatched);
 	console.log('three prime stem santa lucia:', threePrimeStem);
