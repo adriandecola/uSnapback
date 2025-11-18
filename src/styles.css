@@ -41,9 +41,9 @@ body {
 
 /* ---------- Main Content ---------- */
 .app-main {
-	max-width: 880px;
+	max-width: 90%;
 	margin: 2rem auto 4rem; /* bottom margin leaves space for the fixed button */
-	padding: 0 1.25rem;
+	padding: 0 1.25rem 6rem;
 }
 
 .instructions p {
