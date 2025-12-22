@@ -507,8 +507,8 @@
 
 
 				/* Store primer data */
-				const forwardPrimer = seq.slice(0, fwdLen);
-				const reversePrimer = seq.slice(seq.length - revLen);
+				const forwardPrimer = seq.slice(fwdRange.start, fwdRange.end + 1);
+				const reversePrimer = seq.slice(revRange.start, revRange.end + 1)
 
 				sessionStorage.setItem('forwardPrimerLen', fwdLen);
 				sessionStorage.setItem('reversePrimerLen', revLen);
