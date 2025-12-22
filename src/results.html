@@ -75,94 +75,70 @@
 
         <!-- results injected by JS -->
         <div id="resultBox" class="result-card" hidden>
-            <h2>Snapback Primer&nbsp;(5′→3′)</h2>
+            <div class="primer-header">
+                <h2>Snapback Primer&nbsp;(5′→3′)</h2>
+                <button
+                    type="button"
+                    class="copy-btn"
+                    id="copySnapSeqBtn"
+                    aria-label="Copy snapback primer to clipboard"
+                >
+                    <span class="copy-icon" aria-hidden="true"></span>
+                </button>
+            </div>
 
-                <!-- Raw sequence for copy/paste -->
-                <pre id="snapSeq" class="sequence-raw"></pre>
+            <!-- Raw sequence for copy/paste -->
+            <pre id="snapSeq" class="sequence-raw"></pre>
 
-                <!-- Segmented, color-coded representation -->
-                <div class="sequence-visual">
-                    <div
-                        id="snapSeqDiagram"
-                        class="sequence-visual__line"
-                        aria-label="Segmented snapback primer"
-                    ></div>
 
-                    <div class="sequence-visual__legend">
-                        <h3 class="sequence-visual__legend-title">Key</h3>
-                        <ul class="sequence-visual__legend-list">
-                            <li>
-                                <span class="legend-swatch seg-mismatch-3p"></span>
-                                3′ blocking mismatches on tail side
-                                <small>(fivePrimerLimSnapExtMismatches)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-stem"></span>
-                                Stem (tail side)
-                                <small>(fivePrimeStem)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-inner-loop"></span>
-                                Inner-loop mismatches on tail side
-                                <small>(fivePrimeInnerLoopMismatches)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-primer"></span>
-                                Forward primer
-                                <small>(forwardPrimer)</small>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
+            <!-- Segmented, color-coded representation -->
+            <div
+                class="sequence-visual"
+                id="snapSeqDiagram"
+                aria-label="Segmented snapback primer"
+            ></div>
 
-            <h2>Limiting Primer&nbsp;(5′→3′)</h2>
+
+            <div class="primer-header">
+                <h2>Limiting Primer&nbsp;(5′→3′)</h2>
+                <button
+                    type="button"
+                    class="copy-btn"
+                    id="copyLimitSeqBtn"
+                    aria-label="Copy limiting primer to clipboard"
+                >
+                    <span class="copy-icon" aria-hidden="true"></span>
+                </button>
+            </div>
             <pre id="limitSeq"></pre>
 
-            <h3 class="alt-title">Extended Snapback Product (Amplicon Frame)</h3>
 
-                <div class="sequence-visual">
-                    <div
-                        id="extendedSnapDiagram"
-                        class="sequence-visual__line"
-                        aria-label="Extended product around SNV"
-                    ></div>
+            <h3 class="alt-title">Extended snapback primer</h3>
+            <div
+                id="stemDiagramWrapper"
+                class="stem-diagram-wrapper"
+                aria-label="Snapback stem (extended snapback primer)"
+            >
+                <div class="stem-layout">
+                    <!-- static picture on the left -->
+                    <img
+                        src="./loop-icon.svg"
+                        alt="Hairpin loop formed by snapback tail"
+                        class="stem-loop-img"
+                    />
 
-                    <div class="sequence-visual__legend">
-                        <h3 class="sequence-visual__legend-title">Key</h3>
-                        <ul class="sequence-visual__legend-list">
-                            <li>
-                                <span class="legend-swatch seg-stuff"></span>
-                                Forward primer &amp; upstream sequence
-                                <small>(stuffBetween)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-inner-loop-3p"></span>
-                                Inner-loop mismatches (3′ side)
-                                <small>(threePrimeInnerLoopMismatches)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-stem-3p"></span>
-                                Stem (3′ side)
-                                <small>(threePrimeStem)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-mismatch-3p"></span>
-                                3′ blocking mismatches (limiting side)
-                                <small>(threePrimerLimSnapExtMismatches)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch seg-rest"></span>
-                                Rest of amplicon
-                                <small>(threePrimerRestOfAmplicon)</small>
-                            </li>
-                            <li>
-                                <span class="legend-swatch legend-snv"></span>
-                                SNV base in stem
-                                <small>(snvOnThreePrimeStem.indexInThreePrimeStem)</small>
-                            </li>
-                        </ul>
+                    <!-- existing two-row stem on the right (JS fills this) -->
+                    <div id="stemDiagram" class="stem-diagram">
+                        <!-- Top and bottom rows injected by JavaScript -->
                     </div>
                 </div>
+
+                <div
+                    id="stemSnvLabel"
+                    class="stem-snv-label"
+                    aria-live="polite"
+                ></div>
+            </div>
 
 
             <ul style="margin-top:1rem">
@@ -222,7 +198,7 @@
         import { createSnapback } from './script.js';
 
         // Visualization helpers for snapback / extended products
-        function renderSnapbackPrimerDiagram(descriptivePrimer) {
+        function renderSnapbackPrimerDiagram(descriptivePrimer, descriptiveExtended) {
             const container = document.getElementById('snapSeqDiagram');
             if (!container || !descriptivePrimer) return;
 
@@ -233,7 +209,7 @@
                 {
                     key: 'fivePrimerLimSnapExtMismatches',
                     className: 'seg-mismatch-3p',
-                    label: "3′ blocking mismatches (tail side)",
+                    label: '3′ blocking mismatches on tail side',
                 },
                 {
                     key: 'fivePrimeStem',
@@ -243,7 +219,7 @@
                 {
                     key: 'fivePrimeInnerLoopMismatches',
                     className: 'seg-inner-loop',
-                    label: 'Inner-loop mismatches (tail side)',
+                    label: 'Inner-loop mismatches on tail side',
                 },
                 {
                     key: 'forwardPrimer',
@@ -252,114 +228,348 @@
                 },
             ];
 
-            segments.forEach((seg, idx) => {
+            segments.forEach(seg => {
                 const seq = descriptivePrimer[seg.key];
                 if (!seq || !seq.length) return;
 
-                const span = document.createElement('span');
-                span.className = `dna-segment ${seg.className}`;
-                span.textContent = seq;
-                span.dataset.segmentLabel = seg.label;
-                container.appendChild(span);
+                // one row per segment: [sequence] | [swatch + label]
+                const row = document.createElement('div');
+                row.className = 'sequence-row';
 
-                if (idx !== segments.length - 1) {
-                    const sep = document.createElement('span');
-                    sep.className = 'dna-segment-separator';
-                    sep.textContent = ' · ';
-                    container.appendChild(sep);
-                }
+                const seqCell = document.createElement('div');
+                seqCell.className = 'sequence-row__seq';
+
+                const seqSpan = document.createElement('span');
+                seqSpan.className = `dna-segment ${seg.className}`;
+                seqSpan.textContent = seq;
+                seqCell.appendChild(seqSpan);
+
+                const labelCell = document.createElement('div');
+                labelCell.className = 'sequence-row__label';
+
+                const swatch = document.createElement('span');
+                swatch.className = `legend-swatch ${seg.className}`;
+                labelCell.appendChild(swatch);
+
+                const labelText = document.createElement('span');
+                labelText.textContent = seg.label; // no variable names, single line
+                labelCell.appendChild(labelText);
+
+                row.appendChild(seqCell);
+                row.appendChild(labelCell);
+                container.appendChild(row);
             });
         }
 
-        function renderExtendedSnapbackDiagram(descriptiveExtended) {
-            const container = document.getElementById('extendedSnapDiagram');
-            if (!container || !descriptiveExtended) return;
+                // Auto-size the stem diagram based on its container width
+        function autoSizeStemDiagram(wrapper) {
+            if (!wrapper) return;
+            const diagram = wrapper.querySelector('.stem-diagram');
+            if (!diagram) return;
 
-            container.textContent = '';
+            const topRow = diagram.querySelector('.stem-row--top');
+            if (!topRow) return;
 
-            const snvIndex =
-                descriptiveExtended.snvOnThreePrimeStem?.indexInThreePrimeStem;
+            const ntCount = (topRow.textContent || '').length || 1;
+            const width = wrapper.clientWidth || wrapper.offsetWidth || 320;
 
-            const segments = [
-                {
-                    key: 'stuffBetween',
-                    className: 'seg-stuff',
-                    label: 'Forward primer & upstream',
-                },
-                {
-                    key: 'threePrimeInnerLoopMismatches',
-                    className: 'seg-inner-loop-3p',
-                    label: 'Inner-loop mismatches (3′ side)',
-                },
-                {
-                    key: 'threePrimeStem',
-                    className: 'seg-stem-3p',
-                    label: 'Stem (3′ side)',
-                },
-                {
-                    key: 'threePrimerLimSnapExtMismatches',
-                    className: 'seg-mismatch-3p',
-                    label: '3′ blocking mismatches (limiting side)',
-                },
-                {
-                    key: 'threePrimerRestOfAmplicon',
-                    className: 'seg-rest',
-                    label: 'Rest of amplicon',
-                },
-            ];
+            // Heuristic: keep between 10–22 px and roughly fit the width
+            let fontSize = width / (ntCount * 1.3);
+            fontSize = Math.max(10, Math.min(22, fontSize));
 
-            segments.forEach((seg, idx) => {
-                let seq = descriptiveExtended[seg.key];
-                if (!seq || !seq.length) return;
+            wrapper.style.setProperty('--stem-font-size', `${fontSize}px`);
+        }
 
-                // Special case: mark SNV base inside threePrimeStem
-                if (
-                    seg.key === 'threePrimeStem' &&
-                    Number.isInteger(snvIndex) &&
-                    snvIndex >= 0 &&
-                    snvIndex < seq.length
-                ) {
-                    const before = seq.slice(0, snvIndex);
-                    const snvBase = seq[snvIndex];
-                    const after = seq.slice(snvIndex + 1);
+        // Position the "Wild / Variant" label underneath the SNV base
+        function positionStemSnvLabel(wrapper) {
+            if (!wrapper) return;
 
-                    const stemSpan = document.createElement('span');
-                    stemSpan.className = `dna-segment ${seg.className}`;
-                    stemSpan.dataset.segmentLabel = seg.label;
-                    container.appendChild(stemSpan);
+            const labelEl = wrapper.querySelector('#stemSnvLabel');
+            const snvSpan = wrapper.querySelector('.stem-nt--snv');
 
-                    if (before.length) {
-                        const beforeSpan = document.createElement('span');
-                        beforeSpan.textContent = before;
-                        stemSpan.appendChild(beforeSpan);
-                    }
+            if (!labelEl || !snvSpan) return;
 
-                    const snvSpan = document.createElement('span');
-                    snvSpan.textContent = snvBase;
-                    snvSpan.className = 'snv-base';
-                    stemSpan.appendChild(snvSpan);
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const snvRect = snvSpan.getBoundingClientRect();
 
-                    if (after.length) {
-                        const afterSpan = document.createElement('span');
-                        afterSpan.textContent = after;
-                        stemSpan.appendChild(afterSpan);
-                    }
+            // Coordinates relative to the wrapper
+            const centerX =
+                snvRect.left + snvRect.width / 2 - wrapperRect.left;
+            const labelTop =
+                snvRect.bottom - wrapperRect.top + 6; // 6px gap under the stem
+
+            labelEl.style.left = `${centerX}px`;
+            labelEl.style.top = `${labelTop}px`;
+        }
+
+
+
+        function updateStemLayout(wrapper) {
+            autoSizeStemDiagram(wrapper);
+            positionStemSnvLabel(wrapper);
+        }
+
+        // Shared ResizeObserver for the stem diagram
+        if (typeof ResizeObserver !== 'undefined') {
+            window._stemResizeObserver =
+                window._stemResizeObserver ||
+                new ResizeObserver(entries => {
+                    entries.forEach(entry => updateStemLayout(entry.target));
+                });
+        }
+
+
+        function clearStemSnvInterval() {
+            if (window._stemSnvInterval) {
+                clearInterval(window._stemSnvInterval);
+                window._stemSnvInterval = null;
+            }
+        }
+
+
+        // Build a 2-row stem with angled, non-hybridizing mismatches
+        // at both the 5′ (loop) and 3′ (extension-block) ends.
+        function renderStemDiagram(
+            descriptivePrimer,
+            descriptiveExtended,
+            wildBase,
+            variantBase,
+            snvStemIndex
+        ) {
+            const wrapper = document.getElementById('stemDiagramWrapper');
+            const diagram = document.getElementById('stemDiagram');
+            const labelEl = document.getElementById('stemSnvLabel');
+
+            if (!wrapper || !diagram) return;
+            if (!descriptivePrimer || !descriptiveExtended) return;
+
+            // Show only the 5′ and 3′ ends of each mismatch block
+            const summarizeMismatchEnds = seq => {
+                if (!seq || typeof seq !== 'string') return '';
+                const trimmed = seq.trim();
+                if (!trimmed) return '';
+                if (trimmed.length <= 2) return trimmed;
+                const first = trimmed[0];
+                const last = trimmed[trimmed.length - 1];
+                return `${first}…${last}`;
+            };
+
+            const topStemSeq = descriptivePrimer.fivePrimeStem || '';
+            const bottomStemSeq = descriptiveExtended.threePrimeStem || '';
+
+            if (!topStemSeq || !bottomStemSeq) {
+                wrapper.hidden = true;
+                if (labelEl) {
+                    labelEl.textContent = '';
+                }
+                clearStemSnvInterval();
+                return;
+            }
+
+            // Use the overlapping part of the stem on both strands
+            const len = Math.min(topStemSeq.length, bottomStemSeq.length);
+            const top = topStemSeq.slice(0, len);
+            const bottom = bottomStemSeq.slice(0, len);
+
+            // 5′ inner-loop mismatches (loop side)
+            const innerLoopTopSeq =
+                descriptivePrimer.fivePrimeInnerLoopMismatches || '';
+            const innerLoopBottomSeq =
+                descriptiveExtended.threePrimeInnerLoopMismatches || '';
+
+            // 3′ terminal mismatches that block extension
+            const terminalTopSeq =
+                descriptivePrimer.fivePrimerLimSnapExtMismatches || '';
+            const terminalBottomSeq =
+                descriptiveExtended.threePrimerLimSnapExtMismatches || '';
+
+            const leftTopDisplay = summarizeMismatchEnds(innerLoopTopSeq);
+            const leftBottomDisplay = summarizeMismatchEnds(innerLoopBottomSeq);
+            const rightTopDisplay = summarizeMismatchEnds(terminalTopSeq);
+            const rightBottomDisplay = summarizeMismatchEnds(
+                terminalBottomSeq
+            );
+
+            // Validate SNV index in stem coordinates
+            const validSnvIndex =
+                Number.isInteger(snvStemIndex) &&
+                snvStemIndex >= 0 &&
+                snvStemIndex < len
+                    ? snvStemIndex
+                    : null;
+
+            // Clear any old content
+            diagram.textContent = '';
+
+            // ───── Top row: snapback strand ─────
+            const topRow = document.createElement('div');
+            topRow.className = 'stem-row stem-row--top';
+
+            if (leftTopDisplay) {
+                const topLeftMismatch = document.createElement('span');
+                topLeftMismatch.className =
+                    'stem-mismatch-block ' +
+                    'stem-mismatch-block--inner-loop ' +
+                    'stem-mismatch-block--left ' +
+                    'stem-mismatch-block--top';
+                topLeftMismatch.textContent = leftTopDisplay;
+                topRow.appendChild(topLeftMismatch);
+            }
+
+            const topCoreRow = document.createElement('span');
+            topCoreRow.className = 'stem-core-row stem-core-row--top';
+            topCoreRow.textContent = top;
+            topRow.appendChild(topCoreRow);
+
+            if (rightTopDisplay) {
+                const topRightMismatch = document.createElement('span');
+                topRightMismatch.className =
+                    'stem-mismatch-block ' +
+                    'stem-mismatch-block--terminal ' +
+                    'stem-mismatch-block--right ' +
+                    'stem-mismatch-block--top';
+                topRightMismatch.textContent = rightTopDisplay;
+                topRow.appendChild(topRightMismatch);
+            }
+
+            diagram.appendChild(topRow);
+
+            // ───── Bottom row: extended product strand ─────
+            const bottomRow = document.createElement('div');
+            bottomRow.className = 'stem-row stem-row--bottom';
+
+            if (leftBottomDisplay) {
+                const bottomLeftMismatch = document.createElement('span');
+                bottomLeftMismatch.className =
+                    'stem-mismatch-block ' +
+                    'stem-mismatch-block--inner-loop ' +
+                    'stem-mismatch-block--left ' +
+                    'stem-mismatch-block--bottom';
+                bottomLeftMismatch.textContent = leftBottomDisplay;
+                bottomRow.appendChild(bottomLeftMismatch);
+            }
+
+            const bottomCoreRow = document.createElement('span');
+            bottomCoreRow.className = 'stem-core-row stem-core-row--bottom';
+
+            let snvSpan = null;
+
+            for (let i = 0; i < len; i += 1) {
+                const ntSpan = document.createElement('span');
+                ntSpan.className = 'stem-nt';
+
+                if (i === validSnvIndex) {
+                    ntSpan.classList.add('stem-nt--snv');
+                    snvSpan = ntSpan;
+                    // content set by toggle logic below
                 } else {
-                    const span = document.createElement('span');
-                    span.className = `dna-segment ${seg.className}`;
-                    span.textContent = seq;
-                    span.dataset.segmentLabel = seg.label;
-                    container.appendChild(span);
+                    ntSpan.textContent = bottom[i] || 'N';
                 }
 
-                if (idx !== segments.length - 1) {
-                    const sep = document.createElement('span');
-                    sep.className = 'dna-segment-separator';
-                    sep.textContent = ' · ';
-                    container.appendChild(sep);
+                bottomCoreRow.appendChild(ntSpan);
+            }
+
+            bottomRow.appendChild(bottomCoreRow);
+
+            if (rightBottomDisplay) {
+                const bottomRightMismatch = document.createElement('span');
+                bottomRightMismatch.className =
+                    'stem-mismatch-block ' +
+                    'stem-mismatch-block--terminal ' +
+                    'stem-mismatch-block--right ' +
+                    'stem-mismatch-block--bottom';
+                bottomRightMismatch.textContent = rightBottomDisplay;
+                bottomRow.appendChild(bottomRightMismatch);
+            }
+
+            diagram.appendChild(bottomRow);
+
+            // Initial sizing + observe for future resizes
+                        wrapper.hidden = false;
+            if (labelEl) {
+                labelEl.hidden = false;
+            }
+
+            // Initial sizing + label positioning
+            updateStemLayout(wrapper);
+
+            if (window._stemResizeObserver) {
+                window._stemResizeObserver.observe(wrapper);
+            }
+
+            // If we don't have a valid SNV or bases, just show static stem.
+            clearStemSnvInterval();
+
+            if (
+                !snvSpan ||
+                !labelEl ||
+                !wildBase ||
+                !variantBase ||
+                validSnvIndex === null
+            ) {
+                if (snvSpan && validSnvIndex !== null) {
+                    snvSpan.textContent = bottom[validSnvIndex] || 'N';
                 }
-            });
+                if (labelEl) {
+                    labelEl.textContent = '';
+                }
+                return;
+            }
+
+            const wildChar = wildBase;
+            const variantChar = variantBase;
+
+
+            let showWild = true;
+
+            const applyState = () => {
+                const currentBase = showWild ? wildChar : variantChar;
+                const labelText = showWild
+                    ? `Wild: ${wildChar}`
+                    : `Variant: ${variantChar}`;
+
+                snvSpan.textContent = currentBase;
+
+                snvSpan.classList.remove(
+                    'stem-snv--wild',
+                    'stem-snv--variant'
+                );
+                labelEl.classList.remove(
+                    'stem-snv--wild',
+                    'stem-snv--variant'
+                );
+
+                const cls = showWild
+                    ? 'stem-snv--wild'
+                    : 'stem-snv--variant';
+                snvSpan.classList.add(cls);
+                labelEl.classList.add(cls);
+
+                labelEl.textContent = labelText;
+
+                // Re-position label under the SNV after layout
+                if (typeof requestAnimationFrame === 'function') {
+                    requestAnimationFrame(() => positionStemSnvLabel(wrapper));
+                } else {
+                    positionStemSnvLabel(wrapper);
+                }
+            };
+
+            // Initial state = wild
+            applyState();
+
+
+            window._stemSnvInterval = setInterval(() => {
+                showWild = !showWild;
+                applyState();
+            }, 2000);
         }
+
+
+
+
+
+
 
 
         (async () => {
@@ -368,6 +578,57 @@
             const restartBtn = document.getElementById('restartBtn');
             const resultBox  = document.getElementById('resultBox');
             const overlay    = document.getElementById('loadingOverlay');
+            /* Copy buttons */
+            const copySnapBtn  = document.getElementById('copySnapSeqBtn');
+            const copyLimitBtn = document.getElementById('copyLimitSeqBtn');
+
+            /* ---------- Clipboard helper ---------- */
+            function copyTextToClipboard(text) {
+                if (!text) return;
+
+                // Prefer modern async clipboard API
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).catch(err => {
+                        console.error('Clipboard copy failed:', err);
+                    });
+                    return;
+                }
+
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'absolute';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    document.execCommand('copy');
+                } catch (err) {
+                    console.error('execCommand copy failed:', err);
+                }
+
+                document.body.removeChild(textarea);
+            }
+
+            /* ---------- Wire up copy buttons ---------- */
+            if (copySnapBtn) {
+                copySnapBtn.addEventListener('click', () => {
+                    const el = document.getElementById('snapSeq');
+                    const text = el?.textContent.trim();
+                    copyTextToClipboard(text);
+                });
+            }
+
+            if (copyLimitBtn) {
+                copyLimitBtn.addEventListener('click', () => {
+                    const el = document.getElementById('limitSeq');
+                    const text = el?.textContent.trim();
+                    copyTextToClipboard(text);
+                });
+            }
+
 
             /* ---------- Nav targets ---------- */
             const PREV  = 'desiredTm.html';
@@ -496,8 +757,25 @@
                 /* populate UI */
                 document.getElementById('snapSeq' ).textContent = result.snapbackSeq;
                 document.getElementById('limitSeq').textContent = result.limitingPrimerSeq;
-                renderSnapbackPrimerDiagram(result.descriptiveUnExtendedSnapbackPrimer); // build segmented/color-coded diagrams
-                renderExtendedSnapbackDiagram(result.descriptiveExtendedSnapback); // build segmented/color-coded diagrams
+                renderSnapbackPrimerDiagram(
+                    result.descriptiveUnExtendedSnapbackPrimer,
+                    result.descriptiveExtendedSnapback
+                ); // segmented/color-coded parts for the snapback primer
+
+                const snvStemIndex =
+                    result.descriptiveExtendedSnapback
+                        ?.snvOnThreePrimeStem
+                        ?.indexInThreePrimeStem;
+
+                renderStemDiagram(
+                    result.descriptiveUnExtendedSnapbackPrimer,
+                    result.descriptiveExtendedSnapback,
+                    seq[snvIndex],   // wild base from the amplicon
+                    snvBase,         // variant base
+                    snvStemIndex     // index within the threePrimeStem string
+                ); // two-row horizontal stem view with SNV toggle
+
+
                 document.getElementById('tailSide').textContent =
                     result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer';
                 document.getElementById('matchesWild').textContent =
