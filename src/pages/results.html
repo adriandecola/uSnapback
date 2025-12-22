@@ -53,7 +53,7 @@
 	<meta property="og:description" content="An application to design a snapback primer for single base variant asymmetrical PCR."/>
 
     <!-- Link to CSS File -->
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="../styles/styles.css">
 </head>
 
 <body>
@@ -122,7 +122,7 @@
                 <div class="stem-layout">
                     <!-- static picture on the left -->
                     <img
-                        src="./loop-icon.svg"
+                        src="../loop-icon.svg"
                         alt="Hairpin loop formed by snapback tail"
                         class="stem-loop-img"
                     />
@@ -195,7 +195,7 @@
 
 	<!-- ───────────── Scripts ───────────── -->
     <script type = "module">
-        import { createSnapback } from './script.js';
+        import { createSnapback } from '../script.js';
 
         // Visualization helpers for snapback / extended products
         function renderSnapbackPrimerDiagram(descriptivePrimer, descriptiveExtended) {
