@@ -33,26 +33,59 @@ const DIST_DIR = path.join(__dirname, 'dist');
 fs.rmSync(DIST_DIR, { recursive: true, force: true });
 fs.mkdirSync(DIST_DIR, { recursive: true });
 
-// 6. Copy all files in src/ to dist/, replacing enviroment variables
-for (const file of fs.readdirSync(SRC_DIR)) {
-	const srcPath = path.join(SRC_DIR, file);
-	const distPath = path.join(DIST_DIR, file);
+// 6. Copy everything from src/ into dist/ (including folders).
+//    Only exception: in src/script.js we replace __API_URL__ / __PROXY_URL__ / __USE_PROXY__.
 
-	if (fs.statSync(srcPath).isDirectory()) continue;
+const foldersToVisit = ['']; // we start at /src
 
-	let content = fs.readFileSync(srcPath, 'utf-8');
+while (foldersToVisit.length > 0) {
+	const relFolder = foldersToVisit.pop(); // e.g. '', 'pages', 'styles'
+	const srcFolder = path.join(SRC_DIR, relFolder); // absolute path inside SRC_DIR
 
-	// Replace __API_URL__ in script.js only
-	if (file === 'script.js') {
-		content = content
-			// quote strings with JSON.stringify(...)
-			.replace(/__API_URL__/g, JSON.stringify(API_URL))
-			.replace(/__PROXY_URL__/g, JSON.stringify(PROXY_URL || ''))
-			// leave the boolean un-quoted
-			.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false');
+	// Read this folder and distinguish files vs subfolders
+	const entries = fs.readdirSync(srcFolder, { withFileTypes: true });
+
+	for (const entry of entries) {
+		// macOS sometimes adds this file everywhere; ignore it
+		if (entry.name === '.DS_Store') continue;
+
+		// Build path for this entry, relative to src/
+		const relPath = path.join(relFolder, entry.name); // e.g. 'pages/start.html'
+		const srcPath = path.join(SRC_DIR, relPath);
+		const distPath = path.join(DIST_DIR, relPath);
+
+		// If it’s a folder:
+		//   1) create the matching folder in dist/
+		//   2) remember to walk into it
+		if (entry.isDirectory()) {
+			fs.mkdirSync(distPath, { recursive: true });
+			foldersToVisit.push(relPath);
+			continue;
+		}
+
+		// If it’s a file, make sure dist’s parent folder exists before writing/copying
+		fs.mkdirSync(path.dirname(distPath), { recursive: true });
+
+		// Only rewrite placeholders in the top-level script.js (src/script.js)
+		// Everything else is copied byte-for-byte.
+		const normalizedRelPath = relPath.replaceAll('\\', '/');
+		if (normalizedRelPath === 'script.js') {
+			let content = fs.readFileSync(srcPath, 'utf-8');
+
+			content = content
+				// we quote strings with JSON.stringify(...) so the JS stays valid
+				.replace(/__API_URL__/g, JSON.stringify(API_URL))
+				.replace(/__PROXY_URL__/g, JSON.stringify(PROXY_URL || ''))
+				// boolean should be literal true/false, not a string
+				.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false');
+
+			fs.writeFileSync(distPath, content, 'utf-8');
+		} else {
+			// Copy the file exactly as-is
+			fs.copyFileSync(srcPath, distPath);
+		}
 	}
-
-	fs.writeFileSync(distPath, content);
 }
 
+// 7. Complete
 console.log(`Build complete.`);
