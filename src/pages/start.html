@@ -88,16 +88,8 @@
 	<!-- Floating NEXT button -->
 	<button type="button" id="nextBtn" class="next-btn">Next ⭢</button>
 
-	<!-- Script to advance to the amplicon page -->
-	<script>
-        // Apparently its good practice to wrap script tags in anonnymous functions
-        // as not to pollute the global scope
-        (() => {
-            document.getElementById('nextBtn').addEventListener('click', () => {
-                // Update this path if your amplicon page has a different filename
-                window.location.href = 'amplicon.html';
-            });
-        })()
-	</script>
+	<!-- Javascript for this page -->
+	<script type="module" src="../js/pages/start.js"></script>
+
 </body>
 </html>
