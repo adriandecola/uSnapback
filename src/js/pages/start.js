@@ -2,8 +2,8 @@
   File:             start.js
   Description:      Page logic for start.html
   Author:           Adrian deCola
-  Relative Path:    uSnapback/src/scripts/start.js
-  Linked files:     ../pages/start.html
+  Relative Path:    uSnapback/src/js/pages/start.js
+  Used by:          ../pages/start.html
 */
 
 /*
