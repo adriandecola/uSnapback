@@ -6,6 +6,7 @@
   Used by:          ../../pages/amplicon.html
 */
 
+/* ---------------------------------------- Imports --------------------------------------- */
 import {
 	AMPLICON_LIMIT,
 	MIN_AMP_LEN,
@@ -17,16 +18,19 @@ import {
 	BASES,
 } from '../shared/constants.js';
 
+import { validateAmplicon } from '../shared/validators.js';
+
+/* ------------------------ Document element and page specific constants ------------------------ */
 const input = document.getElementById('ampliconInput');
 const form = document.getElementById('ampliconForm');
 const prev = document.getElementById('prevBtn');
 const statsBox = document.getElementById('ampliconStats');
 const ampLenOut = document.getElementById('ampLenOut');
 const ampGcOut = document.getElementById('ampGcOut');
-const nextPg = 'primers.html';
-const prevPg = 'start.html';
 const restartBtn = document.getElementById('restartBtn');
 const countBox = document.getElementById('ampliconCount');
+const nextPg = 'primers.html';
+const prevPg = 'start.html';
 
 // IME-composition guard (place near other const/let declarations)
 let isComposing = false;
@@ -136,7 +140,7 @@ input.addEventListener('input', (e) => {
 	updateCharCount();
 });
 
-// CHANGED: Tab inserts '\t' while preserving caret, scroll, stats, and storage
+// Tab inserts '\t' while preserving caret, scroll, stats, and storage
 input.addEventListener('keydown', (e) => {
 	if (e.key !== 'Tab') return;
 
@@ -165,24 +169,16 @@ input.addEventListener('keydown', (e) => {
 	updateCharCount();
 });
 
-/* 2. On submit, save sequence and navigate forward */
+/* On submit/next, check sequence, save sequence and navigate forward (if appropriate) */
 form.addEventListener('submit', (e) => {
 	e.preventDefault();
 	/*---------- Checking the amplicon ----------*/
-	const raw = input.value.trim(); // preserve user formatting
-	const seq = raw.replace(/\s+/g, ''); // compact for validation
-	if (!seq) {
-		alert('Amplicon sequence not found. Please restart.');
-		return;
-	}
-	if (seq.length < 33) {
-		alert('The amplicon it too short.');
-		return;
-	}
-	if (seq.length > AMPLICON_LIMIT) {
-		alert(
-			`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`
-		);
+	const raw = input.value.trim();
+	const seq = raw.replace(/\s+/g, '');
+
+	const vAmp = validateAmplicon(seq);
+	if (!vAmp.ok) {
+		alert(vAmp.msg);
 		return;
 	}
 
@@ -194,7 +190,7 @@ form.addEventListener('submit', (e) => {
 	window.location.href = nextPg;
 });
 
-/* 3. Handle Previous button click */
+/* Handle Previous button click */
 prev.addEventListener('click', () => {
 	// Store sequence
 	sessionStorage.setItem('sequenceRaw', input.value.trim());

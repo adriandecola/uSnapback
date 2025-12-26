@@ -6,6 +6,8 @@
   Used by:          ../../pages/primers.html
 */
 
+/* ---------------------------------------- Imports --------------------------------------- */
+
 import {
 	AMPLICON_LIMIT,
 	MIN_AMP_LEN,
@@ -17,6 +19,12 @@ import {
 	BASES,
 } from '../shared/constants.js';
 
+import {
+	validateAmplicon,
+	validatePrimerRanges,
+} from '../shared/validators.js';
+
+/* ------------------------ Document element and page specific constants ------------------------ */
 const raw = sessionStorage.getItem('sequenceRaw') || '';
 const seq = sessionStorage.getItem('sequence') || '';
 const form = document.getElementById('primerForm');
@@ -332,62 +340,33 @@ restartBtn.addEventListener('click', () => {
 form.addEventListener('submit', (e) => {
 	e.preventDefault();
 
-	/*---------- Checking the amplicon ----------*/
-	if (!seq) {
-		alert('Amplicon sequence not found. Please restart.');
-		return;
-	}
-	if (seq.length < 33) {
-		alert('The amplicon it too short.');
-		return;
-	}
-	if (seq.length > AMPLICON_LIMIT) {
-		alert(
-			`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`
-		);
+	// Validate uncropped amplicon
+	const vAmp = validateAmplicon(seq);
+	if (!vAmp.ok) {
+		alert(vAmp.msg);
 		return;
 	}
 
-	/*---------- Checking the primers (range-based) ----------*/
-	if (!fwdRange || !revRange) {
-		alert('Please select both forward and reverse primers.');
+	// Validate primers
+	const vRanges = validatePrimerRanges(seq.length, fwdRange, revRange);
+	if (!vRanges.ok) {
+		alert(vRanges.msg);
 		return;
 	}
 
-	const fwdLen = rangeLen(fwdRange);
-	const revLen = rangeLen(revRange);
-
-	if (fwdLen < MIN_PRIMER_LEN || revLen < MIN_PRIMER_LEN) {
-		alert(
-			`Each primer must be at least ${MIN_PRIMER_LEN} nucleotides long.`
-		);
-		return;
-	}
-
-	const gap = revRange.start - fwdRange.end - 1;
-	if (gap < MIN_GAP_BETWEEN_PRIMERS) {
-		alert(
-			`Need at least ${MIN_GAP_BETWEEN_PRIMERS} bases between primers.`
-		);
-		return;
-	}
-	if (revRange.start <= fwdRange.end) {
-		alert('Primers cannot overlap.');
-		return;
-	}
+	const { fwdLen, revLen } = vRanges.data;
 
 	/* Crop the amplicon so primers become the ends (keeps downstream logic the same) */
 	const croppedSeq = seq.slice(fwdRange.start, revRange.end + 1);
 
-	// re-check length constraints on the cropped amplicon
-	if (croppedSeq.length < 33) {
-		alert('The amplicon is too short after cropping.');
-		return;
-	}
-	if (croppedSeq.length > AMPLICON_LIMIT) {
-		alert(
-			`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${croppedSeq.length}). Please shorten it.`
-		);
+	// Revalidate cropped amplicon
+	const vCropped = validateAmplicon(croppedSeq, {
+		messages: {
+			tooShort: 'The amplicon is too short after cropping.',
+		},
+	});
+	if (!vCropped.ok) {
+		alert(vCropped.msg);
 		return;
 	}
 

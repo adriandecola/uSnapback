@@ -6,6 +6,7 @@
   Used by:          ../../pages/variant.html
 */
 
+/* ---------------------------------------- Imports --------------------------------------- */
 import {
 	AMPLICON_LIMIT,
 	MIN_AMP_LEN,
@@ -16,19 +17,22 @@ import {
 	TM_MAX,
 	BASES,
 } from '../shared/constants.js';
+import {
+	validateAmplicon,
+	validatePrimerLengths,
+	validateSnv,
+} from '../shared/validators.js';
 
-/* --------------------------------------------------
+/* -----------------------------------------------------------------------------------------
 Pull saved data from sessionStorage
-+ (unary plus) converts string → number
--------------------------------------------------- */
++ (unary plus) converts string to a number
+-------------------------------------------------------------------------------------------- */
 const raw = sessionStorage.getItem('sequenceRaw') || '';
 const seq = sessionStorage.getItem('sequence') || '';
 const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
 const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
 
-/* --------------------------------------------------
-Cache DOM elements
--------------------------------------------------- */
+/* ------------------------ Document element and page specific constants ------------------- */
 const idxIn = document.getElementById('snvIndex'); // numeric index input
 const baseSel = document.getElementById('snvBase'); // <select> for variant base
 const box = document.getElementById('ampliconBox'); // preview container
@@ -36,14 +40,13 @@ const form = document.getElementById('variantForm');
 const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const errBox = document.getElementById('snvError');
-
 /* Target pages */
 const NEXT = 'desiredTm.html';
 const PREV = 'primers.html';
 
-/* --------------------------------------------------
+/* -----------------------------------------------------------------------------------------
 Restore previously entered values, if any
--------------------------------------------------- */
+-------------------------------------------------------------------------------------------- */
 idxIn.value = sessionStorage.getItem('snvIndex') ?? '';
 baseSel.dataset.keep = sessionStorage.getItem('snvBase') ?? '';
 
@@ -62,8 +65,8 @@ function isValidSnvIndex(i) {
 	if (!Number.isInteger(i)) return false;
 	if (i < 0 || i >= seq.length) return false;
 	if (i < fwdLen || i >= seq.length - revLen) return false; // not inside primer regions
-	if (i < fwdLen + 3) return false; // too close to forward primer
-	if (i > seq.length - revLen - 4) return false; // too close to reverse primer
+	if (i < fwdLen + SNV_GAP) return false; // too close to forward primer
+	if (i > seq.length - revLen - 1 - SNV_GAP) return false; // too close to reverse primer
 	return true;
 }
 
@@ -147,78 +150,21 @@ form.addEventListener('submit', (e) => {
 	const idx = +idxIn.value; // string → number
 	const base = baseSel.value; // already a string
 
-	/*---------- Checking the amplicon ----------*/
-	if (!seq) {
-		alert('Amplicon sequence not found. Please restart.');
-		return;
-	}
-	if (seq.length < 33) {
-		alert('The amplicon it too short.');
-		return;
-	}
-	if (seq.length > AMPLICON_LIMIT) {
-		alert(
-			`Amplicon exceeds ${AMPLICON_LIMIT} nucleotides (${seq.length}). Please shorten it.`
-		);
+	const vAmp = validateAmplicon(seq);
+	if (!vAmp.ok) {
+		alert(vAmp.msg);
 		return;
 	}
 
-	/*---------- Checking the primers ----------*/
-	if (!Number.isInteger(fwdLen) || !Number.isInteger(revLen)) {
-		alert('Please enter valid primer lengths.');
-		return;
-	}
-	if (fwdLen < 12 || revLen < 12) {
-		alert('Each primer must be at least 12 nucleotides long.');
-		return;
-	}
-	if (fwdLen > seq.length) {
-		// NEW
-		alert('Forward primer length exceeds amplicon length.');
-		return;
-	}
-	if (revLen > seq.length) {
-		// NEW
-		alert('Reverse primer length exceeds amplicon length.');
-		return;
-	}
-	if (fwdLen + revLen > seq.length) {
-		alert('Combined primer lengths exceed amplicon length.');
+	const vPrim = validatePrimerLengths(seq.length, fwdLen, revLen);
+	if (!vPrim.ok) {
+		alert(vPrim.msg);
 		return;
 	}
 
-	/*---------- Checking variant index and base ----------*/
-	if (idxIn.value.trim() === '') {
-		alert('Please enter a variant index.');
-		return;
-	}
-	if (!Number.isInteger(idx) || idx < 0 || idx >= seq.length) {
-		alert('Variant index is out of range.');
-		return;
-	}
-	if (!'ACGT'.includes(base)) {
-		alert('Please select a variant base.');
-		return;
-	}
-	/* overlaps either primer region */
-	if (idx < fwdLen || idx >= seq.length - revLen) {
-		alert('SNV overlaps a primer-binding site. Choose a different index.');
-		return;
-	}
-	/* too close—need ≥ 3-bp gap (= 4 bp away) */
-	if (idx < fwdLen + 3) {
-		alert('SNV is too close to the forward primer (need ≥ 3-bp gap).');
-		return;
-	}
-	if (idx > seq.length - revLen - 4) {
-		alert('SNV is too close to the reverse primer (need ≥ 3-bp gap).');
-		return;
-	}
-	// make sure variant base is different from wild-type base
-	if (base === seq[idx]) {
-		alert(
-			`Variant base must be different from the wild-type base at index ${idx} (${seq[idx]}).`
-		);
+	const vSnv = validateSnv(seq, fwdLen, revLen, idxIn.value, baseSel.value);
+	if (!vSnv.ok) {
+		alert(vSnv.msg);
 		return;
 	}
 
@@ -283,7 +229,7 @@ function updateBaseOptions() {
 		showError('SNV overlaps a primer-binding site.');
 		return;
 	}
-	if (idx < fwdLen + 3 || idx > seq.length - revLen - 4) {
+	if (idx < fwdLen + SNV_GAP || idx > seq.length - revLen - 1 - SNV_GAP) {
 		showError('SNV is too close to a primer-binding site.');
 		return;
 	}
