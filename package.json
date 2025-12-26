@@ -11,9 +11,9 @@
     "build": "node build.js",
     "serve": "npm run build && vite",
     "serve:silent": "TEST=true vite",
-    "test": "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose\"",
-    "test:focus": "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose --testNamePattern=$FOCUS\"",
-    "test:file":   "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose --runTestsByPath $PATH\""
+    "test": "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/pages/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose\"",
+    "test:focus": "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/pages/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose --testNamePattern=$FOCUS\"",
+    "test:file":   "npm run build && concurrently -k -s first -n SERVE,TEST \"npm run serve:silent\" \"wait-on --timeout 10000 http://localhost:8000/pages/start.html && node --experimental-vm-modules node_modules/.bin/jest --verbose --runTestsByPath $PATH\""
 
   },
   "keywords": [],
