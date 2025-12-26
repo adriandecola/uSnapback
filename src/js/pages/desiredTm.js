@@ -18,8 +18,6 @@ const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const NEXT = 'results.html'; // destination after Tm is set
 const PREV = 'variant.html';
-// maximum nt allowed
-const AMPLICON_LIMIT = 1000;
 
 /* restore previous value */
 const saved = sessionStorage.getItem('desiredTm');

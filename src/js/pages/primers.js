@@ -23,10 +23,6 @@ const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const nextPage = 'variant.html';
 const prevPage = 'amplicon.html';
-// maximum nt allowed
-const AMPLICON_LIMIT = 1000;
-const MIN_PRIMER_LEN = 12;
-const MIN_GAP_BETWEEN_PRIMERS = 7;
 
 let activePick = 'fwd'; // 'fwd' | 'rev'
 let isDragging = false;

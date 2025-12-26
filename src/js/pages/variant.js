@@ -25,8 +25,6 @@ const form = document.getElementById('variantForm');
 const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const errBox = document.getElementById('snvError');
-// maximum nt allowed
-const AMPLICON_LIMIT = 1000;
 
 /* Target pages */
 const NEXT = 'desiredTm.html';

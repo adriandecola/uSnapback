@@ -354,9 +354,6 @@ function renderStemDiagram(
 	const PREV = 'desiredTm.html';
 	const START = 'start.html';
 
-	// maximum nt allowed
-	const AMPLICON_LIMIT = 1000;
-
 	/* ---------- Back button ---------- */
 	prevBtn.addEventListener('click', () => {
 		/* keep current inputs intact – just step back */

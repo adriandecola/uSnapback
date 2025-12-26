@@ -17,9 +17,6 @@ const prevPg = 'start.html';
 const restartBtn = document.getElementById('restartBtn');
 const countBox = document.getElementById('ampliconCount');
 
-// maximum nt allowed
-const AMPLICON_LIMIT = 1000;
-
 // IME-composition guard (place near other const/let declarations)
 let isComposing = false;
 
