@@ -5,71 +5,7 @@
   Relative Path:    uSnapback/src/js/pages/results.js
   Used by:          ../../pages/results.html
 */
-import { createSnapback } from '../script.js';
-
-// Visualization helpers for snapback / extended products
-function renderSnapbackPrimerDiagram(descriptivePrimer, descriptiveExtended) {
-	const container = document.getElementById('snapSeqDiagram');
-	if (!container || !descriptivePrimer) return;
-
-	// clear any old content
-	container.textContent = '';
-
-	const segments = [
-		{
-			key: 'fivePrimerLimSnapExtMismatches',
-			className: 'seg-mismatch-3p',
-			label: '3′ blocking mismatches on tail side',
-		},
-		{
-			key: 'fivePrimeStem',
-			className: 'seg-stem',
-			label: 'Stem (tail side)',
-		},
-		{
-			key: 'fivePrimeInnerLoopMismatches',
-			className: 'seg-inner-loop',
-			label: 'Inner-loop mismatches on tail side',
-		},
-		{
-			key: 'forwardPrimer',
-			className: 'seg-primer',
-			label: 'Forward primer',
-		},
-	];
-
-	segments.forEach((seg) => {
-		const seq = descriptivePrimer[seg.key];
-		if (!seq || !seq.length) return;
-
-		// one row per segment: [sequence] | [swatch + label]
-		const row = document.createElement('div');
-		row.className = 'sequence-row';
-
-		const seqCell = document.createElement('div');
-		seqCell.className = 'sequence-row__seq';
-
-		const seqSpan = document.createElement('span');
-		seqSpan.className = `dna-segment ${seg.className}`;
-		seqSpan.textContent = seq;
-		seqCell.appendChild(seqSpan);
-
-		const labelCell = document.createElement('div');
-		labelCell.className = 'sequence-row__label';
-
-		const swatch = document.createElement('span');
-		swatch.className = `legend-swatch ${seg.className}`;
-		labelCell.appendChild(swatch);
-
-		const labelText = document.createElement('span');
-		labelText.textContent = seg.label; // no variable names, single line
-		labelCell.appendChild(labelText);
-
-		row.appendChild(seqCell);
-		row.appendChild(labelCell);
-		container.appendChild(row);
-	});
-}
+import { createSnapback } from '../../script.js';
 
 // Auto-size the stem diagram based on its container width
 function autoSizeStemDiagram(wrapper) {
@@ -553,10 +489,6 @@ function renderStemDiagram(
 		document.getElementById('snapSeq').textContent = result.snapbackSeq;
 		document.getElementById('limitSeq').textContent =
 			result.limitingPrimerSeq;
-		renderSnapbackPrimerDiagram(
-			result.descriptiveUnExtendedSnapbackPrimer,
-			result.descriptiveExtendedSnapback
-		); // segmented/color-coded parts for the snapback primer
 
 		const snvStemIndex =
 			result.descriptiveExtendedSnapback?.snvOnThreePrimeStem

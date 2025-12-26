@@ -559,9 +559,9 @@ input[type='number'] {
 	}
 }
 
-/* ---------------------------------- */
+/* ----------------------------------- */
 /* Snapback / Extended Primer Diagrams */
-/* ---------------------------------- */
+/* ----------------------------------- */
 
 .sequence-raw {
 	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -570,104 +570,6 @@ input[type='number'] {
 	white-space: pre-wrap;
 	word-break: break-all;
 	margin-bottom: 0.5rem;
-}
-
-/* Container for all segment rows */
-.sequence-visual {
-	margin: 0.25rem 0 1.25rem;
-	display: flex;
-	flex-direction: column;
-	gap: 0.35rem;
-}
-
-/* One row: [sequence] | [swatch + label] */
-.sequence-row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 0.25rem 1rem;
-	align-items: flex-start;
-}
-
-/* Left column: sequence */
-.sequence-row__seq {
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-		'Liberation Mono', 'Courier New', monospace;
-	font-size: 0.9rem;
-	line-height: 1.6;
-	white-space: nowrap;
-	overflow-x: auto;
-	padding-bottom: 0.1rem;
-}
-
-/* Right column: color swatch + one-line label */
-.sequence-row__label {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.35rem;
-	font-size: 0.8rem;
-	white-space: nowrap; /* keep label on a single line */
-}
-
-/* Legend color swatches */
-.legend-swatch {
-	display: inline-block;
-	width: 0.75rem;
-	height: 0.75rem;
-	border-radius: 2px;
-	flex-shrink: 0;
-}
-
-/* Base styling for sequence segments */
-.dna-segment {
-	padding: 0 1px;
-	border-radius: 2px;
-}
-
-/* Segment palette (tuned to your blue theme) */
-.seg-mismatch-3p {
-	background-color: rgba(220, 38, 38, 0.15); /* red-600-ish */
-	border-bottom: 2px solid rgba(220, 38, 38, 0.55);
-}
-
-.seg-stem,
-.seg-stem-3p {
-	background-color: rgba(37, 99, 235, 0.15); /* blue-600-ish */
-	border-bottom: 2px solid rgba(37, 99, 235, 0.65);
-}
-
-.seg-inner-loop,
-.seg-inner-loop-3p {
-	background-color: rgba(22, 163, 74, 0.15); /* green-600-ish */
-	border-bottom: 2px dashed rgba(22, 163, 74, 0.8);
-}
-
-.seg-primer,
-.seg-stuff {
-	background-color: rgba(129, 140, 248, 0.15); /* indigo-ish */
-	border-bottom: 2px solid rgba(129, 140, 248, 0.7);
-}
-
-.seg-rest {
-	background-color: rgba(15, 23, 42, 0.03); /* very light slate */
-}
-
-/* SNV highlight inside stem */
-.snv-base {
-	background-color: rgba(251, 146, 60, 0.9); /* orange-400 */
-	border-radius: 2px;
-	font-weight: 600;
-}
-
-/* Legend swatch for SNV (used in labels if needed) */
-.legend-snv {
-	background-color: rgba(251, 146, 60, 0.9);
-}
-
-/* Optional tweak on small screens: slightly tighter gap */
-@media (max-width: 768px) {
-	.sequence-row {
-		gap: 0.2rem 0.75rem;
-	}
 }
 
 .stem-diagram-wrapper {
