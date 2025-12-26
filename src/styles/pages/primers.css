@@ -1,0 +1,123 @@
+/* --------------------------------- */
+/* ---------- Primer Page ---------- */
+/* --------------------------------- */
+
+/* ------- Primer Length Input Boxes ------- */
+/* hide number-input spin buttons & right-align text for primer length boxes */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+input[type='number'] {
+	-webkit-appearance: textfield; /* Chrome / Safari / new Edge */
+	-moz-appearance: textfield; /* Firefox */
+	appearance: textfield; /* Standard */
+	text-align: right; /* moves “e.g. 20” to the right */
+	width: 240px; /* slightly longer box */
+}
+
+/* ------------------------------- */
+/* ---------- Primer Picker ------- */
+/* ------------------------------- */
+
+.primer-select-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-top: 0.25rem;
+	margin-bottom: 0.5rem; /* NEW: space before the amplicon box */
+}
+
+.mini-btn {
+	border: 1px solid #cbd5e1;
+	background: #f8fafc;
+	color: #0f172a;
+	padding: 0.35rem 0.6rem;
+	border-radius: 0.5rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s, transform 0.08s;
+}
+
+.mini-btn:hover {
+	background: #eef2f7;
+}
+
+.mini-btn:active {
+	transform: translateY(1px);
+}
+
+/* active button when picking forward (blue) */
+#pickFwdBtn.mini-btn--active {
+	border-color: #2563eb;
+	box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+/* active button when picking reverse (green) */
+#pickRevBtn.mini-btn--active {
+	border-color: #16a34a;
+	box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.18);
+}
+
+.mini-btn--danger {
+	border-color: #ef4444;
+}
+
+.pick-hint {
+	color: #475569;
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+.pick-hint.error {
+	color: #dc2626;
+	font-weight: 700;
+}
+
+.primer-select-box {
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: none;
+	white-space: pre-wrap;
+	word-break: break-all;
+	line-height: 1.6;
+}
+
+.primer-select-box .nt {
+	padding: 0 1px;
+	border-radius: 2px;
+}
+
+.primer-select-box .nt.sel-fwd {
+	background: rgba(37, 99, 235, 0.18); /* light blue */
+}
+
+.primer-select-box .nt.sel-rev {
+	background: rgba(22, 163, 74, 0.22);
+}
+
+.primer-select-box .nt.sel-drag {
+	outline: 1px dashed rgba(15, 23, 42, 0.35);
+	outline-offset: 0;
+}
+
+.primer-select-box .nt.sel-invalid {
+	opacity: 0.35;
+}
+
+/* Preview chips for the selected primer sequences */
+#primerPreview code {
+	display: inline-block;
+	padding: 0.1rem 0.25rem;
+	border-radius: 0.25rem;
+}
+
+#primerPreview #fwdPrimer {
+	background: rgba(37, 99, 235, 0.18); /* same as sel-fwd */
+}
+
+#primerPreview #revPrimer {
+	background: rgba(22, 163, 74, 0.22); /* same as sel-rev */
+}

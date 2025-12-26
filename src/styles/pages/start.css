@@ -1,0 +1,43 @@
+/* -------------------------------- */
+/* ---------- Start Page ---------- */
+/* -------------------------------- */
+
+.start-main {
+	/* Full viewport height minus header (approx 4 rem) */
+	min-height: calc(100vh - 4rem);
+	display: flex;
+	justify-content: center; /* horizontal centering */
+	align-items: center; /* vertical centering */
+	padding: 0 1.25rem;
+	padding-bottom: 10%;
+}
+
+.start-description {
+	max-width: 680px;
+	padding: 2rem 2.25rem;
+	text-align: left;
+	line-height: 1.6;
+
+	/* neutral background instead of white card */
+	background: transparent;
+	box-shadow: none;
+}
+
+.start-description ol {
+	margin: 1rem 0 1.5rem;
+	padding-left: 1.25rem;
+}
+
+.start-description li {
+	margin-bottom: 0.5rem;
+}
+
+.start-description strong {
+	color: #1d4ed8; /* same royal-blue as header */
+}
+
+@media (max-width: 600px) {
+	.start-description {
+		line-height: 1.2;
+	}
+}
