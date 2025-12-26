@@ -6,6 +6,15 @@
   Used by:          ../../pages/results.html
 */
 import { createSnapback } from '../../script.js';
+import {
+	AMPLICON_LIMIT,
+	MIN_AMP_LEN,
+	MIN_PRIMER_LEN,
+	MIN_GAP_BETWEEN_PRIMERS,
+	SNV_GAP,
+	TM_MIN,
+	TM_MAX,
+} from '../shared/constants.js';
 
 // Auto-size the stem diagram based on its container width
 function autoSizeStemDiagram(wrapper) {

@@ -6,6 +6,16 @@
   Used by:          ../../pages/primers.html
 */
 
+import {
+	AMPLICON_LIMIT,
+	MIN_AMP_LEN,
+	MIN_PRIMER_LEN,
+	MIN_GAP_BETWEEN_PRIMERS,
+	SNV_GAP,
+	TM_MIN,
+	TM_MAX,
+} from '../shared/constants.js';
+
 const raw = sessionStorage.getItem('sequenceRaw') || '';
 const seq = sessionStorage.getItem('sequence') || '';
 const form = document.getElementById('primerForm');

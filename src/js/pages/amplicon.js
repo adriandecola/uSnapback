@@ -6,6 +6,16 @@
   Used by:          ../../pages/amplicon.html
 */
 
+import {
+	AMPLICON_LIMIT,
+	MIN_AMP_LEN,
+	MIN_PRIMER_LEN,
+	MIN_GAP_BETWEEN_PRIMERS,
+	SNV_GAP,
+	TM_MIN,
+	TM_MAX,
+} from '../shared/constants.js';
+
 const input = document.getElementById('ampliconInput');
 const form = document.getElementById('ampliconForm');
 const prev = document.getElementById('prevBtn');
