@@ -3,12 +3,11 @@
   Description:      Page logic for start.html
   Author:           Adrian deCola
   Relative Path:    uSnapback/src/js/pages/start.js
-  Used by:          ../pages/start.html
+  Used by:          ../../pages/start.html
 */
 
 /*
-  Note: using type="module" in the HTML already avoids polluting global scope.
-  I still keep the IIFE style you’ve been using.
+  Note: using type="module" in the HTML script tag already avoids polluting global scope.
 */
 
 const nextBtn = document.getElementById('nextBtn');
