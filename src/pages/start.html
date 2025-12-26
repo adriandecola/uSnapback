@@ -67,24 +67,45 @@
 	<!-- Centered description -->
 	<main class="start-main">
 		<section class="start-description">
-			<p>
-				This tool will guide you through a short, four-step workflow to gather
-				everything needed for snapback primer design:
-			</p>
+            <p>
+                uSnapback walks you through a few short steps to design a snapback primer
+                for a single-base variant (SNV).
+            </p>
 
-			<ol>
-				<li><strong>Amplicon Sequence</strong> – the full region to be amplified (including forward primer and the complement of the reverse primer).</li>
-				<li><strong>Primer Details</strong> – forward and reverse primer lengths.</li>
-				<li><strong>Variant Nucleotide</strong> – the single-base variant (SNV) location and type. </li>
-                <li><strong>Target T<sub>m</sub></strong> - the desired snapback melting temperature for the wild-type sequence.</li>
-			</ol>
+            <ol>
+                <li>
+                <strong>Amplicon sequence</strong> – Input the DNA sequence you want to
+                amplify (A, C, G, T). Spaces, tabs, and new line breaks are OK.
+                </li>
+                <li>
+                <strong>Pick primers</strong> – Drag on the amplicon to select the forward
+                primer, then drag to select the reverse primer. The reverse primer must be
+                to the right of the forward primer, and there must be some space between
+                them.
+                </li>
+                <li>
+                <strong>Choose the SNV</strong> – Enter or click the SNV index, then choose
+                the variant base. The SNV location cannot overlap a primer-binding site and must be
+                a few bases away from both primers.
+                </li>
+                <li>
+                <strong>Target T<sub>m</sub></strong> – Enter the desired melting
+                temperature for the wild-type snapback.
+                </li>
+            </ol>
 
-			<p>
-				After collecting this information, uSnapback will calculate a
-				snapback design that meets your specified wild-type T<sub>m</sub> 
-                that maximazes the metling temperature difference between the wild and variant alleles.
-			</p>
-		</section>
+            <p>
+                At the end, the results page shows the snapback primer and the limiting
+                primer (with copy buttons), an extended snapback primer, and estimated wild-type
+                and variant T<sub>m</sub> values.
+            </p>
+
+            <p>
+                If you need to change something, use Back to keep your inputs, or Restart to
+                clear everything and start over.
+            </p>
+            </section>
+
 	</main>
 
 	<!-- Floating NEXT button -->
