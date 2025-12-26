@@ -6,15 +6,7 @@
   Used by:          ../../pages/start.html
 */
 
-import {
-	AMPLICON_LIMIT,
-	MIN_AMP_LEN,
-	MIN_PRIMER_LEN,
-	MIN_GAP_BETWEEN_PRIMERS,
-	SNV_GAP,
-	TM_MIN,
-	TM_MAX,
-} from '../shared/constants.js';
+// Don't need to import any constants for this simple page
 
 /*
   Note: using type="module" in the HTML script tag already avoids polluting global scope.

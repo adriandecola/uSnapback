@@ -14,6 +14,7 @@ import {
 	SNV_GAP,
 	TM_MIN,
 	TM_MAX,
+	BASES,
 } from '../shared/constants.js';
 
 const raw = sessionStorage.getItem('sequenceRaw') || '';
