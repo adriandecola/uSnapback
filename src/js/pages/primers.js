@@ -20,13 +20,12 @@ import {
 } from '../shared/constants.js';
 
 import {
-	validateAmplicon,
+	validateAmpliconSeq,
 	validatePrimerRanges,
 } from '../shared/validators.js';
 
 /* ------------------------ Document element and page specific constants ------------------------ */
-const raw = sessionStorage.getItem('sequenceRaw') || '';
-const seq = sessionStorage.getItem('sequence') || '';
+const seq = sessionStorage.getItem('ampliconSeq') || '';
 const form = document.getElementById('primerForm');
 const seqBox = document.getElementById('ampliconSelect');
 const pickFwdBtn = document.getElementById('pickFwdBtn');
@@ -341,7 +340,7 @@ form.addEventListener('submit', (e) => {
 	e.preventDefault();
 
 	// Validate uncropped amplicon
-	const vAmp = validateAmplicon(seq);
+	const vAmp = validateAmpliconSeq(seq);
 	if (!vAmp.ok) {
 		alert(vAmp.msg);
 		return;
@@ -360,25 +359,38 @@ form.addEventListener('submit', (e) => {
 	const croppedSeq = seq.slice(fwdRange.start, revRange.end + 1);
 
 	// Revalidate cropped amplicon
-	const vCropped = validateAmplicon(croppedSeq, {
+	const vCropped = validateAmpliconSeq(croppedSeq, {
 		messages: {
 			tooShort: 'The amplicon is too short after cropping.',
 		},
 	});
+
 	if (!vCropped.ok) {
 		alert(vCropped.msg);
 		return;
 	}
 
-	/* Preserve the original (so Back to amplicon.html shows what user typed) */
-	if (!sessionStorage.getItem('sequenceFull')) {
-		sessionStorage.setItem('sequenceFull', seq);
-		sessionStorage.setItem('sequenceRawFull', raw || seq);
+	// --- Only clear downstream inputs if the primer/crop context changed ---
+	const prevCropped = sessionStorage.getItem('ampliconSeqCropped');
+	const prevFwdLen = sessionStorage.getItem('forwardPrimerLen');
+	const prevRevLen = sessionStorage.getItem('reversePrimerLen');
+
+	// Treat as changed only if we previously had a saved context AND it differs
+	const primerContextChanged =
+		(prevCropped != null && prevCropped !== vCropped.data.seq) ||
+		(prevFwdLen != null && prevFwdLen !== String(fwdLen)) ||
+		(prevRevLen != null && prevRevLen !== String(revLen));
+
+	if (primerContextChanged) {
+		// Dangerous downstream state
+		sessionStorage.removeItem('snvIndex');
+
+		// Also clear base so you don't keep a base with no index
+		sessionStorage.removeItem('snvBase');
 	}
 
 	/* Save cropped as the canonical amplicon for the rest of the app */
-	sessionStorage.setItem('sequence', croppedSeq);
-	sessionStorage.setItem('sequenceRaw', croppedSeq);
+	sessionStorage.setItem('ampliconSeqCropped', vCropped.data.seq);
 
 	/* Store primer lens so downstream code can stay unchanged */
 	sessionStorage.setItem('forwardPrimerLen', String(fwdLen));
@@ -395,20 +407,10 @@ form.addEventListener('submit', (e) => {
 	const forwardPrimer = seq.slice(fwdRange.start, fwdRange.end + 1);
 	const reversePrimer = seq.slice(revRange.start, revRange.end + 1);
 
-	sessionStorage.setItem('forwardPrimerLen', fwdLen);
-	sessionStorage.setItem('reversePrimerLen', revLen);
-
 	/* Navigate forward */
 	window.location.href = nextPage;
 });
 
 prevBtn.addEventListener('click', () => {
-	// Restore full amplicon if we previously cropped it
-	const full = sessionStorage.getItem('sequenceFull');
-	const rawFull = sessionStorage.getItem('sequenceRawFull');
-
-	if (full) sessionStorage.setItem('sequence', full);
-	if (rawFull) sessionStorage.setItem('sequenceRaw', rawFull);
-
 	window.location.href = prevPage;
 });
