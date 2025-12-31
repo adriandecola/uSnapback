@@ -27,8 +27,7 @@ import {
 Pull saved data from sessionStorage
 + (unary plus) converts string to a number
 -------------------------------------------------------------------------------------------- */
-const raw = sessionStorage.getItem('sequenceRaw') || '';
-const seq = sessionStorage.getItem('sequence') || '';
+const seq = sessionStorage.getItem('ampliconSeqCropped') || '';
 const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
 const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
 
@@ -75,7 +74,14 @@ Helper Function: centralized setter when choosing an index via click/keyboard
 -------------------------------------------------- */
 function setVariantIndex(i, focusSelect = false) {
 	idxIn.value = String(i);
-	sessionStorage.setItem('snvIndex', idxIn.value);
+
+	// Only persist if valid under current primer/cropped context
+	if (isValidSnvIndex(i)) {
+		sessionStorage.setItem('snvIndex', idxIn.value);
+	} else {
+		sessionStorage.removeItem('snvIndex');
+	}
+
 	updateBaseOptions();
 	renderAmplicon();
 	if (focusSelect && !baseSel.disabled) baseSel.focus();
@@ -108,21 +114,26 @@ idxIn.addEventListener('input', () => {
 });
 
 /* --------------------------------------------------
-Event: click/keyboard on amplicon → choose index
+Event: click/keyboard on amplicon -> choose index
 -------------------------------------------------- */
-// NEW
 box.addEventListener('click', (e) => {
 	const el = e.target.closest('span[data-idx]');
 	if (!el) return;
+
+	// don't allow choosing invalid SNV locations
+	if (el.classList.contains('invalid')) return;
+
 	setVariantIndex(+el.dataset.idx, true);
 });
 
-// NEW (optional keyboard support: Enter/Space)
+// optional keyboard support: Enter/Space
 box.addEventListener('keydown', (e) => {
 	if (
 		(e.key === 'Enter' || e.key === ' ') &&
 		e.target.matches('span[data-idx]')
 	) {
+		if (e.target.classList.contains('invalid')) return;
+
 		e.preventDefault();
 		setVariantIndex(+e.target.dataset.idx, true);
 	}
@@ -150,7 +161,8 @@ form.addEventListener('submit', (e) => {
 	const idx = +idxIn.value; // string → number
 	const base = baseSel.value; // already a string
 
-	const vAmp = validateAmplicon(seq);
+	const vAmp = validateAmpliconSeq(seq);
+
 	if (!vAmp.ok) {
 		alert(vAmp.msg);
 		return;
@@ -225,7 +237,7 @@ function updateBaseOptions() {
 		showError('Index is outside the amplicon range.');
 		return;
 	}
-	if (idx < fwdLen) {
+	if (idx < fwdLen || idx >= seq.length - revLen) {
 		showError('SNV overlaps a primer-binding site.');
 		return;
 	}
