@@ -18,7 +18,7 @@ import {
 	BASES,
 } from '../shared/constants.js';
 import {
-	validateAmplicon,
+	validateAmpliconSeq,
 	validatePrimerLengths,
 	validateSnv,
 } from '../shared/validators.js';
