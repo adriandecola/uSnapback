@@ -43,21 +43,43 @@ function normalizeSeq(s) {
 
 /* =========================================================
    1) Amplicon validation
-   - present
-   - min length
-   - max length
 ========================================================= */
-export function validateAmplicon(seq, opts = {}) {
-	const s = normalizeSeq(seq);
-
+export function validateAmpliconRaw(raw, opts = {}) {
 	const messages = {
 		missing: 'Amplicon sequence not found. Try again or restart.',
-		tooShort: 'The amplicon is too short.',
-		tooLong: null, // if null we build the default string with actual length
+		invalidChars:
+			'Amplicon contains invalid characters. Use only A, C, G, T and whitespace.',
 		...opts.messages,
 	};
 
+	const r = typeof raw === 'string' ? raw.trim() : '';
+	if (!r) return fail(messages.missing);
+
+	// raw may include whitespace, but ONLY whitespace + A/C/G/T
+	if (!/^[\sACGT]*$/i.test(r)) return fail(messages.invalidChars);
+
+	const seq = r.replace(/\s+/g, '').toUpperCase();
+	if (!seq) return fail(messages.missing);
+
+	return ok({ raw: r, seq, length: seq.length });
+}
+
+export function validateAmpliconSeq(seq, opts = {}) {
+	const messages = {
+		missing: 'Amplicon sequence not found. Try again or restart.',
+		invalidChars:
+			'Amplicon must contain only A, C, G, and T (no whitespace).',
+		tooShort: 'The amplicon is too short.',
+		tooLong: null,
+		...opts.messages,
+	};
+
+	const s = typeof seq === 'string' ? seq.trim().toUpperCase() : '';
 	if (!s) return fail(messages.missing);
+
+	// no whitespace + only A/C/G/T
+	if (/\s/.test(s) || !/^[ACGT]+$/.test(s))
+		return fail(messages.invalidChars);
 
 	if (s.length < MIN_AMP_LEN) return fail(messages.tooShort);
 
