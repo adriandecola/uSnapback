@@ -7,18 +7,12 @@
 */
 
 /* ---------------------------------------- Imports --------------------------------------- */
-import {
-	AMPLICON_LIMIT,
-	MIN_AMP_LEN,
-	MIN_PRIMER_LEN,
-	MIN_GAP_BETWEEN_PRIMERS,
-	SNV_GAP,
-	TM_MIN,
-	TM_MAX,
-	BASES,
-} from '../shared/constants.js';
+import { AMPLICON_LIMIT } from '../shared/constants.js';
 
-import { validateAmplicon } from '../shared/validators.js';
+import {
+	validateAmpliconRaw,
+	validateAmpliconSeq,
+} from '../shared/validators.js';
 
 /* ------------------------ Document element and page specific constants ------------------------ */
 const input = document.getElementById('ampliconInput');
@@ -35,9 +29,10 @@ const prevPg = 'start.html';
 // IME-composition guard (place near other const/let declarations)
 let isComposing = false;
 
-/* Restore previously-saved amplicon (raw, with whitespace) */
-const savedRaw = sessionStorage.getItem('sequenceRaw');
+/* Restore previously-saved amplicon (raw, with whitespace, if it exists) */
+const savedRaw = sessionStorage.getItem('ampliconRaw') || '';
 if (savedRaw) input.value = savedRaw;
+
 // Update amplicon statistics, if there is an amplicon
 updateAmpliconStats();
 // Update nucleotice count
@@ -121,7 +116,9 @@ input.addEventListener('compositionend', () => {
 	isComposing = false;
 	sanitizeAndPreserveCaret(input);
 	// keep your existing live-updates in sync
-	sessionStorage.setItem('sequenceRaw', input.value.trim());
+	const rawFull = input.value.trim();
+	sessionStorage.setItem('ampliconRaw', rawFull);
+
 	updateAmpliconStats();
 	updateCharCount();
 });
@@ -133,7 +130,9 @@ input.addEventListener('input', (e) => {
 	sanitizeAndPreserveCaret(input);
 
 	// Update the raw amplicon in session storage
-	sessionStorage.setItem('sequenceRaw', input.value.trim());
+	const rawFull = input.value.trim();
+	sessionStorage.setItem('ampliconRaw', rawFull);
+
 	// Update amplicon statistics
 	updateAmpliconStats();
 	// Update nucleotide count
@@ -164,7 +163,9 @@ input.addEventListener('keydown', (e) => {
 	sanitizeAndPreserveCaret(input);
 
 	// Keep everything else in sync (session, stats, count)
-	sessionStorage.setItem('sequenceRaw', input.value.trim());
+	const rawFull = input.value.trim();
+	sessionStorage.setItem('ampliconRaw', rawFull);
+
 	updateAmpliconStats();
 	updateCharCount();
 });
@@ -174,17 +175,22 @@ form.addEventListener('submit', (e) => {
 	e.preventDefault();
 	/*---------- Checking the amplicon ----------*/
 	const raw = input.value.trim();
-	const seq = raw.replace(/\s+/g, '');
 
-	const vAmp = validateAmplicon(seq);
-	if (!vAmp.ok) {
-		alert(vAmp.msg);
+	const vRaw = validateAmpliconRaw(raw);
+	if (!vRaw.ok) {
+		alert(vRaw.msg);
 		return;
 	}
 
-	// Store sequence
-	sessionStorage.setItem('sequence', seq);
-	sessionStorage.setItem('sequenceRaw', raw);
+	const vSeq = validateAmpliconSeq(vRaw.data.seq);
+	if (!vSeq.ok) {
+		alert(vSeq.msg);
+		return;
+	}
+
+	// Store raw (textbox) + store nowhitespace ONLY on Next
+	sessionStorage.setItem('ampliconRaw', vRaw.data.raw);
+	sessionStorage.setItem('ampliconSeq', vSeq.data.seq);
 
 	// Navigate to next page
 	window.location.href = nextPg;
@@ -193,7 +199,9 @@ form.addEventListener('submit', (e) => {
 /* Handle Previous button click */
 prev.addEventListener('click', () => {
 	// Store sequence
-	sessionStorage.setItem('sequenceRaw', input.value.trim());
+	const rawFull = input.value.trim();
+	sessionStorage.setItem('ampliconRaw', rawFull);
+
 	// Navigate to previous page
 	window.location.href = prevPg;
 });
