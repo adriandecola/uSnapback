@@ -19,15 +19,14 @@ import {
 } from '../shared/constants.js';
 
 import {
-	validateAmplicon,
+	validateAmpliconSeq,
 	validatePrimerLengths,
 	validateSnv,
 	validateDesiredTm,
 } from '../shared/validators.js';
 
 /* ------------------------ Document element and page specific constants ------------------------ */
-const raw = sessionStorage.getItem('sequenceRaw') || '';
-const seq = sessionStorage.getItem('sequence') || '';
+const seq = sessionStorage.getItem('ampliconSeqCropped') || '';
 const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
 const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
 const snvIndex = +sessionStorage.getItem('snvIndex');
@@ -60,9 +59,8 @@ restartBtn.addEventListener('click', () => {
 /* submit / next */
 form.addEventListener('submit', (e) => {
 	e.preventDefault();
-	const tm = +input.value;
 
-	const vAmp = validateAmplicon(seq);
+	const vAmp = validateAmpliconSeq(seq);
 	if (!vAmp.ok) {
 		alert(vAmp.msg);
 		return;
