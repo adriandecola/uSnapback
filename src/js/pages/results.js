@@ -95,15 +95,27 @@ function renderStemDiagram(
 	if (!descriptivePrimer || !descriptiveExtended) return;
 
 	// Show only the 5′ and 3′ ends of each mismatch block
-	const summarizeMismatchEnds = (seq) => {
+	const summarizeMismatchEnds = (seq, reverseForDisplay = false) => {
 		if (!seq || typeof seq !== 'string') return '';
 		const trimmed = seq.trim();
 		if (!trimmed) return '';
-		if (trimmed.length <= 2) return trimmed;
+
+		// If the strand is being displayed in reverse orientation,
+		// reverse the displayed ends so the snippet matches left→right direction.
 		const first = trimmed[0];
 		const last = trimmed[trimmed.length - 1];
-		return `${first}…${last}`;
+
+		if (trimmed.length <= 2) {
+			return reverseForDisplay
+				? trimmed.split('').reverse().join('')
+				: trimmed;
+		}
+
+		return reverseForDisplay ? `${last}…${first}` : `${first}…${last}`;
 	};
+
+	const reverseString = (s) =>
+		typeof s === 'string' ? s.split('').reverse().join('') : '';
 
 	const topStemSeq = descriptivePrimer.fivePrimeStem || '';
 	const bottomStemSeq = descriptiveExtended.threePrimeStem || '';
@@ -119,8 +131,13 @@ function renderStemDiagram(
 
 	// Use the overlapping part of the stem on both strands
 	const len = Math.min(topStemSeq.length, bottomStemSeq.length);
-	const top = topStemSeq.slice(0, len);
+
+	// Bottom row is displayed 5′→3′ left-to-right (no change)
 	const bottom = bottomStemSeq.slice(0, len);
+
+	// Top row should be displayed 3′→5′ left-to-right.
+	// Since the input is provided as 5′→3′, reverse it for display.
+	const top = reverseString(topStemSeq.slice(0, len));
 
 	// 5′ inner-loop mismatches (loop side)
 	const innerLoopTopSeq =
@@ -134,10 +151,12 @@ function renderStemDiagram(
 	const terminalBottomSeq =
 		descriptiveExtended.threePrimerLimSnapExtMismatches || '';
 
-	const leftTopDisplay = summarizeMismatchEnds(innerLoopTopSeq);
-	const leftBottomDisplay = summarizeMismatchEnds(innerLoopBottomSeq);
-	const rightTopDisplay = summarizeMismatchEnds(terminalTopSeq);
-	const rightBottomDisplay = summarizeMismatchEnds(terminalBottomSeq);
+	// Top row displayed 3′→5′, so reverse mismatch snippets for display.
+	const leftTopDisplay = summarizeMismatchEnds(innerLoopTopSeq, true);
+	const rightTopDisplay = summarizeMismatchEnds(terminalTopSeq, true);
+	// Bottom row displayed 5′→3′, so leave mismatch snippets alone.
+	const leftBottomDisplay = summarizeMismatchEnds(innerLoopBottomSeq, false);
+	const rightBottomDisplay = summarizeMismatchEnds(terminalBottomSeq, false);
 
 	// Validate SNV index in stem coordinates
 	const validSnvIndex =
