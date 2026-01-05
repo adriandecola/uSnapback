@@ -20,7 +20,7 @@ import {
 } from '../shared/constants.js';
 
 import {
-	validateAmplicon,
+	validateAmpliconSeq,
 	validatePrimerLengths,
 	validateSnv,
 	validateDesiredTm,
@@ -389,12 +389,12 @@ function renderStemDiagram(
 
 	/* ---------- Pull inputs ------------ */
 
-	const seq = sessionStorage.getItem('sequence');
+	const seq = sessionStorage.getItem('ampliconSeqCropped') || '';
 	const fwdLen = +sessionStorage.getItem('forwardPrimerLen');
 	const revLen = +sessionStorage.getItem('reversePrimerLen');
 	const snvIndex = +sessionStorage.getItem('snvIndex');
 	const snvBase = sessionStorage.getItem('snvBase');
-	const tm = +sessionStorage.getItem('desiredTm');
+	const tmStr = sessionStorage.getItem('desiredTm') ?? '';
 
 	// Helper function
 	const goBack = (msg) => {
@@ -406,7 +406,7 @@ function renderStemDiagram(
 	};
 
 	// Validating Inputs
-	const vAmp = validateAmplicon(seq);
+	const vAmp = validateAmpliconSeq(seq);
 	if (!vAmp.ok) {
 		goBack(vAmp.msg);
 		return;
@@ -424,11 +424,12 @@ function renderStemDiagram(
 		return;
 	}
 
-	const vTm = validateDesiredTm(tm);
+	const vTm = validateDesiredTm(tmStr);
 	if (!vTm.ok) {
 		alert(vTm.msg);
 		return;
 	}
+	const tmC = vTm.data.tm;
 
 	try {
 		overlay.hidden = false; // Show loading screen
@@ -438,7 +439,7 @@ function renderStemDiagram(
 			fwdLen,
 			revLen,
 			{ index: snvIndex, variantBase: snvBase },
-			tm
+			tmC
 		);
 
 		// For debugging
