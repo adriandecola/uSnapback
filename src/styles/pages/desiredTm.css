@@ -4,7 +4,7 @@
 
 /* Keep the control from getting absurdly wide on desktop */
 #tmForm {
-	max-width: 15rem;
+	max-width: 10rem;
 }
 
 /* Main input styling */
