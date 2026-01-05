@@ -10,6 +10,7 @@
 import { createSnapback } from '../../script.js';
 // Dont import constants here as all inputs have already been collected
 
+// Importing validator functions
 import {
 	validateAmpliconSeq,
 	validatePrimerLengths,
