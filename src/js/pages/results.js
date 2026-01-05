@@ -8,16 +8,7 @@
 
 /* ---------------------------------------- Imports --------------------------------------- */
 import { createSnapback } from '../../script.js';
-import {
-	AMPLICON_LIMIT,
-	MIN_AMP_LEN,
-	MIN_PRIMER_LEN,
-	MIN_GAP_BETWEEN_PRIMERS,
-	SNV_GAP,
-	TM_MIN,
-	TM_MAX,
-	BASES,
-} from '../shared/constants.js';
+// Dont import constants here as all inputs have already been collected
 
 import {
 	validateAmpliconSeq,
