@@ -4,7 +4,7 @@
 
 /* Keep the control from getting absurdly wide on desktop */
 #tmForm {
-	max-width: 32rem;
+	max-width: 15rem;
 }
 
 /* Main input styling */
@@ -12,8 +12,7 @@
 	display: block;
 	width: 100%;
 
-	min-height: 44px;
-	padding: 0.75rem 0.9rem;
+	padding: 0.1rem 0.6rem;
 
 	font-size: 1rem;
 	line-height: 1.25;
@@ -22,14 +21,18 @@
 
 	background: #ffffff;
 	border: 1px solid #cbd5e1;
-	border-radius: 0.75rem;
+	border-radius: 0.5rem;
 	outline: none;
+
+	text-align: right;
 }
 
 /* Placeholder color like the rest of UI */
 #desiredTm::placeholder {
 	color: #64748b;
 	opacity: 1;
+
+	text-align: right;
 }
 
 /* Focus style (matches blue theme) */
