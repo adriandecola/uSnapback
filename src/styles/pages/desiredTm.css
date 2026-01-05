@@ -6,14 +6,12 @@
 #tmForm {
 	max-width: 32rem;
 }
-f
 
 /* Main input styling */
 #desiredTm {
 	display: block;
 	width: 100%;
 
-	/* fixes the “too short / placeholder clipped” issue */
 	min-height: 44px;
 	padding: 0.75rem 0.9rem;
 
@@ -28,19 +26,19 @@ f
 	outline: none;
 }
 
-/* Placeholder color like the rest of your UI */
+/* Placeholder color like the rest of UI */
 #desiredTm::placeholder {
 	color: #64748b;
 	opacity: 1;
 }
 
-/* Focus style (matches your blue theme) */
+/* Focus style (matches blue theme) */
 #desiredTm:focus {
 	border-color: #0284c7;
 	box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
 }
 
-/* Optional: remove number spinners so it looks like your other inputs */
+/* Remove number spinners so it looks like other inputs */
 #desiredTm::-webkit-outer-spin-button,
 #desiredTm::-webkit-inner-spin-button {
 	-webkit-appearance: none;
