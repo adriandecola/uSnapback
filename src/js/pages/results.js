@@ -18,6 +18,15 @@ import {
 	validateDesiredTm,
 } from '../shared/validators.js';
 
+// Complementary base match and helper function
+const COMP = { A: 'T', T: 'A', C: 'G', G: 'C' };
+const complementBase = (b) =>
+	b ? COMP[String(b).toUpperCase()] || String(b).toUpperCase() : '';
+// Normalize base to uppercase string
+const normBase = (b) => (b ? String(b).trim().toUpperCase() : '');
+// Is it a correct DNA Base?
+const isDnaBase = (b) => b === 'A' || b === 'C' || b === 'G' || b === 'T';
+
 // Auto-size the stem diagram based on its container width
 function autoSizeStemDiagram(wrapper) {
 	if (!wrapper) return;
@@ -83,9 +92,10 @@ function clearStemSnvInterval() {
 function renderStemDiagram(
 	descriptivePrimer,
 	descriptiveExtended,
-	wildBase,
-	variantBase,
-	snvStemIndex
+	inputWildBase, // from seq[snvIndex]
+	inputVariantBase, // from snvBase
+	snvStemIndex,
+	matchesWild // result.matchesWild
 ) {
 	const wrapper = document.getElementById('stemDiagramWrapper');
 	const diagram = document.getElementById('stemDiagram');
@@ -165,6 +175,43 @@ function renderStemDiagram(
 		snvStemIndex < len
 			? snvStemIndex
 			: null;
+
+	// ------------------------------
+	// Resolve what letters to show at the SNV on the displayed threePrimeStem.
+	// ------------------------------
+	const wildIn = normBase(inputWildBase);
+	const varIn = normBase(inputVariantBase);
+
+	const stemChar =
+		validSnvIndex !== null ? normBase(bottom[validSnvIndex]) : '';
+
+	let snapbackWild = '';
+	let snapbackVar = '';
+
+	if (isDnaBase(wildIn) && isDnaBase(varIn) && isDnaBase(stemChar)) {
+		// The extended structure you display corresponds to the allele that the tail matches.
+		// So the base we *expect* to see at the SNV on threePrimeStem is either:
+		// - matchesWild ? wildIn : varIn
+		// OR its complement (depending on which strand threePrimeStem represents in this case).
+		const expectedMatch = matchesWild ? wildIn : varIn;
+
+		const expectedSame = expectedMatch;
+		const expectedComp = complementBase(expectedMatch);
+
+		// Decide whether threePrimeStem is "same letters" vs "complement letters"
+		// relative to your input allele bases.
+		const useComplement =
+			stemChar === expectedComp
+				? true
+				: stemChar === expectedSame
+				? false
+				: // fallback: if matchesWild doesn't help (unexpected data), try both possibilities
+				  stemChar === complementBase(wildIn) ||
+				  stemChar === complementBase(varIn);
+
+		snapbackWild = useComplement ? complementBase(wildIn) : wildIn;
+		snapbackVar = useComplement ? complementBase(varIn) : varIn;
+	}
 
 	// Clear any old content
 	diagram.textContent = '';
@@ -268,26 +315,34 @@ function renderStemDiagram(
 	// If we don't have a valid SNV or bases, just show static stem.
 	clearStemSnvInterval();
 
+	// ---------------
+	// Toggling logic of SNV
+	// ---------------
 	if (
 		!snvSpan ||
 		!labelEl ||
-		!wildBase ||
-		!variantBase ||
+		!snapbackWild ||
+		!snapbackVar ||
 		validSnvIndex === null
 	) {
 		if (snvSpan && validSnvIndex !== null) {
+			// If we can't resolve toggle letters, show whatever is in the stem string
 			snvSpan.textContent = bottom[validSnvIndex] || 'N';
 		}
-		if (labelEl) {
-			labelEl.textContent = '';
-		}
+		if (labelEl) labelEl.textContent = '';
 		return;
 	}
 
-	const wildChar = wildBase;
-	const variantChar = variantBase;
+	const wildChar = snapbackWild;
+	const variantChar = snapbackVar;
 
-	let showWild = true;
+	// Start on whatever the stem actually contains (best UX)
+	const stemCharNow = normBase(bottom[validSnvIndex]);
+	let showWild = stemCharNow === wildChar;
+	if (stemCharNow !== wildChar && stemCharNow !== variantChar) {
+		// fallback if stemChar isn't a clean A/C/G/T
+		showWild = true;
+	}
 
 	const applyState = () => {
 		const currentBase = showWild ? wildChar : variantChar;
@@ -465,13 +520,15 @@ function renderStemDiagram(
 			result.descriptiveExtendedSnapback?.snvOnThreePrimeStem
 				?.indexInThreePrimeStem;
 
+		// two-row horizontal stem view with SNV toggle
 		renderStemDiagram(
 			result.descriptiveUnExtendedSnapbackPrimer,
 			result.descriptiveExtendedSnapback,
-			seq[snvIndex], // wild base from the amplicon
-			snvBase, // variant base
-			snvStemIndex // index within the threePrimeStem string
-		); // two-row horizontal stem view with SNV toggle
+			seq[snvIndex],
+			snvBase,
+			snvStemIndex,
+			result.matchesWild
+		);
 
 		document.getElementById('tailSide').textContent =
 			result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer';

@@ -1,0 +1,40 @@
+<!-- File: amplicon-rest.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="140" viewBox="0 0 280 140">
+  <!-- 5′ label near the top-left -->
+  <text
+    x="10" y="26"
+    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    font-size="18"
+    font-weight="700"
+    fill="#0f172a"
+  >5′</text>
+
+  <!-- Dashed continuation line (lower in the image) -->
+  <line
+    x1="10" y1="110"
+    x2="238" y2="110"
+    stroke="#0f172a"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-dasharray="7 8"
+  />
+
+  <!-- "(rest of amplicon)" label above the dashed line -->
+  <text
+    x="124" y="100"
+    text-anchor="middle"
+    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    font-size="14"
+    font-weight="600"
+    fill="#0f172a"
+  >(rest of amplicon)</text>
+
+  <!-- 3′ label much lower (near bottom-right) -->
+  <text
+    x="243" y="115"
+    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+    font-size="18"
+    font-weight="700"
+    fill="#0f172a"
+  >3′</text>
+</svg>

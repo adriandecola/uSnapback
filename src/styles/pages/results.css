@@ -217,6 +217,15 @@
 	transform: translateY(2px); /* vertical nudge to sit nicely on the stem */
 }
 
+/* Right-side "rest of amplicon" box */
+.stem-amplicon-img {
+	flex: 0 0 auto;
+	width: 240px; /* tweak 200–280 if you want */
+	height: auto;
+	margin-left: -0.25rem; /* slight tuck toward the sequence */
+	transform: translateY(2px);
+}
+
 /* Center the two rows vertically in this box */
 .stem-diagram {
 	display: flex;
