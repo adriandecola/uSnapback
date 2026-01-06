@@ -22,3 +22,5 @@ Thumbs.db
 # Env files (if any)
 .env*
 
+# Digital Oceans Server Deploy
+deploy.sh
