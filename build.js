@@ -7,16 +7,37 @@ import { fileURLToPath } from 'url';
 // 1. Store enviroment variables to process.env
 dotenv.config();
 
-// 2. Read enviroment variaples
-const API_URL = process.env.API_URL?.trim();
+// 2. Read enviroment variables
+const DEPLOY_USNAPBACK =
+	(process.env.DEPLOY_USNAPBACK || '').toLowerCase() === 'true';
+
+const API_URL_UTAH =
+	process.env.API_URL_UTAH?.trim() || process.env.API_URL?.trim();
+const API_URL_USNAPBACK = process.env.API_URL_USNAPBACK?.trim();
+
+const API_URL = DEPLOY_USNAPBACK ? API_URL_USNAPBACK : API_URL_UTAH;
+
 const PROXY_URL = process.env.PROXY_URL?.trim();
 const USE_PROXY = (process.env.USE_PROXY || '').toLowerCase() === 'true';
 
+const USE_TOKEN = (process.env.USE_TOKEN || '').toLowerCase() === 'true';
+const API_TOKEN = process.env.API_TOKEN?.trim() || '';
+
 // 3. Check correct enviroment variables exist
 if (!API_URL) {
-	console.error('Missing API_URL in .env');
+	console.error(
+		DEPLOY_USNAPBACK
+			? 'DEPLOY_USNAPBACK=true but API_URL_USNAPBACK is missing in .env'
+			: 'DEPLOY_USNAPBACK=false but API_URL_UTAH (or API_URL) is missing in .env'
+	);
 	process.exit(1);
 }
+
+if (USE_TOKEN && !API_TOKEN) {
+	console.error('USE_TOKEN=true but API_TOKEN is missing in .env');
+	process.exit(1);
+}
+
 if (USE_PROXY && !PROXY_URL) {
 	console.error('USE_PROXY=true but PROXY_URL is missing in .env');
 	process.exit(1);
@@ -73,11 +94,11 @@ while (foldersToVisit.length > 0) {
 			let content = fs.readFileSync(srcPath, 'utf-8');
 
 			content = content
-				// we quote strings with JSON.stringify(...) so the JS stays valid
 				.replace(/__API_URL__/g, JSON.stringify(API_URL))
 				.replace(/__PROXY_URL__/g, JSON.stringify(PROXY_URL || ''))
-				// boolean should be literal true/false, not a string
-				.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false');
+				.replace(/__USE_PROXY__/g, USE_PROXY ? 'true' : 'false')
+				.replace(/__USE_TOKEN__/g, USE_TOKEN ? 'true' : 'false')
+				.replace(/__API_TOKEN__/g, JSON.stringify(API_TOKEN));
 
 			fs.writeFileSync(distPath, content, 'utf-8');
 		} else {

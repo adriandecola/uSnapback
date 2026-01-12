@@ -20,7 +20,6 @@ const MAX_AMPLICON_LEN = 1000;
 const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
-const API_TOKEN = 1;
 // Chemisty parameters
 const MG = 2.2;
 const MONO = 20.0;
@@ -33,6 +32,8 @@ const LIMITING_CONC = 0.5;
 const API_URL = __API_URL__;
 const PROXY_URL = __PROXY_URL__;
 const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
+const USE_TOKEN = __USE_TOKEN__; // true | false (real Boolean)
+const API_TOKEN = __API_TOKEN__; // string or "" (build-time)
 
 //──────────────────────────────────────────────────────────────────────────//
 // Rochester Hairpin Loop Initiation Parameters
@@ -1607,7 +1608,9 @@ async function getOligoTm(seq, mismatch) {
 	//apiURL += `&concentration=${CONC}`;
 	//apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	apiURL += `&token=${API_TOKEN}`;
+	if (USE_TOKEN && API_TOKEN) {
+		apiURL += `&token=${API_TOKEN}`;
+	}
 	if (mmSeq) {
 		apiURL += `&mmseq=${mmSeq}`;
 	}
@@ -1744,7 +1747,9 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	apiURL += `&limitingconc=${LIMITING_CONC}`;
 	apiURL += `&otype=${O_TYPE}`;
 	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	apiURL += `&token=${API_TOKEN}`;
+	if (USE_TOKEN && API_TOKEN) {
+		apiURL += `&token=${API_TOKEN}`;
+	}
 	if (mmSeq) {
 		apiURL += `&mmseq=${mmSeq}`;
 	}
