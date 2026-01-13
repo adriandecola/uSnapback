@@ -68,25 +68,29 @@
 	<main class="start-main">
 		<section class="start-description">
             <p>
-                uSnapback walks you through a few short steps to design a snapback primer
-                for a single-base variant (SNV).
+                Snapback primers enable genotyping with 2 unlabeled primers and a dsDNA dye. 
+                No fluorescent labels or probes are necessary. A 5'-tail is added to one of the 
+                primers that hybridizes to the variant site.
+            </p>
+            <p>
+                uSnapback designs a snapback primer for genotyping of a single-base variant (SNV).
             </p>
 
             <ol>
                 <li>
-                <strong>Amplicon sequence</strong> – Input the DNA sequence you want to
-                amplify (A, C, G, T). Spaces, tabs, and new line breaks are OK.
+                <strong>Enter sequence</strong> – Input or copy/paste the DNA sequence containing the 
+                amplicon you want to amplify (A, C, G, T). Spaces, tabs, and new line breaks are OK.
                 </li>
                 <li>
-                <strong>Pick primers</strong> – Drag on the amplicon to select the forward
+                <strong>Pick primers</strong> – Drag on the sequence to select the forward
                 primer, then drag to select the reverse primer. The reverse primer must be
-                to the right of the forward primer, and there must be some space between
+                to the right of the forward primer, and there must be at least 7 bases between
                 them.
                 </li>
                 <li>
-                <strong>Choose the SNV</strong> – Enter or click the SNV index, then choose
+                <strong>Choose the SNV</strong> – Click on the SNV, then choose
                 the variant base. The SNV location cannot overlap a primer-binding site and must be
-                a few bases away from both primers.
+                at least 3 bases away from both primers.
                 </li>
                 <li>
                 <strong>Target T<sub>m</sub></strong> – Enter the desired melting
@@ -96,7 +100,7 @@
 
             <p>
                 At the end, the results page shows the snapback primer and the limiting
-                primer (with copy buttons), an extended snapback primer, and estimated wild-type
+                primer (with copy buttons), an extended snapback primer, and predicted wild-type
                 and variant T<sub>m</sub> values.
             </p>
 
