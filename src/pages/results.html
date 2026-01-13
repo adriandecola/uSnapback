@@ -68,9 +68,11 @@
 
         <section class="instructions">
             <p>
-                The snapback primer has been calculated using all inputs you provided.
-                Review the design below. If anything looks off, simply use your browser’s
-                back button to tweak the inputs and re-run.
+                Review the snapback primer design below. Use your browser’s 
+                back button to modify the inputs to re-run as necessary. 
+                We recommend using <strong>0.5 &micro;M</strong> snapback primer, 
+                <strong>0.1 &micro;M</strong> limiting primer,
+                and <strong>45 cycles</strong> of amplification.
             </p>
         </section>
 
@@ -141,31 +143,30 @@
 
 
             <ul style="margin-top:1rem">
-                <li><strong>Tail appended to:</strong> <span id="tailSide"></span></li>
-                <li><strong>SNV on tail matches:</strong> <span id="matchesWild"></span></li>
+                <li>Tail on <span id="tailSide"></span> that matches <span id="matchesWild"></span> allele</li>
                 <li><strong>Wild-type&nbsp;T<sub>m</sub>:</strong> <span id="wildTm"></span> °C</li>
                 <li><strong>Variant&nbsp;T<sub>m</sub>:</strong> <span id="varTm"></span> °C</li>
             </ul>
 
             <!-- ΔTm table -->
-            <h3 class="alt-title">Alternate Snapback ΔT<sub>m</sub> Options (based on Wittwer parameters)</h3>
+            <h3 class="alt-title">Alternative Snapback ΔT<sub>m</sub> Options (based on Wittwer parameters)</h3>
             <div class="table-wrapper">
                 <table class="delta-table" id="deltaTable" aria-describedby="deltaCaption">
                     <thead>
                         <tr>
-                            <th scope="col">Tail on ROW Matches COL </th>
-                            <th scope="col">Wild base</th>
-                            <th scope="col">Variant base</th>
+                            <th scope="col"></th>
+                            <th scope="col">Wild-type match</th>
+                            <th scope="col">Variant match</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <th scope="row">Forward primer</th>
+                            <th scope="row">Tail on forward primer</th>
                             <td id="dt-fwd-wild">—</td>
                             <td id="dt-fwd-var">—</td>
                         </tr>
                         <tr>
-                            <th scope="row">Reverse primer</th>
+                            <th scope="row">Tail on reverse primer</th>
                             <td id="dt-rev-wild">—</td>
                             <td id="dt-rev-var">—</td>
                         </tr>

@@ -531,10 +531,10 @@ function renderStemDiagram(
 		);
 
 		document.getElementById('tailSide').textContent =
-			result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer';
+			result.tailOnForwardPrimer ? 'forward primer' : 'reverse primer';
 		document.getElementById('matchesWild').textContent = result.matchesWild
-			? 'Wild allele'
-			: 'Variant allele';
+			? 'vild-type'
+			: 'variant';
 
 		// build display strings for Wild/Variant with labels: Wittwer, Rochester, SantaLucia
 		const wittWild = result.snapbackMeltingTms?.wildTm;
