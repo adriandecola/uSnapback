@@ -533,7 +533,7 @@ function renderStemDiagram(
 		document.getElementById('tailSide').textContent =
 			result.tailOnForwardPrimer ? 'forward primer' : 'reverse primer';
 		document.getElementById('matchesWild').textContent = result.matchesWild
-			? 'vild-type'
+			? 'wild-type'
 			: 'variant';
 
 		// build display strings for Wild/Variant with labels: Wittwer, Rochester, SantaLucia
@@ -564,6 +564,89 @@ function renderStemDiagram(
 		document.getElementById('varTm').textContent = varParts.length
 			? varParts.join(', ')
 			: '—';
+
+		// ---------------- Stem + Loop sizes ----------------
+		// helper function to make sure type returned is correct and to get length if it exists
+		const segLen = (s) => (typeof s === 'string' ? s.trim().length : null);
+
+		// Stem size (bases) = threePrimeStem length (canonical stem interval)
+		const stemBases = segLen(
+			result.descriptiveExtendedSnapback?.threePrimeStem
+		);
+		document.getElementById('stemBases').textContent = Number.isInteger(
+			stemBases
+		)
+			? String(stemBases)
+			: '—';
+
+		// Loop size (bases) = fivePrimeInnerLoopMismatches + stuffBetween + threePrimeInnerLoopMismatches
+		const fivePrimeInnerLoopMismatchesLen = segLen(
+			result.descriptiveExtendedSnapback?.fivePrimeInnerLoopMismatches
+		);
+		const stuffBetweenLen = segLen(
+			result.descriptiveExtendedSnapback?.stuffBetween
+		);
+		const threePrimeInnerLoopMismatchesLen = segLen(
+			result.descriptiveExtendedSnapback?.threePrimeInnerLoopMismatches
+		);
+
+		const loopLength = document.getElementById('loopBases');
+
+		// If any segment is missing, show a clear problem
+		const missing = [];
+		if (!Number.isInteger(fivePrimeInnerLoopMismatchesLen))
+			missing.push('fivePrimeInnerLoopMismatches');
+		if (!Number.isInteger(stuffBetweenLen)) missing.push('stuffBetween');
+		if (!Number.isInteger(threePrimeInnerLoopMismatchesLen))
+			missing.push('threePrimeInnerLoopMismatches');
+
+		if (missing.length) {
+			const msg = `Loop size error: missing/invalid segment(s): ${missing.join(
+				', '
+			)}.`;
+			if (loopLength) {
+				loopLength.textContent = '—';
+				loopLength.title = msg;
+			}
+			console.error(msg, {
+				fivePrimeInnerLoopMismatchesLen,
+				stuffBetweenLen,
+				threePrimeInnerLoopMismatchesLen,
+			});
+		} else {
+			// If any segment length is 0, show the problem (your request)
+			const zero = [];
+			if (fivePrimeInnerLoopMismatchesLen === 0)
+				zero.push('fivePrimeInnerLoopMismatches');
+			if (stuffBetweenLen === 0) zero.push('stuffBetween');
+			if (threePrimeInnerLoopMismatchesLen === 0)
+				zero.push('threePrimeInnerLoopMismatches');
+
+			if (zero.length) {
+				const msg = `Loop size error: ${zero.join(
+					', '
+				)} length is 0 (unexpected).`;
+				if (loopLength) {
+					loopLength.textContent = '—';
+					loopLength.title = msg;
+				}
+				console.error(msg, {
+					fivePrimeInnerLoopMismatchesLen,
+					stuffBetweenLen,
+					threePrimeInnerLoopMismatchesLen,
+				});
+			} else {
+				const loopBases =
+					fivePrimeInnerLoopMismatchesLen +
+					stuffBetweenLen +
+					threePrimeInnerLoopMismatchesLen;
+
+				if (loopLength) {
+					loopLength.textContent = String(loopBases);
+					loopLength.title = '';
+				}
+			}
+		}
 
 		// Populate ΔTm table (gracefully handle null/undefined)
 		const fmt = (v) => {

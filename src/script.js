@@ -438,7 +438,7 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
  * @property {string} compVariantBase       Complement of variantBase.
  *
  * @typedef {Object} DescriptiveExtendedSnapback
- * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed to prevent extension on the complementary snapback.
+ * @property {string} fivePrimerLimSnapExtMismatches   Strong mismatches placed to prevent extension on the complementary snapback.
  * @property {string} fivePrimeStem                    Snapback 5' stem segment (reverse-complement orientation).
  * @property {string} fivePrimeInnerLoopMismatches     Inner-loop strong mismatches immediately 5' of the stem.
  * @property {string} stuffBetween                     seq.slice(0, stem.start - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED),
