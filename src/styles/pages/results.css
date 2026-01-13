@@ -260,6 +260,56 @@
 	white-space: nowrap;
 }
 
+.seq-legend {
+	display: flex;
+	gap: 0.35rem;
+	flex-wrap: wrap;
+	margin: 0.25rem 0 0.75rem;
+}
+
+.seq-chip {
+	display: inline-flex;
+	align-items: center;
+	padding: 0.15rem 0.5rem;
+	border-radius: 999px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+		'Liberation Mono', 'Courier New', monospace;
+	font-size: 0.75rem;
+	border: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+.seq-chip--tail {
+	background: rgba(251, 191, 36, 0.28);
+}
+
+.seq-chip--primer {
+	background: rgba(147, 197, 253, 0.28);
+}
+
+.seq-seg {
+	display: inline;
+	border-radius: 0.25rem;
+	padding: 0.05em 0.1em;
+}
+
+.seq-seg--tail {
+	background: rgba(251, 191, 36, 0.28);
+}
+
+.seq-seg--primer {
+	background: rgba(147, 197, 253, 0.28);
+}
+
+.stem-row--tail .stem-core-row,
+.stem-row--tail .stem-mismatch-block {
+	background: rgba(251, 191, 36, 0.22);
+	border-radius: 2px;
+}
+
+.stem-row--tail .stem-core-row {
+	padding: 0 0.15em;
+}
+
 /* Small blocks showing 5′ / 3′ ends of mismatch segments */
 .stem-mismatch-block {
 	display: inline-flex;
@@ -269,6 +319,7 @@
 	font-weight: 500;
 	padding: 0 0.15em;
 	border-radius: 2px;
+	background-clip: padding-box;
 }
 
 /* Replace the two mismatch blocks with this:

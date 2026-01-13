@@ -218,7 +218,7 @@ function renderStemDiagram(
 
 	// ───── Top row: snapback strand ─────
 	const topRow = document.createElement('div');
-	topRow.className = 'stem-row stem-row--top';
+	topRow.className = 'stem-row stem-row--top stem-row--tail';
 
 	if (leftTopDisplay) {
 		const topLeftMismatch = document.createElement('span');
@@ -512,7 +512,60 @@ function renderStemDiagram(
 		console.log(result);
 
 		/* populate UI */
-		document.getElementById('snapSeq').textContent = result.snapbackSeq;
+		{
+			const snapEl = document.getElementById('snapSeq');
+			const primerLabelEl = document.getElementById('snapPrimerLabel');
+
+			// Label should reflect which primer receives the tail
+			if (primerLabelEl) {
+				primerLabelEl.textContent = result.tailOnForwardPrimer
+					? 'Forward primer'
+					: 'Reverse primer';
+			}
+
+			// Tail applies to the UNextended snapback primer: everything except the primer segment
+			const d0 = result.descriptiveUnExtendedSnapbackPrimer || {};
+			const expectedTail =
+				(d0.fivePrimeInnerLoopMismatches || '') +
+				(d0.fivePrimeStem || '') +
+				(d0.fivePrimerLimSnapExtMismatches || '');
+
+			const snapSeq = String(result.snapbackSeq || '');
+
+			// Determine primer length from the chosen orientation (fallback splitting)
+			let primerLen = result.tailOnForwardPrimer ? fwdLen : revLen;
+			if (!Number.isInteger(primerLen) || primerLen < 1) primerLen = null;
+
+			let tailPart = '';
+			let primerPart = '';
+
+			if (expectedTail && snapSeq.startsWith(expectedTail)) {
+				tailPart = expectedTail;
+				primerPart = snapSeq.slice(expectedTail.length);
+			} else if (primerLen && snapSeq.length >= primerLen) {
+				primerPart = snapSeq.slice(-primerLen);
+				tailPart = snapSeq.slice(0, snapSeq.length - primerLen);
+			} else {
+				// last resort: show plain text
+				if (snapEl) snapEl.textContent = snapSeq;
+			}
+
+			// Render highlighted segments (background colors)
+			if (snapEl && (tailPart || primerPart)) {
+				snapEl.textContent = ''; // clear
+				const tailSpan = document.createElement('span');
+				tailSpan.className = 'seq-seg seq-seg--tail';
+				tailSpan.textContent = tailPart;
+
+				const primerSpan = document.createElement('span');
+				primerSpan.className = 'seq-seg seq-seg--primer';
+				primerSpan.textContent = primerPart;
+
+				snapEl.appendChild(tailSpan);
+				snapEl.appendChild(primerSpan);
+			}
+		}
+
 		document.getElementById('limitSeq').textContent =
 			result.limitingPrimerSeq;
 
