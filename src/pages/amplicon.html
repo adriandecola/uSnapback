@@ -69,14 +69,14 @@
 		<!-- Instructions -->
 		<section class="instructions">
 			<p>Please input the sequence containing your amplicon, starting with the 5' end. This 
-			sequence needs to include the forward primer as well as the 
+			sequence needs to include the forward primer as well as the reverse 
 			complement of the reverse primer.</p>
 		</section>
 
 		<!-- Form -->
 		<form id="ampliconForm" autocomplete="off" novalidate>
 			<label for="ampliconInput" class="field-label">
-				Amplicon Sequence (5'→3')
+				Sequence (5'→3')
 			</label>
 
 			<div class="textarea-wrapper">
@@ -91,7 +91,7 @@
 
 			<!-- Live Amplicon Stats -->
 			<div id="ampliconStats" class="stats-display" hidden>
-				<p><strong>Amplicon length:</strong> <code id="ampLenOut"></code></p>
+				<p><strong>Length:</strong> <code id="ampLenOut"></code></p>
 				<p><strong>GC content:</strong> <code id="ampGcOut"></code></p>
 			</div>
 		</form>
