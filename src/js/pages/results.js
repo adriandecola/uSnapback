@@ -9,6 +9,16 @@
 /* ---------------------------------------- Imports --------------------------------------- */
 import { createSnapback } from '../../script.js';
 // Dont import constants here as all inputs have already been collected
+import { wireCopyButton } from '../shared/clipboard.js';
+import { renderStemDiagram } from './resultsStemDiagram.js';
+import {
+	renderSnapbackPrimer,
+	renderLimitingPrimer,
+	renderTailSummary,
+	renderTmSummary,
+	renderStemAndLoopSizes,
+	renderDeltaTmTable,
+} from './resultsRender.js';
 
 // Importing validator functions
 import {
@@ -17,75 +27,6 @@ import {
 	validateSnv,
 	validateDesiredTm,
 } from '../shared/validators.js';
-
-// Complementary base match and helper function
-const COMP = { A: 'T', T: 'A', C: 'G', G: 'C' };
-const complementBase = (b) =>
-	b ? COMP[String(b).toUpperCase()] || String(b).toUpperCase() : '';
-// Normalize base to uppercase string
-const normBase = (b) => (b ? String(b).trim().toUpperCase() : '');
-// Is it a correct DNA Base?
-const isDnaBase = (b) => b === 'A' || b === 'C' || b === 'G' || b === 'T';
-
-// Auto-size the stem diagram based on its container width
-function autoSizeStemDiagram(wrapper) {
-	if (!wrapper) return;
-	const diagram = wrapper.querySelector('.stem-diagram');
-	if (!diagram) return;
-
-	const topRow = diagram.querySelector('.stem-row--top');
-	if (!topRow) return;
-
-	const ntCount = (topRow.textContent || '').length || 1;
-	const width = wrapper.clientWidth || wrapper.offsetWidth || 320;
-
-	// Heuristic: keep between 10–22 px and roughly fit the width
-	let fontSize = width / (ntCount * 1.3);
-	fontSize = Math.max(10, Math.min(22, fontSize));
-
-	wrapper.style.setProperty('--stem-font-size', `${fontSize}px`);
-}
-
-// Position the "Wild / Variant" label underneath the SNV base
-function positionStemSnvLabel(wrapper) {
-	if (!wrapper) return;
-
-	const labelEl = wrapper.querySelector('#stemSnvLabel');
-	const snvSpan = wrapper.querySelector('.stem-nt--snv');
-
-	if (!labelEl || !snvSpan) return;
-
-	const wrapperRect = wrapper.getBoundingClientRect();
-	const snvRect = snvSpan.getBoundingClientRect();
-
-	// Coordinates relative to the wrapper
-	const centerX = snvRect.left + snvRect.width / 2 - wrapperRect.left;
-	const labelTop = snvRect.bottom - wrapperRect.top + 6; // 6px gap under the stem
-
-	labelEl.style.left = `${centerX}px`;
-	labelEl.style.top = `${labelTop}px`;
-}
-
-function updateStemLayout(wrapper) {
-	autoSizeStemDiagram(wrapper);
-	positionStemSnvLabel(wrapper);
-}
-
-// Shared ResizeObserver for the stem diagram
-if (typeof ResizeObserver !== 'undefined') {
-	window._stemResizeObserver =
-		window._stemResizeObserver ||
-		new ResizeObserver((entries) => {
-			entries.forEach((entry) => updateStemLayout(entry.target));
-		});
-}
-
-function clearStemSnvInterval() {
-	if (window._stemSnvInterval) {
-		clearInterval(window._stemSnvInterval);
-		window._stemSnvInterval = null;
-	}
-}
 
 // Build a 2-row stem with angled, non-hybridizing mismatches
 // at both the 5′ (loop) and 3′ (extension-block) ends.
@@ -388,52 +329,9 @@ function renderStemDiagram(
 	const copySnapBtn = document.getElementById('copySnapSeqBtn');
 	const copyLimitBtn = document.getElementById('copyLimitSeqBtn');
 
-	/* ---------- Clipboard helper ---------- */
-	function copyTextToClipboard(text) {
-		if (!text) return;
-
-		// Prefer modern async clipboard API
-		if (navigator.clipboard && navigator.clipboard.writeText) {
-			navigator.clipboard.writeText(text).catch((err) => {
-				console.error('Clipboard copy failed:', err);
-			});
-			return;
-		}
-
-		// Fallback for older browsers
-		const textarea = document.createElement('textarea');
-		textarea.value = text;
-		textarea.setAttribute('readonly', '');
-		textarea.style.position = 'absolute';
-		textarea.style.left = '-9999px';
-		document.body.appendChild(textarea);
-		textarea.select();
-
-		try {
-			document.execCommand('copy');
-		} catch (err) {
-			console.error('execCommand copy failed:', err);
-		}
-
-		document.body.removeChild(textarea);
-	}
-
 	/* ---------- Wire up copy buttons ---------- */
-	if (copySnapBtn) {
-		copySnapBtn.addEventListener('click', () => {
-			const el = document.getElementById('snapSeq');
-			const text = el?.textContent.trim();
-			copyTextToClipboard(text);
-		});
-	}
-
-	if (copyLimitBtn) {
-		copyLimitBtn.addEventListener('click', () => {
-			const el = document.getElementById('limitSeq');
-			const text = el?.textContent.trim();
-			copyTextToClipboard(text);
-		});
-	}
+	wireCopyButton(copySnapBtn, document.getElementById('snapSeq'));
+	wireCopyButton(copyLimitBtn, document.getElementById('limitSeq'));
 
 	/* ---------- Nav targets ---------- */
 	const PREV = 'desiredTm.html';
@@ -511,64 +409,6 @@ function renderStemDiagram(
 		// For debugging
 		console.log(result);
 
-		/* populate UI */
-		{
-			const snapEl = document.getElementById('snapSeq');
-			const primerLabelEl = document.getElementById('snapPrimerLabel');
-
-			// Label should reflect which primer receives the tail
-			if (primerLabelEl) {
-				primerLabelEl.textContent = result.tailOnForwardPrimer
-					? 'Forward primer'
-					: 'Reverse primer';
-			}
-
-			// Tail applies to the UNextended snapback primer: everything except the primer segment
-			const d0 = result.descriptiveUnExtendedSnapbackPrimer || {};
-			const expectedTail =
-				(d0.fivePrimeInnerLoopMismatches || '') +
-				(d0.fivePrimeStem || '') +
-				(d0.fivePrimerLimSnapExtMismatches || '');
-
-			const snapSeq = String(result.snapbackSeq || '');
-
-			// Determine primer length from the chosen orientation (fallback splitting)
-			let primerLen = result.tailOnForwardPrimer ? fwdLen : revLen;
-			if (!Number.isInteger(primerLen) || primerLen < 1) primerLen = null;
-
-			let tailPart = '';
-			let primerPart = '';
-
-			if (expectedTail && snapSeq.startsWith(expectedTail)) {
-				tailPart = expectedTail;
-				primerPart = snapSeq.slice(expectedTail.length);
-			} else if (primerLen && snapSeq.length >= primerLen) {
-				primerPart = snapSeq.slice(-primerLen);
-				tailPart = snapSeq.slice(0, snapSeq.length - primerLen);
-			} else {
-				// last resort: show plain text
-				if (snapEl) snapEl.textContent = snapSeq;
-			}
-
-			// Render highlighted segments (background colors)
-			if (snapEl && (tailPart || primerPart)) {
-				snapEl.textContent = ''; // clear
-				const tailSpan = document.createElement('span');
-				tailSpan.className = 'seq-seg seq-seg--tail';
-				tailSpan.textContent = tailPart;
-
-				const primerSpan = document.createElement('span');
-				primerSpan.className = 'seq-seg seq-seg--primer';
-				primerSpan.textContent = primerPart;
-
-				snapEl.appendChild(tailSpan);
-				snapEl.appendChild(primerSpan);
-			}
-		}
-
-		document.getElementById('limitSeq').textContent =
-			result.limitingPrimerSeq;
-
 		const snvStemIndex =
 			result.descriptiveExtendedSnapback?.snvOnThreePrimeStem
 				?.indexInThreePrimeStem;
@@ -583,142 +423,13 @@ function renderStemDiagram(
 			result.matchesWild
 		);
 
-		document.getElementById('tailSide').textContent =
-			result.tailOnForwardPrimer ? 'forward primer' : 'reverse primer';
-		document.getElementById('matchesWild').textContent = result.matchesWild
-			? 'wild-type'
-			: 'variant';
+		renderSnapbackPrimer(result, fwdLen, revLen);
+		renderLimitingPrimer(result);
 
-		// build display strings for Wild/Variant with labels: Wittwer, Rochester, SantaLucia
-		const wittWild = result.snapbackMeltingTms?.wildTm;
-		const rochWild = result.snapbackTmRochester?.wildTm;
-		const slWild = result.snapbackTmSantaLucia?.wildTm;
-		const wildParts = [];
-		if (Number.isFinite(wittWild))
-			wildParts.push(`${wittWild.toFixed(1)} -Wittwer`);
-		if (Number.isFinite(rochWild))
-			wildParts.push(`${rochWild.toFixed(1)} -Rochester`);
-		if (Number.isFinite(slWild))
-			wildParts.push(`${slWild.toFixed(1)} -SantaLucia`);
-		document.getElementById('wildTm').textContent = wildParts.length
-			? wildParts.join(', ')
-			: '—';
-
-		const wittVar = result.snapbackMeltingTms?.variantTm;
-		const rochVar = result.snapbackTmRochester?.variantTm;
-		const slVar = result.snapbackTmSantaLucia?.variantTm;
-		const varParts = [];
-		if (Number.isFinite(wittVar))
-			varParts.push(`${wittVar.toFixed(1)} -Wittwer`);
-		if (Number.isFinite(rochVar))
-			varParts.push(`${rochVar.toFixed(1)} -Rochester`);
-		if (Number.isFinite(slVar))
-			varParts.push(`${slVar.toFixed(1)} -SantaLucia`);
-		document.getElementById('varTm').textContent = varParts.length
-			? varParts.join(', ')
-			: '—';
-
-		// ---------------- Stem + Loop sizes ----------------
-		// helper function to make sure type returned is correct and to get length if it exists
-		const segLen = (s) => (typeof s === 'string' ? s.trim().length : null);
-
-		// Stem size (bases) = threePrimeStem length (canonical stem interval)
-		const stemBases = segLen(
-			result.descriptiveExtendedSnapback?.threePrimeStem
-		);
-		document.getElementById('stemBases').textContent = Number.isInteger(
-			stemBases
-		)
-			? String(stemBases)
-			: '—';
-
-		// Loop size (bases) = fivePrimeInnerLoopMismatches + stuffBetween + threePrimeInnerLoopMismatches
-		const fivePrimeInnerLoopMismatchesLen = segLen(
-			result.descriptiveExtendedSnapback?.fivePrimeInnerLoopMismatches
-		);
-		const stuffBetweenLen = segLen(
-			result.descriptiveExtendedSnapback?.stuffBetween
-		);
-		const threePrimeInnerLoopMismatchesLen = segLen(
-			result.descriptiveExtendedSnapback?.threePrimeInnerLoopMismatches
-		);
-
-		const loopLength = document.getElementById('loopBases');
-
-		// If any segment is missing, show a clear problem
-		const missing = [];
-		if (!Number.isInteger(fivePrimeInnerLoopMismatchesLen))
-			missing.push('fivePrimeInnerLoopMismatches');
-		if (!Number.isInteger(stuffBetweenLen)) missing.push('stuffBetween');
-		if (!Number.isInteger(threePrimeInnerLoopMismatchesLen))
-			missing.push('threePrimeInnerLoopMismatches');
-
-		if (missing.length) {
-			const msg = `Loop size error: missing/invalid segment(s): ${missing.join(
-				', '
-			)}.`;
-			if (loopLength) {
-				loopLength.textContent = '—';
-				loopLength.title = msg;
-			}
-			console.error(msg, {
-				fivePrimeInnerLoopMismatchesLen,
-				stuffBetweenLen,
-				threePrimeInnerLoopMismatchesLen,
-			});
-		} else {
-			// If any segment length is 0, show the problem (your request)
-			const zero = [];
-			if (fivePrimeInnerLoopMismatchesLen === 0)
-				zero.push('fivePrimeInnerLoopMismatches');
-			if (stuffBetweenLen === 0) zero.push('stuffBetween');
-			if (threePrimeInnerLoopMismatchesLen === 0)
-				zero.push('threePrimeInnerLoopMismatches');
-
-			if (zero.length) {
-				const msg = `Loop size error: ${zero.join(
-					', '
-				)} length is 0 (unexpected).`;
-				if (loopLength) {
-					loopLength.textContent = '—';
-					loopLength.title = msg;
-				}
-				console.error(msg, {
-					fivePrimeInnerLoopMismatchesLen,
-					stuffBetweenLen,
-					threePrimeInnerLoopMismatchesLen,
-				});
-			} else {
-				const loopBases =
-					fivePrimeInnerLoopMismatchesLen +
-					stuffBetweenLen +
-					threePrimeInnerLoopMismatchesLen;
-
-				if (loopLength) {
-					loopLength.textContent = String(loopBases);
-					loopLength.title = '';
-				}
-			}
-		}
-
-		// Populate ΔTm table (gracefully handle null/undefined)
-		const fmt = (v) => {
-			const n = Number(v);
-			return Number.isFinite(n) ? n.toFixed(1) : '—';
-		};
-		const d = result.meltingTempDiffs ?? {};
-		document.getElementById('dt-fwd-wild').textContent = fmt(
-			d.onForwardPrimer?.matchWild
-		);
-		document.getElementById('dt-fwd-var').textContent = fmt(
-			d.onForwardPrimer?.matchVariant
-		);
-		document.getElementById('dt-rev-wild').textContent = fmt(
-			d.onReversePrimer?.matchWild
-		);
-		document.getElementById('dt-rev-var').textContent = fmt(
-			d.onReversePrimer?.matchVariant
-		);
+		renderTailSummary(result);
+		renderTmSummary(result);
+		renderStemAndLoopSizes(result);
+		renderDeltaTmTable(result);
 
 		/* Show results and hide loading screen */
 		resultBox.hidden = false;
