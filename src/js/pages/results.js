@@ -9,6 +9,7 @@
 /* ---------------------------------------- Imports --------------------------------------- */
 import { createSnapback } from '../../script.js';
 // Dont import constants here as all inputs have already been collected
+
 import { wireCopyButton } from '../shared/clipboard.js';
 import { renderStemDiagram } from './resultsStemDiagram.js';
 import {
