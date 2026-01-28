@@ -350,7 +350,7 @@
 	justify-content: center;
 	font-size: 0.8em;
 	font-weight: 500;
-	padding: 0 0.15em;
+	padding: 0 0.1em;
 	border-radius: 2px;
 	background-clip: padding-box;
 }
@@ -376,7 +376,7 @@
 
 .stem-mismatch-block--right.stem-mismatch-block--top {
 	position: relative;
-	left: -0.2em;
+	left: -0.48em;
 	transform: translateY(-0.35em) rotate(-18deg);
 	transform-origin: center;
 }
@@ -398,8 +398,19 @@
 }
 
 .stem-nt--snv {
+	position: relative;
 	border-radius: 2px;
-	padding: 0 0.05em;
+	padding: 0;
+	z-index: 0;
+}
+
+.stem-nt--snv::before {
+	content: '';
+	position: absolute;
+	inset: -0.05em -0.08em;
+	border-radius: 2px;
+	background: var(--snv-bg, transparent);
+	z-index: -1;
 }
 
 /* Label showing current SNV state (wild or variant) */
@@ -422,10 +433,18 @@
    Applied to BOTH the SNV base and the label. */
 .stem-snv--wild {
 	color: #2563eb; /* blue-ish for wild */
-	background-color: rgba(37, 99, 235, 0.08);
+	--snv-bg: rgba(37, 99, 235, 0.08);
+	background-color: var(--snv-bg);
 }
 
 .stem-snv--variant {
 	color: #166534; /* dark green text for good contrast */
-	background-color: rgba(22, 163, 74, 0.16); /* soft green background */
+	--snv-bg: rgba(22, 163, 74, 0.16);
+	background-color: var(--snv-bg); /* soft green background */
+}
+
+/* Don't let SNV highlight add width; use ::before instead */
+.stem-nt--snv.stem-snv--wild,
+.stem-nt--snv.stem-snv--variant {
+	background-color: transparent;
 }
