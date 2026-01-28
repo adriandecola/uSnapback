@@ -408,13 +408,6 @@ form.addEventListener('submit', (e) => {
 	sessionStorage.setItem('forwardPrimerLen', String(fwdLen));
 	sessionStorage.setItem('reversePrimerLen', String(revLen));
 
-	/* Rebase ranges so if user comes back here, primers show at the ends */
-	saveRange('primerFwd', { start: 0, end: fwdLen - 1 });
-	saveRange('primerRev', {
-		start: croppedSeq.length - revLen,
-		end: croppedSeq.length - 1,
-	});
-
 	/* Store primer data */
 	const forwardPrimer = seq.slice(fwdRange.start, fwdRange.end + 1);
 	const reversePrimer = seq.slice(revRange.start, revRange.end + 1);
