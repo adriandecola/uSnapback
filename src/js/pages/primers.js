@@ -326,7 +326,12 @@ function updatePreview() {
 	const revRangeForAmp =
 		activePick === 'rev' && activeRange ? activeRange : revRange;
 
-	if (hasSeq && fwdRange) {
+	// Forward primer sequence (live if dragging forward; else committed range)
+	if (hasSeq && activePick === 'fwd' && activeRange) {
+		const fwd = seq.slice(activeRange.start, activeRange.end + 1);
+		fwdOut.textContent = fwd;
+		showPreviewBox = true;
+	} else if (hasSeq && fwdRange) {
 		const fwd = seq.slice(fwdRange.start, fwdRange.end + 1);
 		fwdOut.textContent = fwd;
 		showPreviewBox = true;
@@ -334,7 +339,12 @@ function updatePreview() {
 		fwdOut.textContent = '';
 	}
 
-	if (hasSeq && revRange) {
+	// Reverse primer sequence (live if dragging reverse; else committed range)
+	if (hasSeq && activePick === 'rev' && activeRange) {
+		const revSite = seq.slice(activeRange.start, activeRange.end + 1);
+		revOut.textContent = reverseComplement(revSite);
+		showPreviewBox = true;
+	} else if (hasSeq && revRange) {
 		const revSite = seq.slice(revRange.start, revRange.end + 1);
 		revOut.textContent = reverseComplement(revSite);
 		showPreviewBox = true;
