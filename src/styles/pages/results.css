@@ -98,6 +98,7 @@
 /* ΔTm table */
 .alt-title {
 	margin-top: 1.25rem;
+	margin-bottom: 0.25rem;
 	font-size: 1.1rem;
 	font-weight: 700;
 }
@@ -107,7 +108,7 @@
 .delta-table {
 	width: 100%;
 	border-collapse: collapse;
-	margin-top: 0.5rem;
+	margin-top: 0.25rem;
 	font-family: inherit;
 }
 .delta-table th,
