@@ -57,7 +57,7 @@ import {
     -------------------------------------------------- */
 	restartBtn.addEventListener('click', () => {
 		sessionStorage.clear();
-		window.location.href = 'start.html';
+		window.location.href = START;
 	});
 
 	/* ---------- Pull inputs ------------ */
