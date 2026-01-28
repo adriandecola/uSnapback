@@ -229,7 +229,7 @@ export function validateSnv(seq, fwdLen, revLen, snvIndex, snvBase) {
 	// allow snvIndex to come in as string or number
 	const rawIdx = typeof snvIndex === 'string' ? snvIndex.trim() : snvIndex;
 
-	if (rawIdx === '') return fail('Please enter a variant index.');
+	if (rawIdx === '') return fail('Please select a variant position.');
 
 	const idx = typeof rawIdx === 'number' ? rawIdx : Number(rawIdx);
 

@@ -32,7 +32,6 @@ const fwdLen = +sessionStorage.getItem('forwardPrimerLen') || 0;
 const revLen = +sessionStorage.getItem('reversePrimerLen') || 0;
 
 /* ------------------------ Document element and page specific constants ------------------- */
-const idxIn = document.getElementById('snvIndex'); // numeric index input
 const baseSel = document.getElementById('snvBase'); // <select> for variant base
 const box = document.getElementById('ampliconBox'); // preview container
 const form = document.getElementById('variantForm');
@@ -46,12 +45,15 @@ const PREV = 'primers.html';
 /* -----------------------------------------------------------------------------------------
 Restore previously entered values, if any
 -------------------------------------------------------------------------------------------- */
-idxIn.value = sessionStorage.getItem('snvIndex') ?? '';
 baseSel.dataset.keep = sessionStorage.getItem('snvBase') ?? '';
+let snvIndex =
+	sessionStorage.getItem('snvIndex') !== null
+		? Number(sessionStorage.getItem('snvIndex'))
+		: null;
 
 // Use centralized setter when we have a saved index
-if (idxIn.value !== '') {
-	setVariantIndex(+idxIn.value); // <<< now using setter
+if (snvIndex !== null) {
+	setVariantIndex(snvIndex); // <<< now using setter
 } else {
 	updateBaseOptions(); // populate <select>
 	renderAmplicon(); // draw coloured sequence
@@ -73,11 +75,11 @@ function isValidSnvIndex(i) {
 Helper Function: centralized setter when choosing an index via click/keyboard
 -------------------------------------------------- */
 function setVariantIndex(i, focusSelect = false) {
-	idxIn.value = String(i);
+	snvIndex = i;
 
 	// Only persist if valid under current primer/cropped context
 	if (isValidSnvIndex(i)) {
-		sessionStorage.setItem('snvIndex', idxIn.value);
+		sessionStorage.setItem('snvIndex', String(i));
 	} else {
 		sessionStorage.removeItem('snvIndex');
 	}
@@ -93,24 +95,6 @@ Event: restart button → clear storage and go to start.html
 restartBtn.addEventListener('click', () => {
 	sessionStorage.clear();
 	window.location.href = 'start.html';
-});
-
-/* --------------------------------------------------
-Event: user types a new index
--------------------------------------------------- */
-idxIn.addEventListener('input', () => {
-	/* strip any non-digit chars that slip in via paste, etc. */
-	const clean = idxIn.value.replace(/[^0-9]/g, '');
-	idxIn.value = clean;
-
-	if (clean === '') {
-		sessionStorage.removeItem('snvIndex');
-		sessionStorage.removeItem('snvBase');
-		updateBaseOptions();
-		renderAmplicon();
-		return;
-	}
-	setVariantIndex(+clean);
 });
 
 /* --------------------------------------------------
@@ -158,7 +142,7 @@ Event: Next
 form.addEventListener('submit', (e) => {
 	e.preventDefault();
 
-	const idx = +idxIn.value; // string → number
+	const idx = snvIndex; // null if not set
 	const base = baseSel.value; // already a string
 
 	const vAmp = validateAmpliconSeq(seq);
@@ -174,7 +158,13 @@ form.addEventListener('submit', (e) => {
 		return;
 	}
 
-	const vSnv = validateSnv(seq, fwdLen, revLen, idxIn.value, baseSel.value);
+	const vSnv = validateSnv(
+		seq,
+		fwdLen,
+		revLen,
+		idx === null ? '' : idx,
+		baseSel.value
+	);
 	if (!vSnv.ok) {
 		alert(vSnv.msg);
 		return;
@@ -191,21 +181,20 @@ form.addEventListener('submit', (e) => {
 Helper: populate base <select> with the 3 alt bases
 ================================================== */
 function updateBaseOptions() {
-	const raw = idxIn.value.trim();
-
-	/* ── 1a. no index entered yet ── */
-	if (raw === '') {
+	/* ── 1a. no index selected yet ── */
+	if (snvIndex === null) {
 		errBox.style.display = 'none'; // no error
 		baseSel.style.display = 'none'; // hide selector
 		baseSel.disabled = true;
-		baseSel.innerHTML = '<option value="">— choose index first —</option>';
+		baseSel.innerHTML =
+			'<option value="">— click SNP in amplicon —</option>';
 		sessionStorage.removeItem('snvBase');
 		baseSel.dataset.keep = '';
 		return; // done
 	}
 
 	/* ── 1b. convert and validate number ── */
-	const idx = Number(raw);
+	const idx = Number(snvIndex);
 	if (!Number.isInteger(idx)) return; // should never happen
 
 	/* helper: show an error + reset selector */
@@ -254,8 +243,7 @@ function updateBaseOptions() {
 Helper: render coloured amplicon
 ================================================== */
 function renderAmplicon() {
-	const rawIdx = idxIn.value.trim();
-	const idx = rawIdx === '' ? -1 : +rawIdx; // -1 -> “no highlight”
+	const idx = snvIndex === null ? -1 : snvIndex; // -1 -> “no highlight”
 	const base = baseSel.value;
 	let html = '';
 

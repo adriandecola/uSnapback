@@ -80,16 +80,10 @@
 
         <!-- ───────────── Form ───────────── -->
         <form id="variantForm" autocomplete="off" novalidate>
-            <!-- Variant Index Input -->
-            <label for="snvIndex" class="field-label">Variant Index (0-based)</label>
-            <input type="number" id="snvIndex" name="snvIndex"
-                min="0" step="1"
-                inputmode="numeric" pattern="\d*"
-                placeholder="e.g. 42" />
             <!-- Variant Type Input -->
             <label for="snvBase" class="field-label">Variant Base</label>
             <select id="snvBase" name="snvBase" disabled>
-                <option value="">— choose index first —</option>
+                <option value="">— click SNP in amplicon —</option>
             </select>
             <!-- Error -->
             <div id="snvError" class="error-msg" style="display:none;"></div>
