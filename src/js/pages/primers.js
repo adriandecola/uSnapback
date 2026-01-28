@@ -426,7 +426,7 @@ function getRevPrimerSeq() {
 
 function formatTmValue(tm) {
 	if (tm == null || Number.isNaN(tm)) return '';
-	return tm.toFixed(2);
+	return tm.toFixed(1);
 }
 
 function setTmLoading(cell) {
