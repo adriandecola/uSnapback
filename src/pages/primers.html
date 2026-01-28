@@ -100,8 +100,38 @@
 
 			<!-- Live preview -->
 			<div id="primerPreview" class="stats-display" hidden>
-				<p><strong>Forward Primer (5'→3'):</strong><br><code id="fwdPrimer"></code></p>
-				<p><strong>Reverse Primer (5'→3'):</strong><br><code id="revPrimer"></code></p>
+				<div class="primer-stats-scroll" aria-label="Primer selection stats">
+					<table class="primer-stats-table">
+						<thead>
+							<tr>
+								<th scope="col"></th>
+								<th scope="col">Length</th>
+								<th scope="col">GC Content</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<th scope="row" class="primer-label-cell">
+									Forward Primer (5'→3'): <code id="fwdPrimer"></code>
+								</th>
+								<td id="fwdLenCell"></td>
+								<td id="fwdGcCell"></td>
+							</tr>
+							<tr>
+								<th scope="row" class="primer-label-cell">
+									Reverse Primer (5'→3'): <code id="revPrimer"></code>
+								</th>
+								<td id="revLenCell"></td>
+								<td id="revGcCell"></td>
+							</tr>
+							<tr>
+								<th scope="row">Amplicon</th>
+								<td id="ampLenCell"></td>
+								<td id="ampGcCell"></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</form>
 

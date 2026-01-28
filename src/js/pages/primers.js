@@ -35,8 +35,12 @@ const pickHint = document.getElementById('pickHint');
 const previewBox = document.getElementById('primerPreview');
 const fwdOut = document.getElementById('fwdPrimer');
 const revOut = document.getElementById('revPrimer');
-const fwdLine = fwdOut.parentElement;
-const revLine = revOut.parentElement;
+const ampLenCell = document.getElementById('ampLenCell');
+const ampGcCell = document.getElementById('ampGcCell');
+const fwdLenCell = document.getElementById('fwdLenCell');
+const fwdGcCell = document.getElementById('fwdGcCell');
+const revLenCell = document.getElementById('revLenCell');
+const revGcCell = document.getElementById('revGcCell');
 const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const nextPage = 'variant.html';
@@ -103,6 +107,7 @@ seqBox.addEventListener('pointermove', (e) => {
 
 	dragEnd = Number(nt.dataset.i);
 	renderSelection();
+	updatePreview();
 });
 
 seqBox.addEventListener('pointerup', () => {
@@ -306,25 +311,82 @@ function renderSelection() {
 /* --- Helper Function: update preview if applicable--- */
 function updatePreview() {
 	let showPreviewBox = false;
+	const hasSeq = Boolean(seq);
+	const activeRange =
+		isDragging && dragStart != null && dragEnd != null
+			? normalizeRange(dragStart, dragEnd)
+			: null;
+	const activeLen = activeRange ? rangeLen(activeRange) : null;
+	const activeSeq = activeRange ? seq.slice(activeRange.start, activeRange.end + 1) : '';
+	const activeGc = activeSeq
+		? ((activeSeq.match(/[GC]/g) || []).length / activeSeq.length) * 100
+		: null;
+	const fwdRangeForAmp =
+		activePick === 'fwd' && activeRange ? activeRange : fwdRange;
+	const revRangeForAmp =
+		activePick === 'rev' && activeRange ? activeRange : revRange;
 
-	if (seq && fwdRange) {
+	if (hasSeq && fwdRange) {
 		const fwd = seq.slice(fwdRange.start, fwdRange.end + 1);
 		fwdOut.textContent = fwd;
-		fwdLine.style.display = 'block';
 		showPreviewBox = true;
 	} else {
 		fwdOut.textContent = '';
-		fwdLine.style.display = 'none';
 	}
 
-	if (seq && revRange) {
+	if (hasSeq && revRange) {
 		const revSite = seq.slice(revRange.start, revRange.end + 1);
 		revOut.textContent = reverseComplement(revSite);
-		revLine.style.display = 'block';
 		showPreviewBox = true;
 	} else {
 		revOut.textContent = '';
-		revLine.style.display = 'none';
+	}
+
+	// Forward primer row (live if dragging forward; else committed range)
+	if (activePick === 'fwd' && activeRange) {
+		fwdLenCell.textContent = String(activeLen);
+		fwdGcCell.textContent =
+			activeGc == null ? '' : `${activeGc.toFixed(1)}%`;
+		showPreviewBox = true;
+	} else if (hasSeq && fwdRange) {
+		const fwdSeq = seq.slice(fwdRange.start, fwdRange.end + 1);
+		const gcPct = ((fwdSeq.match(/[GC]/g) || []).length / fwdSeq.length) * 100;
+		fwdLenCell.textContent = String(fwdSeq.length);
+		fwdGcCell.textContent = `${gcPct.toFixed(1)}%`;
+	} else {
+		fwdLenCell.textContent = '';
+		fwdGcCell.textContent = '';
+	}
+
+	// Reverse primer row (live if dragging reverse; else committed range)
+	if (activePick === 'rev' && activeRange) {
+		revLenCell.textContent = String(activeLen);
+		revGcCell.textContent =
+			activeGc == null ? '' : `${activeGc.toFixed(1)}%`;
+		showPreviewBox = true;
+	} else if (hasSeq && revRange) {
+		const revSeq = seq.slice(revRange.start, revRange.end + 1);
+		const gcPct = ((revSeq.match(/[GC]/g) || []).length / revSeq.length) * 100;
+		revLenCell.textContent = String(revSeq.length);
+		revGcCell.textContent = `${gcPct.toFixed(1)}%`;
+	} else {
+		revLenCell.textContent = '';
+		revGcCell.textContent = '';
+	}
+
+	// Amplicon row (span between primers, including primers)
+	if (hasSeq && fwdRangeForAmp && revRangeForAmp) {
+		const start = Math.min(fwdRangeForAmp.start, revRangeForAmp.start);
+		const end = Math.max(fwdRangeForAmp.end, revRangeForAmp.end);
+		const ampSeq = seq.slice(start, end + 1);
+		const gcPct =
+			((ampSeq.match(/[GC]/g) || []).length / ampSeq.length) * 100;
+		ampLenCell.textContent = String(ampSeq.length);
+		ampGcCell.textContent = `${gcPct.toFixed(1)}%`;
+		showPreviewBox = true;
+	} else {
+		ampLenCell.textContent = '';
+		ampGcCell.textContent = '';
 	}
 
 	previewBox.hidden = !showPreviewBox;

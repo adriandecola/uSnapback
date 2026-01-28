@@ -38,7 +38,9 @@ input[type='number'] {
 	border-radius: 0.5rem;
 	font-weight: 600;
 	cursor: pointer;
-	transition: background 0.15s, transform 0.08s;
+	transition:
+		background 0.15s,
+		transform 0.08s;
 }
 
 .mini-btn:hover {
@@ -108,16 +110,56 @@ input[type='number'] {
 }
 
 /* Preview chips for the selected primer sequences */
-#primerPreview code {
+
+/* Primer stats table */
+.primer-stats-scroll {
+	overflow-x: auto;
+	display: flex;
+	justify-content: left;
+	max-width: 100%;
+}
+
+.primer-stats-table {
+	border-collapse: collapse;
+	margin-bottom: 0.75rem;
+	font-family: inherit;
+	font-size: 0.95rem;
+	width: max-content;
+	max-width: 100%;
+}
+.primer-stats-table th,
+.primer-stats-table td {
+	border: 1px solid #cbd5e1;
+	padding: 0.4rem 0.6rem;
+	text-align: center;
+	white-space: wrap;
+}
+.primer-stats-table th[scope='row'] {
+	text-align: left;
+	font-weight: 600;
+	white-space: nowrap;
+	padding-right: 0.9rem;
+}
+.primer-stats-table th[scope='col'] {
+	font-weight: 700;
+}
+
+.primer-stats-table .primer-label-cell {
+	text-align: left;
+	white-space: nowrap;
+}
+
+.primer-stats-table .primer-label-cell code {
 	display: inline-block;
 	padding: 0.1rem 0.25rem;
 	border-radius: 0.25rem;
+	font-weight: 400;
 }
 
-#primerPreview #fwdPrimer {
+.primer-stats-table .primer-label-cell #fwdPrimer {
 	background: rgba(37, 99, 235, 0.18); /* same as sel-fwd */
 }
 
-#primerPreview #revPrimer {
+.primer-stats-table .primer-label-cell #revPrimer {
 	background: rgba(22, 163, 74, 0.22); /* same as sel-rev */
 }
