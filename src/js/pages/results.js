@@ -28,7 +28,67 @@ import {
 	validateDesiredTm,
 } from '../shared/validators.js';
 
-(async () => {
+const PREV_PAGE = 'desiredTm.html';
+const START_PAGE = 'start.html';
+const AMPLICON_PAGE = 'amplicon.html';
+
+/* --------------------------------------------------
+Helper: recover to amplicon page when upstream inputs are invalid
+-------------------------------------------------- */
+function goBack(msg) {
+	alert(
+		msg +
+			'\n\nYou will now be redirected to the amplicon page so you can adjust your inputs.',
+	);
+	window.location.href = AMPLICON_PAGE;
+}
+
+/* --------------------------------------------------
+Helper: read inputs passed forward via sessionStorage
+-------------------------------------------------- */
+function readInputs() {
+	return {
+		seq: sessionStorage.getItem('ampliconSeqCropped') || '',
+		fwdLen: +sessionStorage.getItem('forwardPrimerLen'),
+		revLen: +sessionStorage.getItem('reversePrimerLen'),
+		snvIndex: +sessionStorage.getItem('snvIndex'),
+		snvBase: sessionStorage.getItem('snvBase'),
+		tmStr: sessionStorage.getItem('desiredTm') ?? '',
+	};
+}
+
+/* --------------------------------------------------
+Helper: validate inputs before running the main algorithm
+-------------------------------------------------- */
+function validateInputs({ seq, fwdLen, revLen, snvIndex, snvBase, tmStr }) {
+	const vAmp = validateAmpliconSeq(seq);
+	if (!vAmp.ok) {
+		goBack(vAmp.msg);
+		return null;
+	}
+
+	const vPrim = validatePrimerLengths(seq.length, fwdLen, revLen);
+	if (!vPrim.ok) {
+		goBack(vPrim.msg);
+		return null;
+	}
+
+	const vSnv = validateSnv(seq, fwdLen, revLen, snvIndex, snvBase);
+	if (!vSnv.ok) {
+		alert(vSnv.msg);
+		return null;
+	}
+
+	const vTm = validateDesiredTm(tmStr);
+	if (!vTm.ok) {
+		alert(vTm.msg);
+		return null;
+	}
+
+	return { tmC: vTm.data.tm };
+}
+
+async function initResultsPage() {
 	/* ---------- DOM elements ---------- */
 	const prevBtn = document.getElementById('prevBtn');
 	const restartBtn = document.getElementById('restartBtn');
@@ -42,78 +102,34 @@ import {
 	wireCopyButton(copySnapBtn, document.getElementById('snapSeq'));
 	wireCopyButton(copyLimitBtn, document.getElementById('limitSeq'));
 
-	/* ---------- Nav targets ---------- */
-	const PREV = 'desiredTm.html';
-	const START = 'start.html';
-
 	/* ---------- Back button ---------- */
 	prevBtn.addEventListener('click', () => {
 		/* keep current inputs intact – just step back */
-		window.location.href = PREV;
+		window.location.href = PREV_PAGE;
 	});
 
 	/* --------------------------------------------------
-    Event: restart button → clear storage and go to start.html
-    -------------------------------------------------- */
+	Event: restart button → clear storage and go to start.html
+	-------------------------------------------------- */
 	restartBtn.addEventListener('click', () => {
 		sessionStorage.clear();
-		window.location.href = START;
+		window.location.href = START_PAGE;
 	});
 
-	/* ---------- Pull inputs ------------ */
-
-	const seq = sessionStorage.getItem('ampliconSeqCropped') || '';
-	const fwdLen = +sessionStorage.getItem('forwardPrimerLen');
-	const revLen = +sessionStorage.getItem('reversePrimerLen');
-	const snvIndex = +sessionStorage.getItem('snvIndex');
-	const snvBase = sessionStorage.getItem('snvBase');
-	const tmStr = sessionStorage.getItem('desiredTm') ?? '';
-
-	// Helper function
-	const goBack = (msg) => {
-		alert(
-			msg +
-				'\n\nYou will now be redirected to the amplicon page so you can adjust your inputs.',
-		);
-		window.location.href = 'amplicon.html';
-	};
-
-	// Validating Inputs
-	const vAmp = validateAmpliconSeq(seq);
-	if (!vAmp.ok) {
-		goBack(vAmp.msg);
-		return;
-	}
-
-	const vPrim = validatePrimerLengths(seq.length, fwdLen, revLen);
-	if (!vPrim.ok) {
-		goBack(vPrim.msg);
-		return;
-	}
-
-	const vSnv = validateSnv(seq, fwdLen, revLen, snvIndex, snvBase);
-	if (!vSnv.ok) {
-		alert(vSnv.msg);
-		return;
-	}
-
-	const vTm = validateDesiredTm(tmStr);
-	if (!vTm.ok) {
-		alert(vTm.msg);
-		return;
-	}
-	const tmC = vTm.data.tm;
+	/* ---------- Pull and validate inputs ---------- */
+	const inputs = readInputs();
+	const validated = validateInputs(inputs);
+	if (!validated) return;
 
 	/* ---------- Main logic ---------- */
 	try {
-		overlay.hidden = false; // Show loading screen
+		overlay.hidden = false; // Show loading screen during compute/render
 		const result = await createSnapback(
-			/* now referenced from global scope */
-			seq,
-			fwdLen,
-			revLen,
-			{ index: snvIndex, variantBase: snvBase },
-			tmC,
+			inputs.seq,
+			inputs.fwdLen,
+			inputs.revLen,
+			{ index: inputs.snvIndex, variantBase: inputs.snvBase },
+			validated.tmC,
 		);
 
 		// For debugging
@@ -127,13 +143,13 @@ import {
 		renderStemDiagram(
 			result.descriptiveUnExtendedSnapbackPrimer,
 			result.descriptiveExtendedSnapback,
-			seq[snvIndex],
-			snvBase,
+			inputs.seq[inputs.snvIndex],
+			inputs.snvBase,
 			snvStemIndex,
 			result.matchesWild,
 		);
 
-		renderSnapbackPrimer(result, fwdLen, revLen);
+		renderSnapbackPrimer(result, inputs.fwdLen, inputs.revLen);
 		renderLimitingPrimer(result);
 
 		renderTailSummary(result);
@@ -149,4 +165,6 @@ import {
 		console.error(err);
 		goBack(err.message || 'Snapback calculation failed.');
 	}
-})();
+}
+
+initResultsPage();
