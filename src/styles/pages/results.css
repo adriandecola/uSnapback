@@ -395,6 +395,8 @@
 	border-radius: 999px; /* pill */
 	pointer-events: none; /* purely visual */
 	transform: translateX(-50%); /* we set left in JS to center on SNV */
+	white-space: nowrap;
+	min-width: 10ch;
 }
 
 /* Colors for wild vs variant states.
