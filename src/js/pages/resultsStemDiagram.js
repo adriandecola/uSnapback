@@ -1,3 +1,10 @@
+/*
+  File:             renderStemDiagram.js
+  Description:      DOM rendering helpers for results.html
+  Author:           Adrian deCola
+  Relative Path:    uSnapback/src/js/pages/renderStemDiagram.js
+*/
+
 let stemResizeObserver = null;
 let stemSnvInterval = null;
 
