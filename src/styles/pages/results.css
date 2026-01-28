@@ -221,6 +221,7 @@
 	align-items: center;
 	justify-content: center; /* centers whole block in wrapper */
 	gap: 0.35rem;
+	width: max-content;
 }
 
 /* Loop icon: slightly tucked over the left end of the stem */

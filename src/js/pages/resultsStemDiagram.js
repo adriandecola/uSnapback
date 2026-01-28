@@ -18,25 +18,6 @@ const normBase = (b) => (b ? String(b).trim().toUpperCase() : '');
 // Is it a correct DNA Base?
 const isDnaBase = (b) => b === 'A' || b === 'C' || b === 'G' || b === 'T';
 
-// Auto-size the stem diagram based on its container width
-function autoSizeStemDiagram(wrapper) {
-	if (!wrapper) return;
-	const diagram = wrapper.querySelector('.stem-diagram');
-	if (!diagram) return;
-
-	const topRow = diagram.querySelector('.stem-row--top');
-	if (!topRow) return;
-
-	const ntCount = (topRow.textContent || '').length || 1;
-	const width = wrapper.clientWidth || wrapper.offsetWidth || 320;
-
-	// Heuristic: keep between 10–22 px and roughly fit the width
-	let fontSize = width / (ntCount * 1.3);
-	fontSize = Math.max(10, Math.min(22, fontSize));
-
-	wrapper.style.setProperty('--stem-font-size', `${fontSize}px`);
-}
-
 // Position the "Wild / Variant" label underneath the SNV base
 function positionStemSnvLabel(wrapper) {
 	if (!wrapper) return;
@@ -57,17 +38,12 @@ function positionStemSnvLabel(wrapper) {
 	labelEl.style.top = `${labelTop}px`;
 }
 
-function updateStemLayout(wrapper) {
-	autoSizeStemDiagram(wrapper);
-	positionStemSnvLabel(wrapper);
-}
-
 // Shared ResizeObserver for the stem diagram
 if (typeof ResizeObserver !== 'undefined') {
 	stemResizeObserver =
 		stemResizeObserver ||
 		new ResizeObserver((entries) => {
-			entries.forEach((entry) => updateStemLayout(entry.target));
+			entries.forEach((entry) => positionStemSnvLabel(entry.target));
 		});
 }
 
@@ -296,8 +272,8 @@ function renderStemDiagram(
 		labelEl.hidden = false;
 	}
 
-	// Initial sizing + label positioning
-	updateStemLayout(wrapper);
+	// Initial label positioning
+	positionStemSnvLabel(wrapper);
 
 	if (stemResizeObserver) {
 		stemResizeObserver.observe(wrapper);
