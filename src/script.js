@@ -26,6 +26,7 @@ const MONO = 20.0;
 const T_PARAM = 'SantaLuciaHicks';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
+const PRIMER_O_TYPE = 'primer';
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
@@ -485,7 +486,7 @@ async function createSnapback(
 	primerLen,
 	compPrimerLen,
 	snvSite,
-	targetSnapMeltTemp
+	targetSnapMeltTemp,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                      //
@@ -494,7 +495,7 @@ async function createSnapback(
 	// 1. Validate the target sequence
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(
-			`Invalid DNA sequence: "${targetSeqStrand}". Must be non-empty and contain only A, T, C, or G.`
+			`Invalid DNA sequence: "${targetSeqStrand}". Must be non-empty and contain only A, T, C, or G.`,
 		);
 	}
 
@@ -505,7 +506,7 @@ async function createSnapback(
 		targetSnapMeltTemp <= 0
 	) {
 		throw new Error(
-			'targetSnapMeltTemp must be a positive, finite number.'
+			'targetSnapMeltTemp must be a positive, finite number.',
 		);
 	}
 
@@ -519,7 +520,7 @@ async function createSnapback(
 		}
 		if (len < MIN_PRIMER_LEN) {
 			throw new Error(
-				`${name} must be at least ${MIN_PRIMER_LEN} bases.`
+				`${name} must be at least ${MIN_PRIMER_LEN} bases.`,
 			);
 		}
 	}
@@ -528,7 +529,7 @@ async function createSnapback(
 	if (primerLen + compPrimerLen >= targetSeqStrand.length) {
 		throw new Error(
 			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) ` +
-				`cannot equal or exceed sequence length (${targetSeqStrand.length}).`
+				`cannot equal or exceed sequence length (${targetSeqStrand.length}).`,
 		);
 	}
 
@@ -536,13 +537,13 @@ async function createSnapback(
 	if (!isValidSNVObject(snvSite)) {
 		throw new Error(
 			`Invalid snvSite: ${JSON.stringify(
-				snvSite
-			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`
+				snvSite,
+			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`,
 		);
 	}
 	if (snvSite.index >= targetSeqStrand.length) {
 		throw new Error(
-			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`
+			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`,
 		);
 	}
 
@@ -552,19 +553,19 @@ async function createSnapback(
 			snvSite.index,
 			primerLen,
 			compPrimerLen,
-			targetSeqStrand.length
+			targetSeqStrand.length,
 		)
 	) {
 		throw new Error(
 			`SNV at index ${snvSite.index} is too close to a primer; ` +
-				`it must be at least ${SNV_BASE_BUFFER} bases away from both primer binding regions.`
+				`it must be at least ${SNV_BASE_BUFFER} bases away from both primer binding regions.`,
 		);
 	}
 
 	// 6. Ensure the amplicon length does not exceed MAX_AMPLICON_LEN
 	if (targetSeqStrand.length > MAX_AMPLICON_LEN) {
 		throw new Error(
-			`Amplicon length (${targetSeqStrand.length}) exceeds maximum allowed (${MAX_AMPLICON_LEN}).`
+			`Amplicon length (${targetSeqStrand.length}) exceeds maximum allowed (${MAX_AMPLICON_LEN}).`,
 		);
 	}
 
@@ -613,7 +614,7 @@ async function createSnapback(
 		primerLensSnapPrimerRefPoint,
 		snapbackTailBaseAtSNV,
 		matchesWild,
-		targetSnapMeltTemp
+		targetSnapMeltTemp,
 	);
 	console.log('DONE CREATING STEM_______________________');
 
@@ -628,17 +629,17 @@ async function createSnapback(
 		snvSiteSnapPrimerRefPoint,
 		primerLensSnapPrimerRefPoint,
 		bestStemLoc,
-		snapbackTailBaseAtSNV
+		snapbackTailBaseAtSNV,
 	);
 
 	// Get Rochester-model snapback Tm and a full delta H delta S breakdown for the extended product
 	const snapbackTmRochester = await calculateSnapbackTmRochester(
-		descriptiveExtendedSnapback
+		descriptiveExtendedSnapback,
 	);
 
 	// Get SantaLucia-model snapback Tm and a full delta H delta S breakdown for the extended product
 	const snapbackTmSantaLucia = await calculateSnapbackTmSantaLucia(
-		descriptiveExtendedSnapback
+		descriptiveExtendedSnapback,
 	);
 	console.log('snapbackTm SantaLucia Results:', snapbackTmSantaLucia);
 
@@ -650,7 +651,7 @@ async function createSnapback(
 		targetStrandSeqSnapPrimerRefPoint,
 		snvSiteSnapPrimerRefPoint,
 		bestStemLoc,
-		tailOnForwardPrimer
+		tailOnForwardPrimer,
 	);
 
 	// 6) Return the results
@@ -659,8 +660,8 @@ async function createSnapback(
 		limitingPrimerSeq: reverseComplement(
 			targetStrandSeqSnapPrimerRefPoint.slice(
 				targetStrandSeqSnapPrimerRefPoint.length -
-					primerLensSnapPrimerRefPoint.compPrimerLen
-			)
+					primerLensSnapPrimerRefPoint.compPrimerLen,
+			),
 		),
 		tailOnForwardPrimer: tailOnForwardPrimer,
 		matchesWild: matchesWild,
@@ -749,7 +750,7 @@ async function calculateMeltingTempDifferences(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
 	bestStemLoc,
-	tailOnForwardPrimer
+	tailOnForwardPrimer,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter Checking									                    //
@@ -759,7 +760,7 @@ async function calculateMeltingTempDifferences(
 	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
 		throw new Error(
 			`Invalid targetStrandSeqSnapPrimerRefPoint: "${targetStrandSeqSnapPrimerRefPoint}". ` +
-				'Must be a non-empty, uppercase DNA string containing only A/T/C/G.'
+				'Must be a non-empty, uppercase DNA string containing only A/T/C/G.',
 		);
 	}
 
@@ -769,15 +770,15 @@ async function calculateMeltingTempDifferences(
 	if (!isValidSNVObject(snvSiteSnapPrimerRefPoint)) {
 		throw new Error(
 			`Invalid snvSiteSnapPrimerRefPoint: ${JSON.stringify(
-				snvSiteSnapPrimerRefPoint
-			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`
+				snvSiteSnapPrimerRefPoint,
+			)}. Expected { index: number, variantBase: "A"|"T"|"C"|"G" }.`,
 		);
 	}
 	const snvIndex = snvSiteSnapPrimerRefPoint.index;
 	if (snvIndex < 0 || snvIndex >= SEQ_LEN) {
 		throw new Error(
 			`snvSiteSnapPrimerRefPoint.index (${snvIndex}) is out of bounds for ` +
-				`sequence length ${SEQ_LEN}.`
+				`sequence length ${SEQ_LEN}.`,
 		);
 	}
 
@@ -791,7 +792,7 @@ async function calculateMeltingTempDifferences(
 		for (const k of stemKeys) {
 			if (!allowedStemKeys.has(k)) {
 				throw new Error(
-					`bestStemLoc has unexpected key "${k}". Only {start, end} are allowed.`
+					`bestStemLoc has unexpected key "${k}". Only {start, end} are allowed.`,
 				);
 			}
 		}
@@ -821,12 +822,12 @@ async function calculateMeltingTempDifferences(
 	}
 	if (start > end) {
 		throw new Error(
-			`bestStemLoc.start (${start}) cannot be greater than bestStemLoc.end (${end}).`
+			`bestStemLoc.start (${start}) cannot be greater than bestStemLoc.end (${end}).`,
 		);
 	}
 	if (end >= SEQ_LEN) {
 		throw new Error(
-			`bestStemLoc.end (${end}) is out of bounds for sequence length ${SEQ_LEN}.`
+			`bestStemLoc.end (${end}) is out of bounds for sequence length ${SEQ_LEN}.`,
 		);
 	}
 	// Non-empty stem (at least one base)
@@ -837,7 +838,7 @@ async function calculateMeltingTempDifferences(
 	if (snvIndex < start || snvIndex > end) {
 		throw new Error(
 			`snvSiteSnapPrimerRefPoint.index (${snvIndex}) must lie within bestStemLoc ` +
-				`[${start}, ${end}] for mismatch positioning.`
+				`[${start}, ${end}] for mismatch positioning.`,
 		);
 	}
 
@@ -859,14 +860,14 @@ async function calculateMeltingTempDifferences(
 	// 2) Creating a variable to represent the target strand in the reverse complement
 	//	  of the snapback primers reference point
 	const targetStrandSeqRevCompSnapPrimerRefPoint = reverseComplement(
-		targetStrandSeqSnapPrimerRefPoint
+		targetStrandSeqSnapPrimerRefPoint,
 	);
 
 	// 3) Creating a variable to represent the SNV sithe in the reverse complement
 	//	  of the snapback primers reference point
 	const snvSiteRevCompSnapPrimerRefPoint = revCompSNV(
 		snvSiteSnapPrimerRefPoint,
-		targetStrandSeqRevCompSnapPrimerRefPoint.length
+		targetStrandSeqRevCompSnapPrimerRefPoint.length,
 	);
 
 	// 4) Getting the stem location in the reverse complement of the snapback
@@ -879,31 +880,31 @@ async function calculateMeltingTempDifferences(
 	// 5) Creating the stem sequences any option the stem can be
 	const stemSeqWildSamePrimer = targetStrandSeqSnapPrimerRefPoint.slice(
 		bestStemLoc.start,
-		bestStemLoc.end + 1
+		bestStemLoc.end + 1,
 	);
 	const stemSeqVariantSamePrimer =
 		targetStrandSeqSnapPrimerRefPoint.slice(
 			bestStemLoc.start,
-			snvSiteSnapPrimerRefPoint.index
+			snvSiteSnapPrimerRefPoint.index,
 		) +
 		snvSiteSnapPrimerRefPoint.variantBase +
 		targetStrandSeqSnapPrimerRefPoint.slice(
 			snvSiteSnapPrimerRefPoint.index + 1,
-			bestStemLoc.end + 1
+			bestStemLoc.end + 1,
 		);
 	const stemSeqWildRevPrimer = targetStrandSeqRevCompSnapPrimerRefPoint.slice(
 		bestStemLocRevCompSnapPrimerRefPoint.start,
-		bestStemLocRevCompSnapPrimerRefPoint.end + 1
+		bestStemLocRevCompSnapPrimerRefPoint.end + 1,
 	);
 	const stemSeqVariantRevPrimer =
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
 			bestStemLocRevCompSnapPrimerRefPoint.start,
-			snvSiteRevCompSnapPrimerRefPoint.index
+			snvSiteRevCompSnapPrimerRefPoint.index,
 		) +
 		snvSiteRevCompSnapPrimerRefPoint.variantBase +
 		targetStrandSeqRevCompSnapPrimerRefPoint.slice(
 			snvSiteRevCompSnapPrimerRefPoint.index + 1,
-			bestStemLocRevCompSnapPrimerRefPoint.end + 1
+			bestStemLocRevCompSnapPrimerRefPoint.end + 1,
 		);
 
 	console.group('Step 5 — Stem sequences at fixed bestStemLoc');
@@ -913,7 +914,7 @@ async function calculateMeltingTempDifferences(
 		'bestStemLoc (same-primer frame): start=%d, end=%d, len=%d',
 		bestStemLoc.start,
 		bestStemLoc.end,
-		bestStemLoc.end - bestStemLoc.start + 1
+		bestStemLoc.end - bestStemLoc.start + 1,
 	);
 	console.log(
 		'bestStemLoc (rev-comp frame): start=%d, end=%d, len=%d',
@@ -921,7 +922,7 @@ async function calculateMeltingTempDifferences(
 		bestStemLocRevCompSnapPrimerRefPoint.end,
 		bestStemLocRevCompSnapPrimerRefPoint.end -
 			bestStemLocRevCompSnapPrimerRefPoint.start +
-			1
+			1,
 	);
 
 	// Same-primer frame (snapback reference orientation)
@@ -932,7 +933,7 @@ async function calculateMeltingTempDifferences(
 		stemSeqWildSamePrimer.length,
 		snvSiteSnapPrimerRefPoint.index,
 		targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index],
-		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start
+		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
 	);
 
 	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantSamePrimer);
@@ -941,7 +942,7 @@ async function calculateMeltingTempDifferences(
 		stemSeqVariantSamePrimer.length,
 		snvSiteSnapPrimerRefPoint.index,
 		snvSiteSnapPrimerRefPoint.variantBase,
-		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start
+		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
 	);
 	console.groupEnd(); // Same primer
 
@@ -956,7 +957,7 @@ async function calculateMeltingTempDifferences(
 			snvSiteRevCompSnapPrimerRefPoint.index
 		],
 		snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start
+			bestStemLocRevCompSnapPrimerRefPoint.start,
 	);
 
 	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantRevPrimer);
@@ -966,7 +967,7 @@ async function calculateMeltingTempDifferences(
 		snvSiteRevCompSnapPrimerRefPoint.index,
 		snvSiteRevCompSnapPrimerRefPoint.variantBase,
 		snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start
+			bestStemLocRevCompSnapPrimerRefPoint.start,
 	);
 	console.groupEnd(); // Reverse primer
 
@@ -1032,7 +1033,7 @@ async function calculateMeltingTempDifferences(
 		calculateSnapbackTmWittwer(
 			stemSeqWildSamePrimer,
 			loopLenSamePrimer,
-			variantTailSamePrimerMismatch
+			variantTailSamePrimerMismatch,
 		), // 1: same-wild + variant tail
 
 		// Same primer, variant stem
@@ -1040,7 +1041,7 @@ async function calculateMeltingTempDifferences(
 		calculateSnapbackTmWittwer(
 			stemSeqVariantSamePrimer,
 			loopLenSamePrimer,
-			wildTailSamePrimerMismatch
+			wildTailSamePrimerMismatch,
 		), // 3: same-variant + wild tail
 
 		// Reverse primer, wild stem
@@ -1048,7 +1049,7 @@ async function calculateMeltingTempDifferences(
 		calculateSnapbackTmWittwer(
 			stemSeqWildRevPrimer,
 			loopLenRevPrimer,
-			variantTailRevPrimerMismatch
+			variantTailRevPrimerMismatch,
 		), // 5: rev-wild + variant tail
 
 		// Reverse primer, variant stem
@@ -1056,7 +1057,7 @@ async function calculateMeltingTempDifferences(
 		calculateSnapbackTmWittwer(
 			stemSeqVariantRevPrimer,
 			loopLenRevPrimer,
-			wildTailRevPrimerMismatch
+			wildTailRevPrimerMismatch,
 		), // 7: rev-variant + wild tail
 	];
 
@@ -1080,7 +1081,7 @@ async function calculateMeltingTempDifferences(
 		throw new Error(
 			`calculateSnapbackTmWittwer failed for ${labels[failIdx]}: ${
 				reason?.message ?? String(reason)
-			}`
+			}`,
 		);
 	}
 
@@ -1098,16 +1099,16 @@ async function calculateMeltingTempDifferences(
 
 	// 9) Compute absolute Tm differences with API results
 	const meltingTempDiffSamePrimerMatchWild = Math.abs(
-		sameWild_base - sameVar_withWildTail
+		sameWild_base - sameVar_withWildTail,
 	); // remember the tail is what we choose and what stays the same. What it anneals to causese the melting temperatature differences.
 	const meltingTempDiffSamePrimerMatchVariant = Math.abs(
-		sameVar_base - sameWild_withVariantTail
+		sameVar_base - sameWild_withVariantTail,
 	);
 	const meltingTempDiffRevPrimerMatchWild = Math.abs(
-		revWild_base - revVar_withWildTail
+		revWild_base - revVar_withWildTail,
 	);
 	const meltingTempDiffRevPrimerMatchVariant = Math.abs(
-		revVar_base - revWild_withVariantTail
+		revVar_base - revWild_withVariantTail,
 	);
 
 	// 10) Map Tm difference values to their correct orientation depending on `tailOnForwardPrimer`.)
@@ -1167,7 +1168,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	// 1. Validate targetSeqStrand
 	if (!isValidDNASequence(targetSeqStrand)) {
 		throw new Error(
-			'targetSeqStrand must be a non-empty uppercase DNA string containing only A, T, C, or G.'
+			'targetSeqStrand must be a non-empty uppercase DNA string containing only A, T, C, or G.',
 		);
 	}
 
@@ -1175,15 +1176,15 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	if (!isValidSNVObject(snvSite)) {
 		throw new Error(
 			`snvSite is invalid: ${JSON.stringify(
-				snvSite
-			)}. Expected { index: non-negative integer, variantBase: "A"|"T"|"C"|"G" }.`
+				snvSite,
+			)}. Expected { index: non-negative integer, variantBase: "A"|"T"|"C"|"G" }.`,
 		);
 	}
 
 	// 3. Ensure snvSite.index is within sequence bounds
 	if (snvSite.index >= targetSeqStrand.length) {
 		throw new Error(
-			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`
+			`snvSite.index (${snvSite.index}) exceeds sequence length ${targetSeqStrand.length}.`,
 		);
 	}
 
@@ -1194,7 +1195,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	) {
 		throw new Error(
 			`SNV at index ${snvSite.index} is too close to a sequence end; ` +
-				`need at least ${SNV_BASE_BUFFER} perfectly matched bases flanking it.`
+				`need at least ${SNV_BASE_BUFFER} perfectly matched bases flanking it.`,
 		);
 	}
 
@@ -1222,11 +1223,11 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 	//	  target
 	const targetInitStem = targetSeqStrand.slice(
 		initStemLoc.start,
-		initStemLoc.end + 1
+		initStemLoc.end + 1,
 	);
 	const compInitStem = revCompTargetSeqStrand.slice(
 		compInitStemLoc.start,
-		compInitStemLoc.end + 1
+		compInitStemLoc.end + 1,
 	);
 
 	// 6) SNV is at position {SNV_BASE_BUFFER} in these 2*{SNV_BASE_BUFFER}+1 slices
@@ -1237,7 +1238,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 		await evaluateSnapbackTailMatchingOptions(
 			targetInitStem,
 			mismatchPos,
-			snvSite.variantBase
+			snvSite.variantBase,
 		);
 
 	// 8) Evaluate Tm differences for snapback tail on complementary strand
@@ -1245,7 +1246,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 		await evaluateSnapbackTailMatchingOptions(
 			compInitStem,
 			mismatchPos,
-			revCompSnvSite.variantBase
+			revCompSnvSite.variantBase,
 		);
 
 	console.log('tailOnForwardPrimerScenario', tailOnForwardPrimerScenario);
@@ -1306,7 +1307,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 async function evaluateSnapbackTailMatchingOptions(
 	initStem,
 	mismatchPos,
-	variantBase
+	variantBase,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
@@ -1327,7 +1328,7 @@ async function evaluateSnapbackTailMatchingOptions(
 		throw new Error(
 			`mismatchPos (${mismatchPos}) must be an integer between 0 and ${
 				initStem.length - 1
-			}.`
+			}.`,
 		);
 	}
 
@@ -1338,7 +1339,7 @@ async function evaluateSnapbackTailMatchingOptions(
 		!VALID_BASES.has(variantBase)
 	) {
 		throw new Error(
-			`variantBase must be one character A, T, C, or G. Received "${variantBase}".`
+			`variantBase must be one character A, T, C, or G. Received "${variantBase}".`,
 		);
 	}
 
@@ -1346,7 +1347,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	const wildBase = initStem[mismatchPos];
 	if (variantBase === wildBase) {
 		throw new Error(
-			`variantBase must differ from wild base "${wildBase}" at mismatchPos.`
+			`variantBase must differ from wild base "${wildBase}" at mismatchPos.`,
 		);
 	}
 
@@ -1382,10 +1383,10 @@ async function evaluateSnapbackTailMatchingOptions(
 	};
 	const wildMatchingSnapbackTailToVariantTm = await getOligoTm(
 		variantInitStem,
-		wildMatchingSnapbackTailToVariantMismatchObj
+		wildMatchingSnapbackTailToVariantMismatchObj,
 	);
 	const wildMatchingSnapbackTailTmDiff = Math.abs(
-		wildMatchTm - wildMatchingSnapbackTailToVariantTm
+		wildMatchTm - wildMatchingSnapbackTailToVariantTm,
 	);
 
 	// 3) Scenario B: Variant-matching snapback tail
@@ -1397,10 +1398,10 @@ async function evaluateSnapbackTailMatchingOptions(
 	};
 	const variantMatchingSnapbackTailToWildTm = await getOligoTm(
 		initStem,
-		variantMatchingSnapbackTailToWildMismatchObj
+		variantMatchingSnapbackTailToWildMismatchObj,
 	);
 	const variantMatchingSnapbackTailTmDiff = Math.abs(
-		variantMatchTm - variantMatchingSnapbackTailToWildTm
+		variantMatchTm - variantMatchingSnapbackTailToWildTm,
 	);
 
 	/* ───────────── DEBUG LOG BLOCK (paste before the return) ───────────── */
@@ -1425,33 +1426,33 @@ async function evaluateSnapbackTailMatchingOptions(
 	// Scenario A (tail matches WILD → mismatch vs VARIANT top)
 	console.log(
 		'Scenario A mismatch obj:',
-		wildMatchingSnapbackTailToVariantMismatchObj
+		wildMatchingSnapbackTailToVariantMismatchObj,
 	);
 	console.log(
 		'Scenario A Tm (variantInitStem + A_mismatch):',
-		wildMatchingSnapbackTailToVariantTm
+		wildMatchingSnapbackTailToVariantTm,
 	);
 	console.log(
 		'Scenario A ΔTm = |wildMatchTm - A_Tm|:',
 		Math.abs(wildMatchTm - wildMatchingSnapbackTailToVariantTm),
 		'→ stored as wildMatchingSnapbackTailTmDiff=',
-		wildMatchingSnapbackTailTmDiff
+		wildMatchingSnapbackTailTmDiff,
 	);
 
 	// Scenario B (tail matches VARIANT → mismatch vs WILD top)
 	console.log(
 		'Scenario B mismatch obj:',
-		variantMatchingSnapbackTailToWildMismatchObj
+		variantMatchingSnapbackTailToWildMismatchObj,
 	);
 	console.log(
 		'Scenario B Tm (initStem + B_mismatch):',
-		variantMatchingSnapbackTailToWildTm
+		variantMatchingSnapbackTailToWildTm,
 	);
 	console.log(
 		'Scenario B ΔTm = |variantMatchTm - B_Tm|:',
 		Math.abs(variantMatchTm - variantMatchingSnapbackTailToWildTm),
 		'→ stored as variantMatchingSnapbackTailTmDiff=',
-		variantMatchingSnapbackTailTmDiff
+		variantMatchingSnapbackTailTmDiff,
 	);
 
 	// Summary table
@@ -1498,7 +1499,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	}
 	if (variantBase === wildBase) {
 		console.warn(
-			'variantBase equals wildBase at mismatchPos (unexpected).'
+			'variantBase equals wildBase at mismatchPos (unexpected).',
 		);
 	}
 
@@ -1564,7 +1565,7 @@ async function getOligoTm(seq, mismatch) {
 	// 1. Validate the DNA sequence
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`
+			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`,
 		);
 	}
 
@@ -1574,14 +1575,14 @@ async function getOligoTm(seq, mismatch) {
 		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
 				`Invalid mismatch object: ${JSON.stringify(
-					mismatch
-				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`
+					mismatch,
+				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`,
 			);
 		}
 		// 2.b  Position must lie within sequence bounds
 		if (mismatch.position >= seq.length) {
 			throw new Error(
-				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
+				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`,
 			);
 		}
 	}
@@ -1640,6 +1641,75 @@ async function getOligoTm(seq, mismatch) {
 }
 
 /**
+ * Retrieves the melting temperature (Tm) of a primer by querying the
+ * dna-utah.org Santa Lucia CGI with otype=primer.
+ *
+ * This mirrors getOligoTm but targets the primer-specific calculation mode.
+ *
+ * @param  {string}    seq              Primer sequence (5'→3')
+ * @returns {Promise<number>}           Melting temperature (°C) rounded to
+ *                                      `TM_DECIMAL_PLACES`
+ * @throws {Error}                      If inputs are invalid, the network
+ *                                      request fails, or the CGI response
+ *                                      cannot be parsed
+ */
+async function getPrimerTm(seq) {
+	//──────────────────────────────────────────────────────────────────────//
+	// Parameter Checking                                                   //
+	//──────────────────────────────────────────────────────────────────────//
+
+	// 1. Validate the DNA sequence
+	if (!isValidDNASequence(seq)) {
+		throw new Error(
+			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`,
+		);
+	}
+
+	//──────────────────────────────────────────────────────────────────────────//
+	// Function Logic                                                          //
+	//──────────────────────────────────────────────────────────────────────────//
+
+	// 1. Assemble the query URL
+	let apiURL = API_URL;
+	apiURL += `?mg=${MG}`; // 2.2 currently
+	apiURL += `&mono=${MONO}`; // 20 currently
+	apiURL += `&seq=${seq.toLowerCase()}`;
+	apiURL += `&tparam=${T_PARAM}`; //SantaLuciaHicks currently
+	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`; // 'bpdenominator' currenltly
+	apiURL += `&otype=${PRIMER_O_TYPE}`; // 'primer' currently
+
+	//apiURL += `&concentration=${CONC}`;
+	//apiURL += `&limitingconc=${LIMITING_CONC}`;
+	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
+	if (USE_TOKEN && API_TOKEN) {
+		apiURL += `&token=${API_TOKEN}`;
+	}
+
+	// 2. If proxying, encode the target and prepend the proxy URL
+	const finalURL = USE_PROXY
+		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
+		: apiURL;
+
+	// 3. Fetch the response
+	const res = await fetch(finalURL);
+	if (!res.ok) {
+		throw new Error(`Network error: ${res.status} – ${res.statusText}`);
+	}
+	const rawHtml = await res.text();
+
+	// 4. Extract the Tm
+	const tmVal = parseTmFromResponse(rawHtml);
+
+	// 5. Validate that a numeric Tm was found
+	if (tmVal === null) {
+		throw new Error('Tm value not found or unparsable in server response.');
+	}
+
+	// 6. Return the temperature
+	return tmVal;
+}
+
+/**
  * Retrieves ΔH°, ΔS°, and the salt-correction term for a DNA duplex by querying
  * the dna-utah Tm API. Inputs for concentrations are in µM.
  *
@@ -1682,7 +1752,7 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	// 1) Sequence
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`
+			`Invalid DNA sequence: "${seq}". Must be non-empty and contain only A, T, C, or G.`,
 		);
 	}
 
@@ -1694,7 +1764,7 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 			concentration <= 0
 		) {
 			throw new Error(
-				`concentration must be a positive, finite number in µM when provided. Received: ${concentration}`
+				`concentration must be a positive, finite number in µM when provided. Received: ${concentration}`,
 			);
 		}
 	}
@@ -1705,7 +1775,7 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 			limitingConc <= 0
 		) {
 			throw new Error(
-				`limitingConc must be a positive, finite number in µM when provided. Received: ${limitingConc}`
+				`limitingConc must be a positive, finite number in µM when provided. Received: ${limitingConc}`,
 			);
 		}
 	}
@@ -1715,13 +1785,13 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
 				`Invalid mismatch object: ${JSON.stringify(
-					mismatch
-				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`
+					mismatch,
+				)}. Expected { position: int, type: "A"|"T"|"C"|"G" }.`,
 			);
 		}
 		if (mismatch.position >= seq.length) {
 			throw new Error(
-				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
+				`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`,
 			);
 		}
 	}
@@ -1848,7 +1918,7 @@ async function createStem(
 	primerLensSnapPrimerRefPoint,
 	snapbackTailBaseAtSNV,
 	matchesWild,
-	targetSnapMeltTemp
+	targetSnapMeltTemp,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//                          Parameter Checking                              //
@@ -1857,7 +1927,7 @@ async function createStem(
 	// 1. Validate the target strand sequence
 	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
 		throw new Error(
-			'Invalid targetStrandSeqSnapPrimerRefPoint: must be a non-empty A/T/C/G string.'
+			'Invalid targetStrandSeqSnapPrimerRefPoint: must be a non-empty A/T/C/G string.',
 		);
 	}
 
@@ -1865,8 +1935,8 @@ async function createStem(
 	if (!isValidSNVObject(snvSiteSnapPrimerRefPoint)) {
 		throw new Error(
 			`snvSiteSnapPrimerRefPoint is invalid: ${JSON.stringify(
-				snvSiteSnapPrimerRefPoint
-			)}`
+				snvSiteSnapPrimerRefPoint,
+			)}`,
 		);
 	}
 	// 2a. Ensure SNV index is within sequence bounds
@@ -1875,7 +1945,7 @@ async function createStem(
 		targetStrandSeqSnapPrimerRefPoint.length
 	) {
 		throw new Error(
-			`snvSiteSnapPrimerRefPoint.index (${snvSiteSnapPrimerRefPoint.index}) exceeds sequence length ${targetStrandSeqSnapPrimerRefPoint.length}.`
+			`snvSiteSnapPrimerRefPoint.index (${snvSiteSnapPrimerRefPoint.index}) exceeds sequence length ${targetStrandSeqSnapPrimerRefPoint.length}.`,
 		);
 	}
 
@@ -1886,7 +1956,7 @@ async function createStem(
 		!VALID_BASES.has(snapbackTailBaseAtSNV)
 	) {
 		throw new Error(
-			`snapbackTailBaseAtSNV ("${snapbackTailBaseAtSNV}") must be one of "A", "T", "C", or "G".`
+			`snapbackTailBaseAtSNV ("${snapbackTailBaseAtSNV}") must be one of "A", "T", "C", or "G".`,
 		);
 	}
 
@@ -1904,7 +1974,7 @@ async function createStem(
 		!('compPrimerLen' in primerLensSnapPrimerRefPoint)
 	) {
 		throw new Error(
-			'primerLensSnapPrimerRefPoint must be an object with integer properties "primerLen" and "compPrimerLen".'
+			'primerLensSnapPrimerRefPoint must be an object with integer properties "primerLen" and "compPrimerLen".',
 		);
 	}
 
@@ -1919,7 +1989,7 @@ async function createStem(
 			len < MIN_PRIMER_LEN
 		) {
 			throw new Error(
-				`${name} must be an integer ≥ ${MIN_PRIMER_LEN}. Received ${len}.`
+				`${name} must be an integer ≥ ${MIN_PRIMER_LEN}. Received ${len}.`,
 			);
 		}
 	}
@@ -1928,7 +1998,7 @@ async function createStem(
 	const seqLen = targetStrandSeqSnapPrimerRefPoint.length;
 	if (primerLen + compPrimerLen >= seqLen) {
 		throw new Error(
-			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) cannot equal or exceed sequence length (${seqLen}).`
+			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) cannot equal or exceed sequence length (${seqLen}).`,
 		);
 	}
 
@@ -1938,11 +2008,11 @@ async function createStem(
 			snvSiteSnapPrimerRefPoint.index,
 			primerLen,
 			compPrimerLen,
-			seqLen
+			seqLen,
 		)
 	) {
 		throw new Error(
-			`SNV at index ${snvSiteSnapPrimerRefPoint.index} is within ${SNV_BASE_BUFFER} bases of a primer binding site.`
+			`SNV at index ${snvSiteSnapPrimerRefPoint.index} is within ${SNV_BASE_BUFFER} bases of a primer binding site.`,
 		);
 	}
 
@@ -1953,7 +2023,7 @@ async function createStem(
 		targetSnapMeltTemp <= 0
 	) {
 		throw new Error(
-			`targetSnapMeltTemp must be a positive, finite number. Received ${targetSnapMeltTemp}.`
+			`targetSnapMeltTemp must be a positive, finite number. Received ${targetSnapMeltTemp}.`,
 		);
 	}
 
@@ -1982,18 +2052,18 @@ async function createStem(
 		// 3a. Slice current stem
 		const currentStem = targetStrandSeqSnapPrimerRefPoint.slice(
 			stemStart,
-			stemEnd + 1
+			stemEnd + 1,
 		);
 		// 3b. Get the currentVariantStem
 		const currentVariantStem =
 			targetStrandSeqSnapPrimerRefPoint.slice(
 				stemStart,
-				snvSiteSnapPrimerRefPoint.index
+				snvSiteSnapPrimerRefPoint.index,
 			) +
 			snvSiteSnapPrimerRefPoint.variantBase +
 			targetStrandSeqSnapPrimerRefPoint.slice(
 				snvSiteSnapPrimerRefPoint.index + 1,
-				stemEnd + 1
+				stemEnd + 1,
 			);
 		// 3c. Calculating the loop length
 		const loopLen =
@@ -2018,7 +2088,7 @@ async function createStem(
 		const wildTm = await calculateSnapbackTmWittwer(
 			currentStem,
 			loopLen,
-			wildMismatch
+			wildMismatch,
 		);
 
 		// 3f. Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
@@ -2034,7 +2104,7 @@ async function createStem(
 			correspondingVariantStemTm = await calculateSnapbackTmWittwer(
 				currentVariantStem,
 				loopLen,
-				variantMismatch
+				variantMismatch,
 			);
 		}
 
@@ -2071,8 +2141,8 @@ async function createStem(
 	if (bestWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
 		throw new Error(
 			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${bestWildTm.toFixed(
-				2
-			)}°C. Please consider moving primers farther out so a larger, more stable snapback stem can be created. `
+				2,
+			)}°C. Please consider moving primers farther out so a larger, more stable snapback stem can be created. `,
 		);
 	}
 
@@ -2082,7 +2152,7 @@ async function createStem(
 		meltingTemps: {
 			wildTm: parseFloat(bestWildTm.toFixed(TM_DECIMAL_PLACES)),
 			variantTm: parseFloat(
-				correspondingVariantStemTm.toFixed(TM_DECIMAL_PLACES)
+				correspondingVariantStemTm.toFixed(TM_DECIMAL_PLACES),
 			),
 		},
 	};
@@ -2156,13 +2226,13 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	if (!isValidSNVObject(snv)) {
 		throw new Error(
 			`Invalid SNV object: must be { index: int, variantBase: A/T/C/G }. Received: ${JSON.stringify(
-				snv
-			)}`
+				snv,
+			)}`,
 		);
 	}
 	if (snv.index >= seq.length) {
 		throw new Error(
-			`SNV index (${snv.index}) exceeds sequence length (${seq.length}).`
+			`SNV index (${snv.index}) exceeds sequence length (${seq.length}).`,
 		);
 	}
 
@@ -2177,8 +2247,8 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	) {
 		throw new Error(
 			`primers must be an object with integer primerLen and compPrimerLen ≥ ${MIN_PRIMER_LEN}. Received: ${JSON.stringify(
-				primers
-			)}`
+				primers,
+			)}`,
 		);
 	}
 	// check keys
@@ -2186,7 +2256,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	for (const key of Object.keys(primers)) {
 		if (!allowedPrimerKeys.has(key)) {
 			throw new Error(
-				`primerLensSnapPrimerRefPoint contains unexpected key "${key}".`
+				`primerLensSnapPrimerRefPoint contains unexpected key "${key}".`,
 			);
 		}
 	}
@@ -2194,7 +2264,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	// check lengths do not exceed sequence length
 	if (primers.primerLen + primers.compPrimerLen >= seq.length) {
 		throw new Error(
-			`Primer lengths (${primers.primerLen} + ${primers.compPrimerLen}) cannot equal/exceed sequence length (${seq.length}).`
+			`Primer lengths (${primers.primerLen} + ${primers.compPrimerLen}) cannot equal/exceed sequence length (${seq.length}).`,
 		);
 	}
 
@@ -2205,7 +2275,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 		!VALID_BASES.has(tailBaseAtSNV)
 	) {
 		throw new Error(
-			`tailBaseAtSNV must be a single base "A", "T", "C", or "G". Received: "${tailBaseAtSNV}".`
+			`tailBaseAtSNV must be a single base "A", "T", "C", or "G". Received: "${tailBaseAtSNV}".`,
 		);
 	}
 
@@ -2222,8 +2292,8 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	) {
 		throw new Error(
 			`stem must be { start: int, end: int } with 0 ≤ start ≤ end < seq.length. Received: ${JSON.stringify(
-				stem
-			)}`
+				stem,
+			)}`,
 		);
 	}
 	// check keys
@@ -2391,7 +2461,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	// Inner loop mismatches are right next to the stem
 	const threePrimeInnerLoopMismatches = seq.slice(
 		innerLoopMismatchesStartLoc,
-		stemStart
+		stemStart,
 	);
 
 	const threePrimeStem = seq.slice(stemStart, stemEnd + 1);
@@ -2399,11 +2469,11 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	// threePrimerLimSnapExtMismatches are right to the right of the stem
 	const threePrimerLimSnapExtMismatches = seq.slice(
 		stemEnd + 1,
-		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
 	);
 
 	const threePrimerRestOfAmplicon = seq.slice(
-		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+		stemEnd + 1 + END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED,
 	);
 
 	// 7a) SNV annotations for the extended products.
@@ -2456,22 +2526,22 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 	const rc = (s) => reverseComplement(s);
 
 	descriptiveExendedLimSnapback.threePrimerLimSnapExtMismatches = rc(
-		fivePrimerLimSnapExtMismatches
+		fivePrimerLimSnapExtMismatches,
 	);
 	descriptiveExendedLimSnapback.threePrimeStem = rc(fivePrimeStem);
 	descriptiveExendedLimSnapback.threePrimeInnerLoopMismatches = rc(
-		fivePrimeInnerLoopMismatches
+		fivePrimeInnerLoopMismatches,
 	);
 	descriptiveExendedLimSnapback.stuffBetween = rc(stuffBetween);
 	descriptiveExendedLimSnapback.fivePrimeInnerLoopMismatches = rc(
-		threePrimeInnerLoopMismatches
+		threePrimeInnerLoopMismatches,
 	);
 	descriptiveExendedLimSnapback.fivePrimeStem = rc(threePrimeStem);
 	descriptiveExendedLimSnapback.fivePrimerLimSnapExtMismatches = rc(
-		threePrimerLimSnapExtMismatches
+		threePrimerLimSnapExtMismatches,
 	);
 	descriptiveExendedLimSnapback.fivePrimerRestOfAmplicon = rc(
-		threePrimerRestOfAmplicon
+		threePrimerRestOfAmplicon,
 	);
 	// 8a) SNV indices/bases on the extended *limiting* snapback
 	descriptiveExendedLimSnapback.snvOnThreePrimeStem = {
@@ -2554,14 +2624,14 @@ function snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen) {
 
 	if (snvIndex >= seqLen) {
 		throw new Error(
-			`snvIndex (${snvIndex}) is out of bounds for sequence length ${seqLen}.`
+			`snvIndex (${snvIndex}) is out of bounds for sequence length ${seqLen}.`,
 		);
 	}
 
 	if (primerLen + compPrimerLen >= seqLen) {
 		throw new Error(
 			`primerLen (${primerLen}) + compPrimerLen (${compPrimerLen}) ` +
-				`cannot equal or exceed seqLen (${seqLen}).`
+				`cannot equal or exceed seqLen (${seqLen}).`,
 		);
 	}
 
@@ -2613,7 +2683,7 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 	// 1. Validate the sequence
 	if (!isValidDNASequence(seq)) {
 		throw new Error(
-			`Invalid DNA sequence: "${seq}". Must contain only A, T, C, or G.`
+			`Invalid DNA sequence: "${seq}". Must contain only A, T, C, or G.`,
 		);
 	}
 
@@ -2625,7 +2695,7 @@ function buildMismatchSequenceForAPI(seq, mismatch) {
 	// 3. Ensure the mismatch position is within sequence bounds
 	if (mismatch.position >= seq.length) {
 		throw new Error(
-			`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`
+			`Mismatch position (${mismatch.position}) exceeds sequence length ${seq.length}.`,
 		);
 	}
 
@@ -2677,14 +2747,14 @@ function parseTmFromResponse(rawHtml, mismatch) {
 	// 1. Validate rawHTML is a string
 	if (typeof rawHtml !== 'string') {
 		throw new Error(
-			`rawHtml must be a string. Received: ${typeof rawHtml}`
+			`rawHtml must be a string. Received: ${typeof rawHtml}`,
 		);
 	}
 
 	// 2. Validate mismatch, if it is passed
 	if (mismatch !== undefined && typeof mismatch !== 'boolean') {
 		throw new Error(
-			`mismatch must be a boolean if provided. Received: ${typeof mismatch}`
+			`mismatch must be a boolean if provided. Received: ${typeof mismatch}`,
 		);
 	}
 
@@ -2764,7 +2834,7 @@ function parseThermoParamsFromResponse(rawHtml) {
 	//──────────────────────────────────────────────────────────────────────//
 	if (typeof rawHtml !== 'string' || rawHtml.length === 0) {
 		throw new Error(
-			`rawHtml must be a non-empty string. Received: ${typeof rawHtml}`
+			`rawHtml must be a non-empty string. Received: ${typeof rawHtml}`,
 		);
 	}
 
@@ -2821,7 +2891,7 @@ function parseThermoParamsFromResponse(rawHtml) {
 			!Number.isFinite(Number(saltNode.textContent.trim()))
 		) {
 			throw new Error(
-				'saltCorrection not found or unparsable in server response.'
+				'saltCorrection not found or unparsable in server response.',
 			);
 		}
 
@@ -2896,7 +2966,7 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 		loopLen < MIN_LOOP_LEN
 	) {
 		throw new Error(
-			`loopLen must be a finite number ≥ ${MIN_LOOP_LEN}. Received: ${loopLen}`
+			`loopLen must be a finite number ≥ ${MIN_LOOP_LEN}. Received: ${loopLen}`,
 		);
 	}
 
@@ -2905,7 +2975,7 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 		// 3.1 Validate shape and content
 		if (!isValidMismatchObject(mismatch)) {
 			throw new Error(
-				`Invalid mismatch object: ${JSON.stringify(mismatch)}`
+				`Invalid mismatch object: ${JSON.stringify(mismatch)}`,
 			);
 		}
 
@@ -2914,7 +2984,7 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 		const max = stemSeq.length - SNV_BASE_BUFFER - 1;
 		if (mismatch.position < min || mismatch.position > max) {
 			throw new Error(
-				`Mismatch.position (${mismatch.position}) must be between ${min} and ${max} (stem length: ${stemSeq.length})`
+				`Mismatch.position (${mismatch.position}) must be between ${min} and ${max} (stem length: ${stemSeq.length})`,
 			);
 		}
 	}
@@ -3004,7 +3074,7 @@ async function calculateSnapbackTmRochester(extended) {
 			!/^[ACGT]*$/.test(extended[key])
 		) {
 			throw new Error(
-				`extended.${key} must be an uppercase DNA string (A/T/C/G).`
+				`extended.${key} must be an uppercase DNA string (A/T/C/G).`,
 			);
 		}
 	}
@@ -3017,7 +3087,7 @@ async function calculateSnapbackTmRochester(extended) {
 		typeof extended.snvOnThreePrimeStem.variantBase !== 'string'
 	) {
 		throw new Error(
-			'extended.snvOnThreePrimeStem must be { indexInThreePrimeStem:int≥0, wildBase:str, variantBase:str }.'
+			'extended.snvOnThreePrimeStem must be { indexInThreePrimeStem:int≥0, wildBase:str, variantBase:str }.',
 		);
 	}
 	if (
@@ -3030,7 +3100,7 @@ async function calculateSnapbackTmRochester(extended) {
 		typeof extended.snvOnFivePrimeStem.compVariantBase !== 'string'
 	) {
 		throw new Error(
-			'extended.snvOnFivePrimeStem must include indexInFivePrimeStem:int≥0, tailBaseAtSNV, compWildBase, compVariantBase.'
+			'extended.snvOnFivePrimeStem must include indexInFivePrimeStem:int≥0, tailBaseAtSNV, compWildBase, compVariantBase.',
 		);
 	}
 
@@ -3118,7 +3188,7 @@ async function calculateSnapbackTmRochester(extended) {
 	const stemMatched = await getThermoParams(
 		threePrimeStem,
 		CONC,
-		LIMITING_CONC
+		LIMITING_CONC,
 	);
 
 	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
@@ -3127,7 +3197,7 @@ async function calculateSnapbackTmRochester(extended) {
 		threePrimeStem,
 		CONC,
 		LIMITING_CONC,
-		stemMismatchSpec
+		stemMismatchSpec,
 	);
 
 	// 5) Route matched vs mismatched to wild/variant using flags
@@ -3161,7 +3231,7 @@ async function calculateSnapbackTmRochester(extended) {
 		undefined,
 		undefined,
 		false,
-		wildSalt
+		wildSalt,
 	);
 	const variantTm = calculateTm(
 		variantSum_dH,
@@ -3169,7 +3239,7 @@ async function calculateSnapbackTmRochester(extended) {
 		undefined,
 		undefined,
 		false,
-		variantSalt
+		variantSalt,
 	);
 
 	// 7) Return breakdown and totals
@@ -3189,7 +3259,7 @@ async function calculateSnapbackTmRochester(extended) {
 						bottom2: terminal5p.bottom2,
 						dH: terminal5p.dH,
 						dS: terminal5p.dS,
-				  }
+					}
 				: null,
 			terminalMismatch3p: terminal3p
 				? {
@@ -3197,7 +3267,7 @@ async function calculateSnapbackTmRochester(extended) {
 						bottom2: terminal3p.bottom2,
 						dH: terminal3p.dH,
 						dS: terminal3p.dS,
-				  }
+					}
 				: null,
 			stem: {
 				matched: {
@@ -3308,7 +3378,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 			!/^[ACGT]*$/.test(extended[key])
 		) {
 			throw new Error(
-				`extended.${key} must be an uppercase DNA string (A/T/C/G).`
+				`extended.${key} must be an uppercase DNA string (A/T/C/G).`,
 			);
 		}
 	}
@@ -3321,7 +3391,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		typeof extended.snvOnThreePrimeStem.variantBase !== 'string'
 	) {
 		throw new Error(
-			'extended.snvOnThreePrimeStem must be { indexInThreePrimeStem:int≥0, wildBase:str, variantBase:str }.'
+			'extended.snvOnThreePrimeStem must be { indexInThreePrimeStem:int≥0, wildBase:str, variantBase:str }.',
 		);
 	}
 	if (
@@ -3334,7 +3404,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		typeof extended.snvOnFivePrimeStem.compVariantBase !== 'string'
 	) {
 		throw new Error(
-			'extended.snvOnFivePrimeStem must include indexInFivePrimeStem:int≥0, tailBaseAtSNV, compWildBase, compVariantBase.'
+			'extended.snvOnFivePrimeStem must include indexInFivePrimeStem:int≥0, tailBaseAtSNV, compWildBase, compVariantBase.',
 		);
 	}
 
@@ -3422,7 +3492,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	const stemMatched = await getThermoParams(
 		threePrimeStem,
 		CONC,
-		LIMITING_CONC
+		LIMITING_CONC,
 	);
 
 	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
@@ -3431,7 +3501,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		threePrimeStem,
 		CONC,
 		LIMITING_CONC,
-		stemMismatchSpec
+		stemMismatchSpec,
 	);
 
 	console.log('santa lucia thermo params MATCH:', stemMatched);
@@ -3485,7 +3555,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		undefined,
 		undefined,
 		false,
-		wildSalt
+		wildSalt,
 	);
 	const variantTm = calculateTm(
 		variantSum_dH,
@@ -3493,7 +3563,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		undefined,
 		undefined,
 		false,
-		variantSalt
+		variantSalt,
 	);
 
 	console.log('Wild tm:', wildTm);
@@ -3516,7 +3586,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 						bottom2: terminal5p.bottom2,
 						dH: terminal5p.dH,
 						dS: terminal5p.dS,
-				  }
+					}
 				: null,
 			terminalMismatch3p: terminal3p
 				? {
@@ -3524,7 +3594,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 						bottom2: terminal3p.bottom2,
 						dH: terminal3p.dH,
 						dS: terminal3p.dS,
-				  }
+					}
 				: null,
 			stem: {
 				matched: {
@@ -3632,7 +3702,7 @@ function calculateTm(
 	concA,
 	concB,
 	selfComplementary = false,
-	saltCorrection = 0
+	saltCorrection = 0,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
@@ -3641,12 +3711,12 @@ function calculateTm(
 	// 1) Validate thermodynamic inputs
 	if (typeof sumDeltaH !== 'number' || !Number.isFinite(sumDeltaH)) {
 		throw new Error(
-			`sumDeltaH must be a finite number (kcal/mol). Received: ${sumDeltaH}`
+			`sumDeltaH must be a finite number (kcal/mol). Received: ${sumDeltaH}`,
 		);
 	}
 	if (typeof sumDeltaS !== 'number' || !Number.isFinite(sumDeltaS)) {
 		throw new Error(
-			`sumDeltaS must be a finite number (cal/K/mol). Received: ${sumDeltaS}`
+			`sumDeltaS must be a finite number (cal/K/mol). Received: ${sumDeltaS}`,
 		);
 	}
 
@@ -3660,7 +3730,7 @@ function calculateTm(
 		if (selfComplementary) {
 			if (!concAProvided) {
 				throw new Error(
-					'concA must be provided for self-complementary duplexes when concentrations are supplied.'
+					'concA must be provided for self-complementary duplexes when concentrations are supplied.',
 				);
 			}
 			if (
@@ -3669,14 +3739,14 @@ function calculateTm(
 				concA <= 0
 			) {
 				throw new Error(
-					`concA must be a positive, finite number in µM. Received: ${concA}`
+					`concA must be a positive, finite number in µM. Received: ${concA}`,
 				);
 			}
 		} else {
 			// Bimolecular: both concA and concB are required if any conc is provided
 			if (!concAProvided || !concBProvided) {
 				throw new Error(
-					'Both concA and concB must be provided for non-self-complementary duplexes when concentrations are supplied.'
+					'Both concA and concB must be provided for non-self-complementary duplexes when concentrations are supplied.',
 				);
 			}
 			if (
@@ -3685,7 +3755,7 @@ function calculateTm(
 				concA <= 0
 			) {
 				throw new Error(
-					`concA must be a positive, finite number in µM. Received: ${concA}`
+					`concA must be a positive, finite number in µM. Received: ${concA}`,
 				);
 			}
 			if (
@@ -3694,7 +3764,7 @@ function calculateTm(
 				concB <= 0
 			) {
 				throw new Error(
-					`concB must be a positive, finite number in µM. Received: ${concB}`
+					`concB must be a positive, finite number in µM. Received: ${concB}`,
 				);
 			}
 		}
@@ -3703,7 +3773,7 @@ function calculateTm(
 	// 3) Validate boolean flag
 	if (typeof selfComplementary !== 'boolean') {
 		throw new Error(
-			`selfComplementary must be a boolean. Received: ${selfComplementary}`
+			`selfComplementary must be a boolean. Received: ${selfComplementary}`,
 		);
 	}
 
@@ -3713,7 +3783,7 @@ function calculateTm(
 		!Number.isFinite(saltCorrection)
 	) {
 		throw new Error(
-			`saltCorrection must be a finite number in cal/K/mol. Received: ${saltCorrection}`
+			`saltCorrection must be a finite number in cal/K/mol. Received: ${saltCorrection}`,
 		);
 	}
 
@@ -3742,7 +3812,7 @@ function calculateTm(
 			const AB50 = Math.min(concA, concB) / 2.0; // µM
 			if (AB50 <= 0) {
 				throw new Error(
-					`Computed [AB]_50 ≤ 0 from inputs (concA=${concA}, concB=${concB}).`
+					`Computed [AB]_50 ≤ 0 from inputs (concA=${concA}, concB=${concB}).`,
 				);
 			}
 			const A50 = concA - AB50; // µM
@@ -3755,7 +3825,7 @@ function calculateTm(
 		if (!Number.isFinite(concentrationTerm) || concentrationTerm <= 0) {
 			throw new Error(
 				`Invalid concentration term for ln(): ${concentrationTerm}. ` +
-					`Check input concentrations (must yield a positive term).`
+					`Check input concentrations (must yield a positive term).`,
 			);
 		}
 
@@ -3768,13 +3838,13 @@ function calculateTm(
 	// Avoid singularity / non-physical results
 	if (!Number.isFinite(denom)) {
 		throw new Error(
-			'Non-finite denominator encountered in Tm calculation.'
+			'Non-finite denominator encountered in Tm calculation.',
 		);
 	}
 	if (Math.abs(denom) < 1e-12) {
 		throw new Error(
 			'Denominator is ~0 (ΔS° + saltCorrection + R·ln(term) ≈ 0), leading to an infinite Tm. ' +
-				'Adjust concentrations or thermodynamic parameters.'
+				'Adjust concentrations or thermodynamic parameters.',
 		);
 	}
 
@@ -3784,7 +3854,7 @@ function calculateTm(
 	if (!Number.isFinite(Tm_K) || Tm_K <= 0) {
 		throw new Error(
 			`Computed a non-physical Tm (K) = ${Tm_K}. ` +
-				`Check signs/magnitudes of ΔH°, ΔS° and concentrations.`
+				`Check signs/magnitudes of ΔH°, ΔS° and concentrations.`,
 		);
 	}
 
@@ -3861,7 +3931,7 @@ function complementSequence(seqStrand) {
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
 			`Invalid DNA sequence: ${seqStrand}. ` +
-				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`,
 		);
 	}
 
@@ -3906,7 +3976,7 @@ function reverseComplement(seqStrand) {
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
 			`Invalid DNA sequence: ${seqStrand}. ` +
-				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`,
 		);
 	}
 
@@ -3946,7 +4016,7 @@ function isSelfComplimentary(seqStrand) {
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
 			`Invalid DNA sequence: ${seqStrand}. ` +
-				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G.`,
 		);
 	}
 	//──────────────────────────────────────────────────────────────────────//
@@ -4141,8 +4211,8 @@ function revCompSNV(snvSite, seqLen) {
 	if (!isValidSNVObject(snvSite)) {
 		throw new Error(
 			`Invalid SNV object: must be { index: number, variantBase: "A"|"T"|"C"|"G" }. Received: ${JSON.stringify(
-				snvSite
-			)}`
+				snvSite,
+			)}`,
 		);
 	}
 
@@ -4153,14 +4223,14 @@ function revCompSNV(snvSite, seqLen) {
 		seqLen <= 0
 	) {
 		throw new Error(
-			`seqLen must be a positive integer. Received: ${seqLen}`
+			`seqLen must be a positive integer. Received: ${seqLen}`,
 		);
 	}
 
 	// 3. Ensure index is within sequence bounds
 	if (snvSite.index >= seqLen) {
 		throw new Error(
-			`snvSite.index (${snvSite.index}) is out of bounds for sequence length ${seqLen}`
+			`snvSite.index (${snvSite.index}) is out of bounds for sequence length ${seqLen}`,
 		);
 	}
 
@@ -4209,7 +4279,7 @@ function reverseSequence(seqStrand) {
 	if (!isValidDNASequence(seqStrand)) {
 		throw new Error(
 			`Invalid DNA sequence: ${seqStrand}. ` +
-				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G..`
+				`Must be a non-empty uppercase string containing only characters A, T, C, and/or G..`,
 		);
 	}
 
@@ -4314,7 +4384,7 @@ function getSantaLuciaHicksHairpinParams(N) {
 	}
 	if (N < 3) {
 		throw new Error(
-			'SantaLucia–Hicks loop initiation is defined for N ≥ 3.'
+			'SantaLucia–Hicks loop initiation is defined for N ≥ 3.',
 		);
 	}
 
@@ -4326,7 +4396,7 @@ function getSantaLuciaHicksHairpinParams(N) {
 	if (
 		Object.prototype.hasOwnProperty.call(
 			HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
-			N
+			N,
 		)
 	) {
 		return HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS[N];
@@ -4416,7 +4486,7 @@ function getDanglingEndParams(step, orientation) {
 
 	if (!row) {
 		throw new Error(
-			`No Bommarito 2000 entry for orientation "${o}" on step "${s}". `
+			`No Bommarito 2000 entry for orientation "${o}" on step "${s}". `,
 		);
 	}
 	return row; // deep-frozen via deepFreeze()
@@ -4455,7 +4525,7 @@ function deepFreeze(obj) {
 function normalizeDanglingOrientation(orientation) {
 	if (typeof orientation !== 'string') {
 		throw new Error(
-			`orientation must be a string; got ${typeof orientation}`
+			`orientation must be a string; got ${typeof orientation}`,
 		);
 	}
 	const o = orientation.trim().toLowerCase();
@@ -4463,7 +4533,7 @@ function normalizeDanglingOrientation(orientation) {
 	if (o === '3p' || o === 'threeprime')
 		return DANGLING_ORIENTATION.THREE_PRIME;
 	throw new Error(
-		`Unrecognized orientation "${orientation}". Use '5p'|'3p' or 'fivePrime'|'threePrime'.`
+		`Unrecognized orientation "${orientation}". Use '5p'|'3p' or 'fivePrime'|'threePrime'.`,
 	);
 }
 
@@ -4478,7 +4548,7 @@ function normalizeDanglingOrientation(orientation) {
 function normalizeNNStep(step) {
 	if (typeof step !== 'string' || step.length !== 2) {
 		throw new Error(
-			`NN step must be a 2-character string like "AC"; got: ${step}`
+			`NN step must be a 2-character string like "AC"; got: ${step}`,
 		);
 	}
 	const s = step.toUpperCase();
@@ -4515,7 +4585,7 @@ function buildTerminalMismatchKey(top2, bottom2) {
 function parseTerminalMismatchToken(token) {
 	if (typeof token !== 'string') {
 		throw new Error(
-			`token must be a string like "AA/GT"; got: ${typeof token}`
+			`token must be a string like "AA/GT"; got: ${typeof token}`,
 		);
 	}
 
@@ -4524,7 +4594,7 @@ function parseTerminalMismatchToken(token) {
 	const parts = cleaned.split('/');
 	if (parts.length !== 2) {
 		throw new Error(
-			`Malformed terminal mismatch token; expected "NN/NN", got: "${token}"`
+			`Malformed terminal mismatch token; expected "NN/NN", got: "${token}"`,
 		);
 	}
 	return {
@@ -4590,6 +4660,7 @@ export {
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
 	getOligoTm,
+	getPrimerTm,
 	getThermoParams,
 	createStem,
 	buildSnapbackAndFinalProducts,

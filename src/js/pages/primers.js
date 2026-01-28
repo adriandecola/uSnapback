@@ -24,6 +24,8 @@ import {
 	validatePrimerRanges,
 } from '../shared/validators.js';
 
+import { getPrimerTm } from '../../script.js';
+
 /* ------------------------ Document element and page specific constants ------------------------ */
 const seq = sessionStorage.getItem('ampliconSeq') || '';
 const form = document.getElementById('primerForm');
@@ -41,6 +43,8 @@ const fwdLenCell = document.getElementById('fwdLenCell');
 const fwdGcCell = document.getElementById('fwdGcCell');
 const revLenCell = document.getElementById('revLenCell');
 const revGcCell = document.getElementById('revGcCell');
+const fwdTmCell = document.getElementById('fwdTmCell');
+const revTmCell = document.getElementById('revTmCell');
 const prevBtn = document.getElementById('prevBtn');
 const restartBtn = document.getElementById('restartBtn');
 const nextPage = 'variant.html';
@@ -53,12 +57,17 @@ let dragEnd = null;
 
 let fwdRange = loadRange('primerFwd', seq.length);
 let revRange = loadRange('primerRev', seq.length);
+let fwdTmSeq = null;
+let revTmSeq = null;
+let fwdTmRequestId = 0;
+let revTmRequestId = 0;
 
 // Render the selectable amplicon
 renderAmplicon();
 setActivePick(fwdRange ? (revRange ? 'fwd' : 'rev') : 'fwd');
 renderSelection();
 updatePreview();
+updatePrimerTms();
 
 // Buttons
 pickFwdBtn.addEventListener('click', () => setActivePick('fwd'));
@@ -76,6 +85,7 @@ clearPrimersBtn.addEventListener('click', () => {
 	revRange = null;
 	clearRange('primerFwd');
 	clearRange('primerRev');
+	resetPrimerTms();
 	setActivePick('fwd');
 	renderSelection();
 	updatePreview();
@@ -121,6 +131,7 @@ seqBox.addEventListener('pointerup', () => {
 
 	renderSelection();
 	updatePreview();
+	updatePrimerTms();
 });
 
 seqBox.addEventListener('pointercancel', () => {
@@ -400,6 +411,99 @@ function updatePreview() {
 	}
 
 	previewBox.hidden = !showPreviewBox;
+}
+
+function getFwdPrimerSeq() {
+	if (!fwdRange) return null;
+	return seq.slice(fwdRange.start, fwdRange.end + 1);
+}
+
+function getRevPrimerSeq() {
+	if (!revRange) return null;
+	const revSite = seq.slice(revRange.start, revRange.end + 1);
+	return reverseComplement(revSite);
+}
+
+function formatTmValue(tm) {
+	if (tm == null || Number.isNaN(tm)) return '';
+	return tm.toFixed(2);
+}
+
+function setTmLoading(cell) {
+	if (!cell) return;
+	cell.innerHTML = '';
+	const spinner = document.createElement('span');
+	spinner.className = 'tm-spinner';
+	spinner.setAttribute('role', 'status');
+	spinner.setAttribute('aria-label', 'Calculating');
+	cell.appendChild(spinner);
+}
+
+function setTmValue(cell, tm) {
+	if (!cell) return;
+	cell.textContent = formatTmValue(tm);
+}
+
+function clearTmCell(cell) {
+	if (!cell) return;
+	cell.textContent = '';
+}
+
+function resetPrimerTms() {
+	fwdTmSeq = null;
+	revTmSeq = null;
+	fwdTmRequestId += 1;
+	revTmRequestId += 1;
+	clearTmCell(fwdTmCell);
+	clearTmCell(revTmCell);
+}
+
+async function updatePrimerTm(which, primerSeq) {
+	const cell = which === 'fwd' ? fwdTmCell : revTmCell;
+	if (!primerSeq) {
+		if (which === 'fwd') {
+			fwdTmSeq = null;
+			fwdTmRequestId += 1;
+		} else {
+			revTmSeq = null;
+			revTmRequestId += 1;
+		}
+		clearTmCell(cell);
+		return;
+	}
+
+	const lastSeq = which === 'fwd' ? fwdTmSeq : revTmSeq;
+	if (primerSeq === lastSeq && cell.textContent.trim() !== '') return;
+
+	if (which === 'fwd') {
+		fwdTmSeq = primerSeq;
+		fwdTmRequestId += 1;
+	} else {
+		revTmSeq = primerSeq;
+		revTmRequestId += 1;
+	}
+
+	const requestId = which === 'fwd' ? fwdTmRequestId : revTmRequestId;
+	setTmLoading(cell);
+
+	try {
+		const tm = await getPrimerTm(primerSeq);
+		const currentSeq = which === 'fwd' ? fwdTmSeq : revTmSeq;
+		const currentId = which === 'fwd' ? fwdTmRequestId : revTmRequestId;
+		if (requestId !== currentId || primerSeq !== currentSeq) return;
+		setTmValue(cell, tm);
+	} catch (err) {
+		const currentId = which === 'fwd' ? fwdTmRequestId : revTmRequestId;
+		if (requestId !== currentId) return;
+		console.error(err);
+		clearTmCell(cell);
+	}
+}
+
+function updatePrimerTms() {
+	if (isDragging) return;
+	updatePrimerTm('fwd', getFwdPrimerSeq());
+	updatePrimerTm('rev', getRevPrimerSeq());
 }
 
 /* Helper Function: return reverse-complement of sequence */
