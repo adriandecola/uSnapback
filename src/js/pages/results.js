@@ -98,10 +98,16 @@ async function initResultsPage() {
 	/* Copy buttons */
 	const copySnapBtn = document.getElementById('copySnapSeqBtn');
 	const copyLimitBtn = document.getElementById('copyLimitSeqBtn');
+	const copySnapStatus = document.getElementById('copySnapStatus');
+	const copyLimitStatus = document.getElementById('copyLimitStatus');
 
 	/* ---------- Wire up copy buttons ---------- */
-	wireCopyButton(copySnapBtn, document.getElementById('snapSeq'));
-	wireCopyButton(copyLimitBtn, document.getElementById('limitSeq'));
+	wireCopyButton(copySnapBtn, document.getElementById('snapSeq'), {
+		statusEl: copySnapStatus,
+	});
+	wireCopyButton(copyLimitBtn, document.getElementById('limitSeq'), {
+		statusEl: copyLimitStatus,
+	});
 
 	/* ---------- Back button ---------- */
 	prevBtn.addEventListener('click', () => {
