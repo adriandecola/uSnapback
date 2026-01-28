@@ -61,7 +61,7 @@ pickFwdBtn.addEventListener('click', () => setActivePick('fwd'));
 
 pickRevBtn.addEventListener('click', () => {
 	if (!fwdRange) {
-		setHint('Select the forward primer first.', true);
+		resetHint();
 		return;
 	}
 	setActivePick('rev');
@@ -170,6 +170,18 @@ function setHint(msg, isError) {
 	pickHint.classList.toggle('error', Boolean(isError));
 }
 
+function resetHint() {
+	if (activePick === 'fwd') {
+		setHint('Drag to select the forward primer.', false);
+		return;
+	}
+	if (!fwdRange) {
+		setHint('Select the forward primer first.', false);
+		return;
+	}
+	setHint('Drag to select the reverse primer.', false);
+}
+
 function loadRange(prefix, seqLen) {
 	const s = sessionStorage.getItem(prefix + 'Start');
 	const e = sessionStorage.getItem(prefix + 'End');
@@ -198,7 +210,7 @@ function applyPickedRange(r) {
 	const len = rangeLen(r);
 	if (len < MIN_PRIMER_LEN) {
 		alert(`Primer must be at least ${MIN_PRIMER_LEN} nucleotides.`);
-		setHint(`Too short (${len}). Min is ${MIN_PRIMER_LEN}.`, true);
+		resetHint();
 		return;
 	}
 
@@ -209,14 +221,14 @@ function applyPickedRange(r) {
 			const gap = revRange.start - r.end - 1;
 			if (r.end >= revRange.start) {
 				alert('Forward primer must be left of reverse primer.');
-				setHint('Forward must be left of reverse.', true);
+				resetHint();
 				return;
 			}
 			if (gap < MIN_GAP_BETWEEN_PRIMERS) {
 				alert(
 					`Need at least ${MIN_GAP_BETWEEN_PRIMERS} bases between primers.`
 				);
-				setHint('Not enough space between primers.', true);
+				resetHint();
 				return;
 			}
 		}
@@ -232,7 +244,7 @@ function applyPickedRange(r) {
 	// Reverse pick
 	if (!fwdRange) {
 		alert('Select the forward primer first.');
-		setHint('Select the forward primer first.', true);
+		resetHint();
 		return;
 	}
 
@@ -240,14 +252,14 @@ function applyPickedRange(r) {
 	const gap = r.start - fwdRange.end - 1;
 	if (r.start <= fwdRange.end) {
 		alert('Reverse primer cannot overlap the forward primer.');
-		setHint('Reverse overlaps forward.', true);
+		resetHint();
 		return;
 	}
 	if (gap < MIN_GAP_BETWEEN_PRIMERS) {
 		alert(
 			`Need at least ${MIN_GAP_BETWEEN_PRIMERS} bases between primers.`
 		);
-		setHint(`Gap is ${gap}. Min is ${MIN_GAP_BETWEEN_PRIMERS}.`, true);
+		resetHint();
 		return;
 	}
 
