@@ -41,7 +41,11 @@
 	text-align: right;
 	background: transparent;
 }
-.textarea-wrapper .char-count.over {
-	color: #dc2626; /* red-600 when exceeding limit */
-	font-weight: 600;
+.textarea-wrapper .char-count.invalid {
+	color: #dc2626; /* red-600 when out of bounds */
+	font-weight: 700;
+}
+.textarea-wrapper .char-count.has-warning::before {
+	display: inline-block;
+	margin-right: 0.25rem;
 }

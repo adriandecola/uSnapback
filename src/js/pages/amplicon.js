@@ -7,7 +7,7 @@
 */
 
 /* ---------------------------------------- Imports --------------------------------------- */
-import { AMPLICON_LIMIT } from '../shared/constants.js';
+import { AMPLICON_LIMIT, MIN_AMP_LEN } from '../shared/constants.js';
 
 import {
 	validateAmpliconRaw,
@@ -62,8 +62,27 @@ function updateAmpliconStats() {
 // Helper function to update the nucleotide count
 function updateCharCount() {
 	const seqLen = input.value.replace(/\s+/g, '').length; // nucleotides only
-	countBox.textContent = `${seqLen} / ${AMPLICON_LIMIT} nt`;
+	let prefix = '';
+	let suffix = '';
+	let invalid = false;
+
+	if (seqLen === 0) {
+		suffix = ` — enter at least ${MIN_AMP_LEN} nt`;
+		invalid = true;
+	} else if (seqLen > AMPLICON_LIMIT) {
+		suffix = ' — too long';
+		invalid = true;
+	} else if (seqLen > 0 && seqLen < MIN_AMP_LEN) {
+		suffix = ` — too short (min ${MIN_AMP_LEN})`;
+		invalid = true;
+	}
+
+	prefix = invalid ? '⚠ ' : '';
+	countBox.textContent = `${prefix}${seqLen} / ${AMPLICON_LIMIT} nt${suffix}`;
+	countBox.classList.toggle('has-warning', invalid);
 	countBox.classList.toggle('over', seqLen > AMPLICON_LIMIT);
+	countBox.classList.toggle('under', seqLen > 0 && seqLen < MIN_AMP_LEN);
+	countBox.classList.toggle('invalid', invalid);
 }
 
 // Helper function to sanitize while preserving caret/selection & scroll
