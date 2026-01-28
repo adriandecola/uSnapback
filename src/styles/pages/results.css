@@ -365,12 +365,12 @@
 
 /* Replace the four tilt rules with these */
 .stem-mismatch-block--left.stem-mismatch-block--top {
-	transform: translate(-0.3em, -0.35em) rotate(18deg);
+	transform: translate(-0em, -0.35em) rotate(18deg);
 	transform-origin: center;
 }
 
 .stem-mismatch-block--left.stem-mismatch-block--bottom {
-	transform: translate(-0.3em, 0.35em) rotate(-18deg);
+	transform: translate(-0em, 0.35em) rotate(-18deg);
 	transform-origin: center;
 }
 
