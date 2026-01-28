@@ -127,13 +127,18 @@ function renderStemDiagram(
 		descriptivePrimer.fivePrimerLimSnapExtMismatches || '';
 	const terminalBottomSeq =
 		descriptiveExtended.threePrimerLimSnapExtMismatches || '';
+	const threePrimerRestOfAmplicon =
+		descriptiveExtended.threePrimerRestOfAmplicon || '';
 
 	// Top row displayed 3′→5′, so reverse mismatch snippets for display.
 	const leftTopDisplay = summarizeMismatchEnds(innerLoopTopSeq, true);
 	const rightTopDisplay = summarizeMismatchEnds(terminalTopSeq, true);
 	// Bottom row displayed 5′→3′, so leave mismatch snippets alone.
 	const leftBottomDisplay = summarizeMismatchEnds(innerLoopBottomSeq, false);
-	const rightBottomDisplay = summarizeMismatchEnds(terminalBottomSeq, false);
+	// Bottom row: do NOT show the terminal mismatch block; extend the stem instead.
+	const bottomExtensionSeq =
+		(terminalBottomSeq.slice(0, 2) || '') +
+		(threePrimerRestOfAmplicon.slice(0, 2) || '');
 
 	// Validate SNV index in stem coordinates
 	const validSnvIndex =
@@ -253,15 +258,13 @@ function renderStemDiagram(
 
 	bottomRow.appendChild(bottomCoreRow);
 
-	if (rightBottomDisplay) {
-		const bottomRightMismatch = document.createElement('span');
-		bottomRightMismatch.className =
-			'stem-mismatch-block ' +
-			'stem-mismatch-block--terminal ' +
-			'stem-mismatch-block--right ' +
-			'stem-mismatch-block--bottom';
-		bottomRightMismatch.textContent = rightBottomDisplay;
-		bottomRow.appendChild(bottomRightMismatch);
+	if (bottomExtensionSeq) {
+		for (let i = 0; i < bottomExtensionSeq.length; i += 1) {
+			const ntSpan = document.createElement('span');
+			ntSpan.className = 'stem-nt';
+			ntSpan.textContent = bottomExtensionSeq[i] || 'N';
+			bottomCoreRow.appendChild(ntSpan);
+		}
 	}
 
 	diagram.appendChild(bottomRow);

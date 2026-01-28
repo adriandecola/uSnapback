@@ -2,7 +2,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="280" height="140" viewBox="0 0 280 140">
   <!-- 5′ label near the top-left -->
   <text
-    x="10" y="26"
+    x="0" y="30"
     font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
     font-size="18"
     font-weight="700"
@@ -11,8 +11,8 @@
 
   <!-- Dashed continuation line (lower in the image) -->
   <line
-    x1="10" y1="110"
-    x2="238" y2="110"
+    x1="0" y1="82"
+    x2="238" y2="82"
     stroke="#0f172a"
     stroke-width="3"
     stroke-linecap="round"
@@ -31,7 +31,7 @@
 
   <!-- 3′ label much lower (near bottom-right) -->
   <text
-    x="243" y="115"
+    x="243" y="87"
     font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
     font-size="18"
     font-weight="700"
