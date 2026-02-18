@@ -6,28 +6,30 @@
   viewBox="0 0 120 120"
 >
   <!-- Tall dotted hairpin loop, open to the right -->
-  <path
-    d="M102 40
-       Q 64 4 32 34
-       Q 8 56 32 86
-       Q 64 112 102 74"
-    fill="none"
-    stroke="#000000"
-    stroke-width="3"
-    stroke-linecap="round"
-    stroke-dasharray="2 6"
-  />
+  <g transform="translate(8,0)">
+    <path
+      d="M102 40
+        Q 64 4 32 34
+        Q 8 56 32 86
+        Q 64 112 102 74"
+      fill="none"
+      stroke="#000000"
+      stroke-width="3"
+      stroke-linecap="round"
+      stroke-dasharray="2 6"
+    />
 
-  <!-- Centered label inside the bulb -->
-  <text
-    x="56"
-    y="60"
-    text-anchor="middle"
-    font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
-    font-size="10"
-    font-weight="600"
-    fill="#0f172a"
-  >
-    (loop)
-  </text>
+    <!-- Centered label inside the bulb -->
+    <text
+      x="56"
+      y="60"
+      text-anchor="middle"
+      font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"
+      font-size="10"
+      font-weight="600"
+      fill="#0f172a"
+    >
+      (loop)
+    </text>
+  </g>
 </svg>
