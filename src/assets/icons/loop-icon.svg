@@ -7,6 +7,18 @@
 >
   <!-- Tall dotted hairpin loop, open to the right -->
   <g transform="translate(8,0)">
+    <!-- Background accent behind only the top-right mouth segment of the loop -->
+    <path
+      d="M112 48
+        Q 87.56 26.32 73.96 22.17"
+      fill="none"
+      stroke="#dbeafe"
+      stroke-width="10"
+      stroke-linecap="butt"
+      stroke-linejoin="miter"
+      aria-hidden="true"
+    />
+
     <path
       d="M102 40
         Q 64 4 32 34

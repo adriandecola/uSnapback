@@ -196,6 +196,7 @@ function renderStemDiagram(
 		const topLeftMismatch = document.createElement('span');
 		topLeftMismatch.className =
 			'stem-mismatch-block ' +
+			'stem-mismatch-block--primer ' +
 			'stem-mismatch-block--inner-loop ' +
 			'stem-mismatch-block--left ' +
 			'stem-mismatch-block--top';
