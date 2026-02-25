@@ -3117,7 +3117,40 @@ async function calculateSnapbackTmRochester(extended) {
 		extended.threePrimerLimSnapExtMismatches;
 
 	const snvIdx = extended.snvOnThreePrimeStem.indexInThreePrimeStem;
+	const wildBaseAtSNV = extended.snvOnThreePrimeStem.wildBase;
+	const variantBaseAtSNV = extended.snvOnThreePrimeStem.variantBase;
 	const tailBaseAtSNV = extended.snvOnFivePrimeStem.tailBaseAtSNV;
+	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
+	const matchesVariant = extended.snvOnFivePrimeStem.matchesVariant;
+
+	if (snvIdx >= threePrimeStem.length) {
+		throw new Error(
+			`SNV index ${snvIdx} is out of bounds for threePrimeStem length ${threePrimeStem.length}.`,
+		);
+	}
+	if (!VALID_BASES.has(wildBaseAtSNV) || !VALID_BASES.has(variantBaseAtSNV)) {
+		throw new Error(
+			'snvOnThreePrimeStem.wildBase and .variantBase must each be one of A/T/C/G.',
+		);
+	}
+	if (!VALID_BASES.has(tailBaseAtSNV)) {
+		throw new Error('snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.');
+	}
+	if (matchesWild === matchesVariant) {
+		throw new Error(
+			'Exactly one of snvOnFivePrimeStem.matchesWild and matchesVariant must be true.',
+		);
+	}
+	if (threePrimeStem[snvIdx] !== wildBaseAtSNV) {
+		throw new Error(
+			`SNV metadata mismatch: threePrimeStem[${snvIdx}]="${threePrimeStem[snvIdx]}" does not match snvOnThreePrimeStem.wildBase="${wildBaseAtSNV}".`,
+		);
+	}
+
+	const threePrimeStemVariant =
+		threePrimeStem.slice(0, snvIdx) +
+		variantBaseAtSNV +
+		threePrimeStem.slice(snvIdx + 1);
 
 	//──────────────────────────────────────────────────────────────────────────//
 	// 1) Loop initiation (Rochester): N = stuffBetween + fivePrimeInnerLoopMismatches
@@ -3183,26 +3216,30 @@ async function calculateSnapbackTmRochester(extended) {
 		};
 	}
 
-	// 4) Stem NN thermodynamics with/without SNV mismatch
-	// Matched stem: no mismatch object
-	const stemMatched = await getThermoParams(
-		threePrimeStem,
-		CONC,
-		LIMITING_CONC,
-	);
+	// 4) Compute allele-specific stem thermodynamics.
+	//    The wild/variant difference comes from:
+	//      - the top-strand base at SNV (wild stem vs variant stem sequence)
+	//      - whether the fixed tail base at SNV is a match or mismatch for that allele
+	const wildMismatchSpec = matchesWild
+		? undefined
+		: { position: snvIdx, type: tailBaseAtSNV };
+	const variantMismatchSpec = matchesWild
+		? { position: snvIdx, type: tailBaseAtSNV }
+		: undefined;
 
-	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
-	const stemMismatchSpec = { position: snvIdx, type: tailBaseAtSNV };
-	const stemMismatched = await getThermoParams(
-		threePrimeStem,
-		CONC,
-		LIMITING_CONC,
-		stemMismatchSpec,
-	);
+	const [wildStem, variantStem] = await Promise.all([
+		getThermoParams(threePrimeStem, CONC, LIMITING_CONC, wildMismatchSpec),
+		getThermoParams(
+			threePrimeStemVariant,
+			CONC,
+			LIMITING_CONC,
+			variantMismatchSpec,
+		),
+	]);
 
-	// 5) Route matched vs mismatched to wild/variant using flags
-	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
-	const matchesVariant = extended.snvOnFivePrimeStem.matchesVariant;
+	// Backward-compatible breakdown buckets.
+	const stemMatched = matchesWild ? wildStem : variantStem;
+	const stemMismatched = matchesWild ? variantStem : wildStem;
 
 	const common_dH =
 		loopParams.dH +
@@ -3212,9 +3249,6 @@ async function calculateSnapbackTmRochester(extended) {
 		loopParams.dS +
 		(terminal5p ? terminal5p.dS : 0) +
 		(terminal3p ? terminal3p.dS : 0);
-
-	const wildStem = matchesWild ? stemMatched : stemMismatched;
-	const variantStem = matchesVariant ? stemMatched : stemMismatched;
 
 	const wildSum_dH = common_dH + wildStem.dH;
 	const wildSum_dS = common_dS + wildStem.dS;
@@ -3280,7 +3314,10 @@ async function calculateSnapbackTmRochester(extended) {
 					dH: stemMismatched.dH,
 					dS: stemMismatched.dS,
 					saltCorrection: stemMismatched.saltCorrection || 0,
-					mismatch: { position: snvIdx, type: tailBaseAtSNV },
+					mismatch: {
+						position: snvIdx,
+						type: tailBaseAtSNV,
+					},
 				},
 			},
 		},
@@ -3335,7 +3372,7 @@ async function calculateSnapbackTmRochester(extended) {
  *   wildTm: number,
  *   variantTm: number,
  *   components: {
- *     loop: { N: number, dH: number, dS: number, model: 'Rochester' },
+ *     loop: { N: number, dH: number, dS: number, model: 'SantaLuciaHicks' },
  *     dangling5p: null | { step: string, dH: number, dS: number },
  *     terminalMismatch3p: null | { top2: string, bottom2: string, dH: number, dS: number },
  *     stem: {
@@ -3356,8 +3393,6 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//                            Parameter Checking                            //
 	//──────────────────────────────────────────────────────────────────────────//
-	console.log('extended', extended);
-
 	if (typeof extended !== 'object' || !extended) {
 		throw new Error('extended must be a non-null object.');
 	}
@@ -3421,10 +3456,43 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		extended.threePrimerLimSnapExtMismatches;
 
 	const snvIdx = extended.snvOnThreePrimeStem.indexInThreePrimeStem;
+	const wildBaseAtSNV = extended.snvOnThreePrimeStem.wildBase;
+	const variantBaseAtSNV = extended.snvOnThreePrimeStem.variantBase;
 	const tailBaseAtSNV = extended.snvOnFivePrimeStem.tailBaseAtSNV;
+	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
+	const matchesVariant = extended.snvOnFivePrimeStem.matchesVariant;
+
+	if (snvIdx >= threePrimeStem.length) {
+		throw new Error(
+			`SNV index ${snvIdx} is out of bounds for threePrimeStem length ${threePrimeStem.length}.`,
+		);
+	}
+	if (!VALID_BASES.has(wildBaseAtSNV) || !VALID_BASES.has(variantBaseAtSNV)) {
+		throw new Error(
+			'snvOnThreePrimeStem.wildBase and .variantBase must each be one of A/T/C/G.',
+		);
+	}
+	if (!VALID_BASES.has(tailBaseAtSNV)) {
+		throw new Error('snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.');
+	}
+	if (matchesWild === matchesVariant) {
+		throw new Error(
+			'Exactly one of snvOnFivePrimeStem.matchesWild and matchesVariant must be true.',
+		);
+	}
+	if (threePrimeStem[snvIdx] !== wildBaseAtSNV) {
+		throw new Error(
+			`SNV metadata mismatch: threePrimeStem[${snvIdx}]="${threePrimeStem[snvIdx]}" does not match snvOnThreePrimeStem.wildBase="${wildBaseAtSNV}".`,
+		);
+	}
+
+	const threePrimeStemVariant =
+		threePrimeStem.slice(0, snvIdx) +
+		variantBaseAtSNV +
+		threePrimeStem.slice(snvIdx + 1);
 
 	//──────────────────────────────────────────────────────────────────────────//
-	// 1) Loop initiation (Rochester): N = stuffBetween + fivePrimeInnerLoopMismatches
+	// 1) Loop initiation (SantaLucia-Hicks): N = stuffBetween + fivePrimeInnerLoopMismatches
 	//──────────────────────────────────────────────────────────────────────────//
 	const loopN = stuffBetween.length + 2 * fivePrimeInnerLoopMismatches.length;
 	const loopParams = getSantaLuciaHicksHairpinParams(loopN); // { dH (kcal/mol), dS (cal/K/mol) }
@@ -3487,38 +3555,30 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		};
 	}
 
-	// 4) Stem NN thermodynamics with/without SNV mismatch
-	// Matched stem: no mismatch object
-	const stemMatched = await getThermoParams(
-		threePrimeStem,
-		CONC,
-		LIMITING_CONC,
-	);
+	// 4) Compute allele-specific stem thermodynamics.
+	//    The wild/variant difference comes from:
+	//      - the top-strand base at SNV (wild stem vs variant stem sequence)
+	//      - whether the fixed tail base at SNV is a match or mismatch for that allele
+	const wildMismatchSpec = matchesWild
+		? undefined
+		: { position: snvIdx, type: tailBaseAtSNV };
+	const variantMismatchSpec = matchesWild
+		? { position: snvIdx, type: tailBaseAtSNV }
+		: undefined;
 
-	// Mismatched stem: inject mismatch at snvIdx with opposite-strand base = tailBaseAtSNV
-	const stemMismatchSpec = { position: snvIdx - 1, type: tailBaseAtSNV }; /////////!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! put -1
-	const stemMismatched = await getThermoParams(
-		threePrimeStem,
-		CONC,
-		LIMITING_CONC,
-		stemMismatchSpec,
-	);
+	const [wildStem, variantStem] = await Promise.all([
+		getThermoParams(threePrimeStem, CONC, LIMITING_CONC, wildMismatchSpec),
+		getThermoParams(
+			threePrimeStemVariant,
+			CONC,
+			LIMITING_CONC,
+			variantMismatchSpec,
+		),
+	]);
 
-	console.log('santa lucia thermo params MATCH:', stemMatched);
-	console.log('santa lucia thermo params MISMATCH:', stemMismatched);
-	console.log('three prime stem santa lucia:', threePrimeStem);
-	console.log('stem mismatch spec santa lucia:', stemMismatchSpec);
-
-	// yabadabadoo
-	const stemTmMatched = await getOligoTm(threePrimeStem, undefined);
-	const stemTmMismatched = await getOligoTm(threePrimeStem, stemMismatchSpec);
-
-	console.log('StemTm:', stemTmMatched);
-	console.log('StemTm Mismatched:', stemTmMismatched);
-
-	// 5) Route matched vs mismatched to wild/variant using flags
-	const matchesWild = extended.snvOnFivePrimeStem.matchesWild;
-	const matchesVariant = extended.snvOnFivePrimeStem.matchesVariant;
+	// Backward-compatible breakdown buckets.
+	const stemMatched = matchesWild ? wildStem : variantStem;
+	const stemMismatched = matchesWild ? variantStem : wildStem;
 
 	const common_dH =
 		loopParams.dH +
@@ -3529,12 +3589,6 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		(terminal5p ? terminal5p.dS : 0) +
 		(terminal3p ? terminal3p.dS : 0);
 
-	console.log('common dH:', common_dH);
-	console.log('common dS:', common_dS);
-
-	const wildStem = matchesWild ? stemMatched : stemMismatched;
-	const variantStem = matchesVariant ? stemMatched : stemMismatched;
-
 	const wildSum_dH = common_dH + wildStem.dH;
 	const wildSum_dS = common_dS + wildStem.dS;
 	const wildSalt = wildStem.saltCorrection || 0;
@@ -3542,11 +3596,6 @@ async function calculateSnapbackTmSantaLucia(extended) {
 	const variantSum_dH = common_dH + variantStem.dH;
 	const variantSum_dS = common_dS + variantStem.dS;
 	const variantSalt = variantStem.saltCorrection || 0;
-
-	console.log('variantSum_dH:', variantSum_dH);
-	console.log('variantSum_dS:', variantSum_dS);
-	console.log('wildSum_dH:', wildSum_dH);
-	console.log('wildSum_dS:', wildSum_dS);
 
 	// 6) Compute Tm (°C)
 	const wildTm = calculateTm(
@@ -3566,9 +3615,6 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		variantSalt,
 	);
 
-	console.log('Wild tm:', wildTm);
-	console.log('Variant tm:', variantTm);
-
 	// 7) Return breakdown and totals
 	return {
 		wildTm,
@@ -3578,7 +3624,7 @@ async function calculateSnapbackTmSantaLucia(extended) {
 				N: loopN,
 				dH: loopParams.dH,
 				dS: loopParams.dS,
-				model: 'Rochester',
+				model: 'SantaLuciaHicks',
 			},
 			terminalMismatch5p: terminal5p
 				? {
@@ -3607,7 +3653,10 @@ async function calculateSnapbackTmSantaLucia(extended) {
 					dH: stemMismatched.dH,
 					dS: stemMismatched.dS,
 					saltCorrection: stemMismatched.saltCorrection || 0,
-					mismatch: { position: snvIdx, type: tailBaseAtSNV },
+					mismatch: {
+						position: snvIdx,
+						type: tailBaseAtSNV,
+					},
 				},
 			},
 		},
