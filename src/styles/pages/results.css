@@ -128,7 +128,8 @@
 	overflow-x: auto;
 }
 .delta-table {
-	width: 100%;
+	/* Size to intrinsic column content (plus cell padding), not full card width. */
+	width: auto;
 	border-collapse: collapse;
 	margin-top: 0.25rem;
 	font-family: inherit;
@@ -148,6 +149,9 @@
 	font-size: 0.85rem;
 	color: #475569;
 	padding-top: 0.5rem;
+	word-break: normal;
+	overflow-wrap: normal;
+	hyphens: none;
 }
 
 /* loader styles */
