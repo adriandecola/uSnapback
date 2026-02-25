@@ -4,6 +4,8 @@
 
 .result-card {
 	--forward-primer-bg: rgba(147, 197, 253, 0.28);
+	--forward-primer-solid-bg: #dbeafe;
+	--forward-primer-solid-border: #93c5fd;
 	--forward-primer-border: rgba(59, 130, 246, 0.55);
 	margin-top: 2rem;
 	padding: 1rem 1.25rem;
@@ -367,8 +369,9 @@
 
 /* Top-left mismatch belongs to the forward-primer side in the diagram. */
 .stem-mismatch-block--primer {
-	background-color: var(--forward-primer-bg);
-	border: 1px solid var(--forward-primer-border);
+	/* Use solid blue here to avoid alpha stacking with the loop SVG accent. */
+	background-color: var(--forward-primer-solid-bg);
+	border: 1px solid var(--forward-primer-solid-border);
 }
 
 /* Replace the four tilt rules with these */
