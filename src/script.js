@@ -2997,7 +2997,7 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 	const stemTm = await getOligoTm(stemSeq, mismatch ?? undefined);
 
 	// 2. Apply snapback Tm formula
-	const tm = -5.25 * Math.log(loopLen) + 0.837 * stemTm + 32.9;
+	const tm = -5.25 * Math.log10(loopLen) + 0.837 * stemTm + 32.9;
 
 	// 3. Round result
 	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
@@ -3134,7 +3134,9 @@ async function calculateSnapbackTmRochester(extended) {
 		);
 	}
 	if (!VALID_BASES.has(tailBaseAtSNV)) {
-		throw new Error('snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.');
+		throw new Error(
+			'snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.',
+		);
 	}
 	if (matchesWild === matchesVariant) {
 		throw new Error(
@@ -3473,7 +3475,9 @@ async function calculateSnapbackTmSantaLucia(extended) {
 		);
 	}
 	if (!VALID_BASES.has(tailBaseAtSNV)) {
-		throw new Error('snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.');
+		throw new Error(
+			'snvOnFivePrimeStem.tailBaseAtSNV must be one of A/T/C/G.',
+		);
 	}
 	if (matchesWild === matchesVariant) {
 		throw new Error(
