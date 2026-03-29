@@ -77,7 +77,7 @@ describe('createSnapback()', () => {
 			primerLen,
 			compPrimerLen,
 			snvSite,
-			targetSnapMeltTemp
+			targetSnapMeltTemp,
 		);
 
 		expect(result.tailOnForwardPrimer).toBe(false); // reverse primer
@@ -85,7 +85,7 @@ describe('createSnapback()', () => {
 		expect(result.snapbackMeltingTms.wildTm).toBeCloseTo(60.45, 2);
 		expect(result.snapbackMeltingTms.variantTm).toBeCloseTo(52.508, 2);
 		expect(result.snapbackSeq).toBe(
-			'AGTGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC'
+			'AGTGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC',
 		);
 		expect(result.limitingPrimerSeq).toBe('ATATTCAGAATAACTAATGT');
 	}, 30000);
@@ -115,8 +115,8 @@ describe('createSnapback()', () => {
 					validPrimerLen,
 					validCompPrimerLen,
 					validSNV,
-					validTm
-				)
+					validTm,
+				),
 			).rejects.toThrow(/Invalid DNA sequence/i);
 		});
 	}
@@ -139,8 +139,8 @@ describe('createSnapback()', () => {
 					validPrimerLen,
 					validCompPrimerLen,
 					validSNV,
-					tm
-				)
+					tm,
+				),
 			).rejects.toThrow(/targetSnapMeltTemp/i);
 		});
 	}
@@ -158,7 +158,7 @@ describe('createSnapback()', () => {
 	for (const [label, primer, compPrimer] of badPrimerPairs) {
 		test(`throws for invalid primer lengths (${label})`, async () => {
 			await expect(
-				createSnapback(validSeq, primer, compPrimer, validSNV, validTm)
+				createSnapback(validSeq, primer, compPrimer, validSNV, validTm),
 			).rejects.toThrow(/primer/i);
 		});
 	}
@@ -166,7 +166,7 @@ describe('createSnapback()', () => {
 	test('throws if total primer lengths exceed sequence length', async () => {
 		const longLen = Math.ceil(validSeq.length / 2);
 		await expect(
-			createSnapback(validSeq, longLen, longLen, validSNV, validTm)
+			createSnapback(validSeq, longLen, longLen, validSNV, validTm),
 		).rejects.toThrow(/cannot equal or exceed sequence length/i);
 	});
 
@@ -192,8 +192,8 @@ describe('createSnapback()', () => {
 					validPrimerLen,
 					validCompPrimerLen,
 					snv,
-					validTm
-				)
+					validTm,
+				),
 			).rejects.toThrow(/snvSite|index|variantBase/i);
 		});
 	}
@@ -206,8 +206,8 @@ describe('createSnapback()', () => {
 				validPrimerLen,
 				validCompPrimerLen,
 				snv,
-				validTm
-			)
+				validTm,
+			),
 		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
@@ -219,8 +219,8 @@ describe('createSnapback()', () => {
 				validPrimerLen,
 				validCompPrimerLen,
 				snv,
-				validTm
-			)
+				validTm,
+			),
 		).rejects.toThrow(/too close to a primer/i);
 	});
 
@@ -241,8 +241,8 @@ describe('createSnapback()', () => {
 				primerLen,
 				compPrimerLen,
 				snvSite,
-				targetSnapMeltTemp
-			)
+				targetSnapMeltTemp,
+			),
 		).rejects.toThrow(/exceeds maximum allowed/i);
 	});
 
@@ -257,8 +257,8 @@ describe('createSnapback()', () => {
 				primerLen,
 				compPrimerLen,
 				snvSite,
-				targetSnapMeltTemp
-			)
+				targetSnapMeltTemp,
+			),
 		).rejects.toThrow(/exceeds maximum allowed/i);
 	});
 
@@ -275,12 +275,12 @@ describe('createSnapback()', () => {
 				primerLen,
 				compPrimerLen,
 				snvSite,
-				targetSnapMeltTemp
+				targetSnapMeltTemp,
 			);
 			// resolved → certainly not the length guard, test passes
 		} catch (err) {
 			expect(String(err && err.message ? err.message : err)).not.toMatch(
-				/exceeds maximum allowed/i
+				/exceeds maximum allowed/i,
 			);
 		}
 	}, 30000);
@@ -296,11 +296,11 @@ describe('createSnapback()', () => {
 				primerLen,
 				compPrimerLen,
 				snvSite,
-				targetSnapMeltTemp
+				targetSnapMeltTemp,
 			);
 		} catch (err) {
 			expect(String(err && err.message ? err.message : err)).not.toMatch(
-				/exceeds maximum allowed/i
+				/exceeds maximum allowed/i,
 			);
 		}
 	});
@@ -357,7 +357,7 @@ describe('useForwardPrimer()', () => {
 	for (const [label, badTarget] of badTargets) {
 		test(`throws for invalid targetSeqStrand (${label})`, async () => {
 			await expect(useForwardPrimer(badTarget, validSNV)).rejects.toThrow(
-				/targetSeqStrand/
+				/targetSeqStrand/,
 			);
 		});
 	}
@@ -365,7 +365,7 @@ describe('useForwardPrimer()', () => {
 	for (const [label, badSnv] of badSnvs) {
 		test(`throws for invalid snvSite (${label})`, async () => {
 			await expect(useForwardPrimer(validTarget, badSnv)).rejects.toThrow(
-				/snvSite|index|variantBase/
+				/snvSite|index|variantBase/,
 			);
 		});
 	}
@@ -379,7 +379,7 @@ describe('useForwardPrimer()', () => {
 		for (let i = 0; i < SNV_BUFFER; i++) {
 			const snv = { index: i, variantBase: 'A' };
 			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
-				/is too close to a sequence end/i
+				/is too close to a sequence end/i,
 			);
 		}
 	});
@@ -390,7 +390,7 @@ describe('useForwardPrimer()', () => {
 		for (let i = limit + 1; i < seq.length; i++) {
 			const snv = { index: i, variantBase: 'A' };
 			await expect(useForwardPrimer(seq, snv)).rejects.toThrow(
-				/is too close to a sequence end/i
+				/is too close to a sequence end/i,
 			);
 		}
 	});
@@ -411,7 +411,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		seq = validSeq,
 		snv = validSNV,
 		stem = validStem,
-		flag = validTailFlag
+		flag = validTailFlag,
 	) => calculateMeltingTempDifferences(seq, snv, stem, flag);
 
 	// ────────────────────────────────────────────────────────────────────────
@@ -430,9 +430,9 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 	for (const [label, badSeq] of badTargets) {
 		test(`throws for invalid targetStrandSeqSnapPrimerRefPoint (${label})`, async () => {
 			await expect(
-				callFn(badSeq, validSNV, validStem, validTailFlag)
+				callFn(badSeq, validSNV, validStem, validTailFlag),
 			).rejects.toThrow(
-				/Invalid targetStrandSeqSnapPrimerRefPoint|DNA string/i
+				/Invalid targetStrandSeqSnapPrimerRefPoint|DNA string/i,
 			);
 		});
 	}
@@ -456,7 +456,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 	for (const [label, badSnv] of badSNVsShape) {
 		test(`throws for invalid snvSiteSnapPrimerRefPoint (${label})`, async () => {
 			await expect(
-				callFn(validSeq, badSnv, validStem, validTailFlag)
+				callFn(validSeq, badSnv, validStem, validTailFlag),
 			).rejects.toThrow(/snvSiteSnapPrimerRefPoint|index|variantBase/i);
 		});
 	}
@@ -467,8 +467,8 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 				validSeq,
 				{ index: -1, variantBase: 'A' },
 				validStem,
-				validTailFlag
-			)
+				validTailFlag,
+			),
 		).rejects.toThrow(/out of bounds|index/i);
 	});
 
@@ -477,7 +477,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: seq.length, variantBase: 'C' }; // == SEQ_LEN → OOB
 		const stem = { start: 10, end: 20 };
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/out of bounds/i
+			/out of bounds/i,
 		);
 	});
 
@@ -486,7 +486,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: seq.length + 5, variantBase: 'T' };
 		const stem = { start: 10, end: 20 };
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/out of bounds/i
+			/out of bounds/i,
 		);
 	});
 
@@ -495,25 +495,25 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────────────
 	test('throws when bestStemLoc is null', async () => {
 		await expect(
-			callFn(validSeq, validSNV, null, validTailFlag)
+			callFn(validSeq, validSNV, null, validTailFlag),
 		).rejects.toThrow(/bestStemLoc must be a non-null object/i);
 	});
 
 	test('throws when bestStemLoc is non-object', async () => {
 		await expect(
-			callFn(validSeq, validSNV, 42, validTailFlag)
+			callFn(validSeq, validSNV, 42, validTailFlag),
 		).rejects.toThrow(/bestStemLoc must be a non-null object/i);
 	});
 
 	test('throws when bestStemLoc is missing start', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { end: 80 }, validTailFlag)
+			callFn(validSeq, validSNV, { end: 80 }, validTailFlag),
 		).rejects.toThrow(/missing required key "start"/i);
 	});
 
 	test('throws when bestStemLoc is missing end', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: 40 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 40 }, validTailFlag),
 		).rejects.toThrow(/missing required key "end"/i);
 	});
 
@@ -523,26 +523,26 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 				validSeq,
 				validSNV,
 				{ start: 40, end: 80, foo: 1 },
-				validTailFlag
-			)
+				validTailFlag,
+			),
 		).rejects.toThrow(/unexpected key "foo"/i);
 	});
 
 	test('throws when bestStemLoc.start is not an integer', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: 40.5, end: 80 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 40.5, end: 80 }, validTailFlag),
 		).rejects.toThrow(/bestStemLoc\.start must be an integer/i);
 	});
 
 	test('throws when bestStemLoc.end is not an integer', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: 40, end: 80.1 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 40, end: 80.1 }, validTailFlag),
 		).rejects.toThrow(/bestStemLoc\.end must be an integer/i);
 	});
 
 	test('throws when bestStemLoc.start is NaN', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: NaN, end: 80 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: NaN, end: 80 }, validTailFlag),
 		).rejects.toThrow(/bestStemLoc\.start must be an integer/i);
 	});
 
@@ -552,26 +552,26 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 				validSeq,
 				validSNV,
 				{ start: 40, end: Infinity },
-				validTailFlag
-			)
+				validTailFlag,
+			),
 		).rejects.toThrow(/bestStemLoc\.end must be an integer/i);
 	});
 
 	test('throws when bestStemLoc.start < 0', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: -1, end: 10 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: -1, end: 10 }, validTailFlag),
 		).rejects.toThrow(/must be ≥ 0/i);
 	});
 
 	test('throws when bestStemLoc.end < 0', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: 0, end: -1 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 0, end: -1 }, validTailFlag),
 		).rejects.toThrow(/must be ≥ 0/i);
 	});
 
 	test('throws when bestStemLoc.start > bestStemLoc.end', async () => {
 		await expect(
-			callFn(validSeq, validSNV, { start: 50, end: 40 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 50, end: 40 }, validTailFlag),
 		).rejects.toThrow(/cannot be greater than/i);
 	});
 
@@ -580,7 +580,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: 15, variantBase: 'G' };
 		const stem = { start: 10, end: 30 }; // end == SEQ_LEN → OOB
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/out of bounds/i
+			/out of bounds/i,
 		);
 	});
 
@@ -589,7 +589,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: 15, variantBase: 'C' };
 		const stem = { start: 10, end: 35 };
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/out of bounds/i
+			/out of bounds/i,
 		);
 	});
 
@@ -597,9 +597,9 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		// The only way to hit "span at least one" guard beyond start>end is to
 		// force a degenerate case. Here, we still expect a throw (redundant guard).
 		await expect(
-			callFn(validSeq, validSNV, { start: 10, end: 9 }, validTailFlag)
+			callFn(validSeq, validSNV, { start: 10, end: 9 }, validTailFlag),
 		).rejects.toThrow(
-			/span at least one nucleotide|cannot be greater than/i
+			/span at least one nucleotide|cannot be greater than/i,
 		);
 	});
 
@@ -607,7 +607,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: 9, variantBase: 'A' };
 		const stem = { start: 10, end: 20 };
 		await expect(
-			callFn(validSeq, snv, stem, validTailFlag)
+			callFn(validSeq, snv, stem, validTailFlag),
 		).rejects.toThrow(/must lie within bestStemLoc/i);
 	});
 
@@ -615,7 +615,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: 21, variantBase: 'T' };
 		const stem = { start: 10, end: 20 };
 		await expect(
-			callFn(validSeq, snv, stem, validTailFlag)
+			callFn(validSeq, snv, stem, validTailFlag),
 		).rejects.toThrow(/must lie within bestStemLoc/i);
 	});
 
@@ -629,7 +629,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 			await callFn(seq, snv, stem, validTailFlag);
 		} catch (err) {
 			expect(String(err?.message || err)).not.toMatch(
-				/must lie within bestStemLoc/i
+				/must lie within bestStemLoc/i,
 			);
 		}
 	});
@@ -642,7 +642,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 			await callFn(seq, snv, stem, validTailFlag);
 		} catch (err) {
 			expect(String(err?.message || err)).not.toMatch(
-				/must lie within bestStemLoc/i
+				/must lie within bestStemLoc/i,
 			);
 		}
 	});
@@ -663,7 +663,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 	for (const [label, badFlag] of badTailFlags) {
 		test(`throws for invalid tailOnForwardPrimer (${label})`, async () => {
 			await expect(
-				callFn(validSeq, validSNV, validStem, badFlag)
+				callFn(validSeq, validSNV, validStem, badFlag),
 			).rejects.toThrow(/tailOnForwardPrimer must be a boolean/i);
 		});
 	}
@@ -676,7 +676,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: seq.length - 1, variantBase: 'A' };
 		const stem = { start: 10, end: 20 }; // SNV not inside stem
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/must lie within bestStemLoc/i
+			/must lie within bestStemLoc/i,
 		);
 	});
 
@@ -685,7 +685,7 @@ describe('calculateMeltingTempDifferences() — parameter checking', () => {
 		const snv = { index: 30, variantBase: 'T' }; // OOB w.r.t. sequence
 		const stem = { start: 5, end: 10 };
 		await expect(callFn(seq, snv, stem, validTailFlag)).rejects.toThrow(
-			/out of bounds/i
+			/out of bounds/i,
 		);
 	});
 });
@@ -700,7 +700,7 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 		const result = await evaluateSnapbackTailMatchingOptions(
 			initStem,
 			mismatchPos,
-			variantBase
+			variantBase,
 		);
 
 		expect(result).toEqual({
@@ -721,7 +721,7 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 		const result = await evaluateSnapbackTailMatchingOptions(
 			revCompInitStem,
 			compMismatchPos,
-			compVariantBase
+			compVariantBase,
 		);
 
 		expect(result).toEqual({
@@ -739,7 +739,7 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 
 	test('throws if initStem is not a string', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(12345, mismatchPos, variant)
+			evaluateSnapbackTailMatchingOptions(12345, mismatchPos, variant),
 		).rejects.toThrow(/initStem must be/i);
 	});
 
@@ -748,44 +748,44 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 			evaluateSnapbackTailMatchingOptions(
 				'GAAXXGAG',
 				mismatchPos,
-				variant
-			)
+				variant,
+			),
 		).rejects.toThrow(/initStem must be/i);
 	});
 
 	test('throws if mismatchPos is not a number', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, 'notNum', variant)
+			evaluateSnapbackTailMatchingOptions(validSeq, 'notNum', variant),
 		).rejects.toThrow(/must be an integer/i);
 	});
 
 	test('throws if mismatchPos is negative', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, -1, variant)
+			evaluateSnapbackTailMatchingOptions(validSeq, -1, variant),
 		).rejects.toThrow(/must be an integer/i);
 	});
 
 	test('throws if mismatchPos >= seq.length', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, 99, variant)
+			evaluateSnapbackTailMatchingOptions(validSeq, 99, variant),
 		).rejects.toThrow(/must be an integer between/i);
 	});
 
 	test('throws if variantBase is not a string', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 55)
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 55),
 		).rejects.toThrow(/variantBase must be/i);
 	});
 
 	test('throws if variantBase is longer than 1 char', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'TT')
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'TT'),
 		).rejects.toThrow(/variantBase must be/i);
 	});
 
 	test('throws if variantBase is not A/T/C/G', async () => {
 		await expect(() =>
-			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'Z')
+			evaluateSnapbackTailMatchingOptions(validSeq, mismatchPos, 'Z'),
 		).rejects.toThrow(/variantBase must be/i);
 	});
 });
@@ -815,67 +815,67 @@ describe('getOligoTm()', () => {
 	// Invalid parameters
 	test('throws if sequence is not a string', async () => {
 		await expect(() => getOligoTm(12345)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if sequence has invalid characters', async () => {
 		await expect(() => getOligoTm('GAXXXC')).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if mismatch is not an object', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', 'not-an-object')
+			getOligoTm('GAAAAGGAGTGC', 'not-an-object'),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is an array', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }])
+			getOligoTm('GAAAAGGAGTGC', [{ position: 3, type: 'G' }]),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "position"', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { type: 'G' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is missing "type"', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: 3 })
+			getOligoTm('GAAAAGGAGTGC', { position: 3 }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is out of bounds', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: 100, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: 100, type: 'G' }),
 		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws if mismatch.position is negative', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: -1, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: -1, type: 'G' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position is not an integer', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' })
+			getOligoTm('GAAAAGGAGTGC', { position: 2.5, type: 'G' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is invalid base', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'X' })
+			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'X' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is too long', async () => {
 		await expect(() =>
-			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'GA' })
+			getOligoTm('GAAAAGGAGTGC', { position: 4, type: 'GA' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
@@ -885,7 +885,7 @@ describe('getOligoTm()', () => {
 				position: 3,
 				type: 'A',
 				unexpected: true,
-			})
+			}),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 });
@@ -913,7 +913,7 @@ describe('createStem() – logic test', () => {
 			primerLens,
 			snapbackTailBaseAtSNV,
 			matchesWild,
-			targetSnapMeltTemp
+			targetSnapMeltTemp,
 		);
 
 		/* ------------------------------------------------------------------
@@ -947,7 +947,7 @@ describe('createStem() – logic test', () => {
 			primerLens,
 			snapbackTailBaseAtSNV,
 			matchesWild,
-			targetSnapMeltTemp
+			targetSnapMeltTemp,
 		);
 
 		/* ------------------------------------------------------------------
@@ -983,7 +983,7 @@ describe('createStem() – logic test', () => {
 			primerLens,
 			snapbackTailBaseAtSNV,
 			matchesWild,
-			targetSnapMeltTemp
+			targetSnapMeltTemp,
 		);
 
 		/* ------------------------------------------------------------------
@@ -1020,8 +1020,8 @@ describe('createStem() – logic test', () => {
 				primerLens,
 				snapbackTailBaseAtSNV,
 				matchesWild,
-				targetSnapMeltTemp
-			)
+				targetSnapMeltTemp,
+			),
 		).rejects.toThrow(/Could not meet minimum snapback melting temp/i);
 	});
 });
@@ -1194,8 +1194,8 @@ describe('createStem() parameter validation', () => {
 					args.primerLensSnapPrimerRefPoint,
 					args.snapbackBaseAtSNV,
 					args.matchesWild,
-					args.desiredSnapbackMeltTempWildType
-				)
+					args.desiredSnapbackMeltTempWildType,
+				),
 			).rejects.toThrow(new RegExp(errorPattern));
 		});
 	}
@@ -1231,7 +1231,7 @@ describe('buildSnapbackAndFinalProducts', () => {
 			snv,
 			primers,
 			stem,
-			tailBaseAtSNV
+			tailBaseAtSNV,
 		);
 		expect(result).toBe(expectedSnapback);
 	});
@@ -1255,7 +1255,7 @@ describe('buildSnapbackAndFinalProducts', () => {
 			validSNV,
 			validPrimerLens,
 			validStemLoc,
-			validSnapBase
+			validSnapBase,
 		);
 
 	test('baseline call succeeds', () => {
@@ -1276,7 +1276,7 @@ describe('buildSnapbackAndFinalProducts', () => {
 				snv,
 				primerLens,
 				stemLoc,
-				snapBase
+				snapBase,
 			);
 	};
 
@@ -1403,7 +1403,7 @@ describe('snvTooCloseToPrimer()', () => {
 		const compPrimerLen = 5;
 		const snvIndex = seqLen - compPrimerLen - SNV_BASE_BUFFER - 1;
 		expect(
-			snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen)
+			snvTooCloseToPrimer(snvIndex, primerLen, compPrimerLen, seqLen),
 		).toBe(false);
 	});
 
@@ -1413,29 +1413,29 @@ describe('snvTooCloseToPrimer()', () => {
 				SNV_BASE_BUFFER + 20,
 				5,
 				5,
-				SNV_BASE_BUFFER + 50
-			)
+				SNV_BASE_BUFFER + 50,
+			),
 		).toBe(false);
 		expect(
 			snvTooCloseToPrimer(
 				SNV_BASE_BUFFER + 25,
 				10,
 				10,
-				SNV_BASE_BUFFER + 70
-			)
+				SNV_BASE_BUFFER + 70,
+			),
 		).toBe(false);
 	});
 
 	test('returns true if SNV is too close to left primer', () => {
 		expect(snvTooCloseToPrimer(5 + SNV_BASE_BUFFER - 2, 5, 10, 50)).toBe(
-			true
+			true,
 		);
 		expect(snvTooCloseToPrimer(4, 4, 5, 30)).toBe(true);
 	});
 
 	test('returns true if SNV is too close to right primer', () => {
 		expect(snvTooCloseToPrimer(50 - SNV_BASE_BUFFER - 5, 5, 5, 50)).toBe(
-			true
+			true,
 		);
 	});
 
@@ -1456,52 +1456,52 @@ describe('snvTooCloseToPrimer()', () => {
 	// Invalid input tests
 	test('throws if any input is not a number', () => {
 		expect(() => snvTooCloseToPrimer('1', 5, 5, 50)).toThrow(
-			'snvIndex must be a finite number'
+			'snvIndex must be a finite number',
 		);
 		expect(() => snvTooCloseToPrimer(1, '5', 5, 50)).toThrow(
-			'primerLen must be a finite number'
+			'primerLen must be a finite number',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, null, 50)).toThrow(
-			'compPrimerLen must be a finite number'
+			'compPrimerLen must be a finite number',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, 5, undefined)).toThrow(
-			'seqLen must be a finite number'
+			'seqLen must be a finite number',
 		);
 	});
 
 	test('throws if any input is not an integer', () => {
 		expect(() => snvTooCloseToPrimer(1.5, 5, 5, 50)).toThrow(
-			'snvIndex must be an integer'
+			'snvIndex must be an integer',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5.2, 5, 50)).toThrow(
-			'primerLen must be an integer'
+			'primerLen must be an integer',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, 5.9, 50)).toThrow(
-			'compPrimerLen must be an integer'
+			'compPrimerLen must be an integer',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, 5, 50.01)).toThrow(
-			'seqLen must be an integer'
+			'seqLen must be an integer',
 		);
 	});
 
 	test('throws for negative values', () => {
 		expect(() => snvTooCloseToPrimer(-1, 5, 5, 50)).toThrow(
-			'snvIndex must be non-negative'
+			'snvIndex must be non-negative',
 		);
 		expect(() => snvTooCloseToPrimer(1, -5, 5, 50)).toThrow(
-			'primerLen must be non-negative'
+			'primerLen must be non-negative',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, -5, 50)).toThrow(
-			'compPrimerLen must be non-negative'
+			'compPrimerLen must be non-negative',
 		);
 		expect(() => snvTooCloseToPrimer(1, 5, 5, -50)).toThrow(
-			'seqLen must be non-negative'
+			'seqLen must be non-negative',
 		);
 	});
 
 	test('throws if snvIndex is equal to seqLen', () => {
 		expect(() => snvTooCloseToPrimer(50, 5, 5, 50)).toThrow(
-			/out of bounds/
+			/out of bounds/,
 		);
 	});
 
@@ -1511,10 +1511,10 @@ describe('snvTooCloseToPrimer()', () => {
 
 	test('throws if total primer lengths exceed sequence length', () => {
 		expect(() => snvTooCloseToPrimer(10, 25, 25, 50)).toThrow(
-			/exceed seqLen/
+			/exceed seqLen/,
 		);
 		expect(() => snvTooCloseToPrimer(10, 30, 30, 60)).toThrow(
-			/exceed seqLen/
+			/exceed seqLen/,
 		);
 	});
 
@@ -1527,7 +1527,7 @@ describe('snvTooCloseToPrimer()', () => {
 	test('returns true when primers are 0 and SNV is too close to sequence edge', () => {
 		expect(snvTooCloseToPrimer(0, 0, 0, 10)).toBe(true);
 		expect(snvTooCloseToPrimer(10 - SNV_BASE_BUFFER + 2, 0, 0, 10)).toBe(
-			true
+			true,
 		);
 	});
 });
@@ -1578,58 +1578,58 @@ describe('buildMismatchSequenceForAPI()', () => {
 	// ====== Invalid input cases ======
 	test('throws on invalid base in sequence', () => {
 		expect(() =>
-			buildMismatchSequenceForAPI('ATBX', { position: 2, type: 'C' })
+			buildMismatchSequenceForAPI('ATBX', { position: 2, type: 'C' }),
 		).toThrow(/Invalid DNA sequence/i);
 	});
 
 	test('throws for non-string sequence', () => {
 		expect(() =>
-			buildMismatchSequenceForAPI(null, { position: 0, type: 'A' })
+			buildMismatchSequenceForAPI(null, { position: 0, type: 'A' }),
 		).toThrow(/Invalid DNA sequence/i);
 		expect(() =>
-			buildMismatchSequenceForAPI(undefined, { position: 0, type: 'A' })
+			buildMismatchSequenceForAPI(undefined, { position: 0, type: 'A' }),
 		).toThrow();
 		expect(() =>
-			buildMismatchSequenceForAPI(42, { position: 0, type: 'A' })
+			buildMismatchSequenceForAPI(42, { position: 0, type: 'A' }),
 		).toThrow();
 	});
 
 	test('throws for missing mismatch keys', () => {
 		expect(() => buildMismatchSequenceForAPI('ATCG', {})).toThrow(
-			'Invalid mismatch object'
+			'Invalid mismatch object',
 		);
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1 })
+			buildMismatchSequenceForAPI('ATCG', { position: 1 }),
 		).toThrow('Invalid mismatch object');
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { type: 'A' })
+			buildMismatchSequenceForAPI('ATCG', { type: 'A' }),
 		).toThrow('Invalid mismatch object');
 	});
 
 	test('throws for out-of-bounds position', () => {
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 4, type: 'A' })
+			buildMismatchSequenceForAPI('ATCG', { position: 4, type: 'A' }),
 		).toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws for invalid mismatch type values', () => {
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'X' })
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'X' }),
 		).toThrow(/invalid mismatch/i);
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1, type: '' })
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: '' }),
 		).toThrow();
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'AA' })
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'AA' }),
 		).toThrow();
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 42 })
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 42 }),
 		).toThrow();
 	});
 
 	test('throws for lowercase mismatch type', () => {
 		expect(() =>
-			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'g' })
+			buildMismatchSequenceForAPI('ATCG', { position: 1, type: 'g' }),
 		).toThrow();
 	});
 });
@@ -1746,7 +1746,7 @@ describe('parseTmFromResponse()', () => {
 		test(`throws for invalid mismatch (${label})`, () => {
 			const html = '<tm>50</tm>';
 			expect(() => parseTmFromResponse(html, badMismatch)).toThrow(
-				/mismatch/i
+				/mismatch/i,
 			);
 		});
 	}
@@ -1833,7 +1833,7 @@ describe('isValidSNVObject', () => {
 		expect(isValidSNVObject({ index: 5, variantBase: 'A' })).toBe(true);
 		expect(isValidSNVObject({ index: 0, variantBase: 'T' })).toBe(true);
 		expect(isValidSNVObject({ index: 123456, variantBase: 'C' })).toBe(
-			true
+			true,
 		);
 	});
 
@@ -1855,10 +1855,10 @@ describe('isValidSNVObject', () => {
 
 	it('returns false for extra keys', () => {
 		expect(
-			isValidSNVObject({ index: 5, variantBase: 'C', note: 'extra' })
+			isValidSNVObject({ index: 5, variantBase: 'C', note: 'extra' }),
 		).toBe(false);
 		expect(isValidSNVObject({ index: 5, variantBase: 'C', pos: 6 })).toBe(
-			false
+			false,
 		);
 	});
 
@@ -1869,7 +1869,7 @@ describe('isValidSNVObject', () => {
 		expect(isValidSNVObject({ index: '5', variantBase: 'G' })).toBe(false);
 		expect(isValidSNVObject({ index: NaN, variantBase: 'T' })).toBe(false);
 		expect(isValidSNVObject({ index: Infinity, variantBase: 'T' })).toBe(
-			false
+			false,
 		);
 	});
 
@@ -1907,38 +1907,38 @@ describe('complementSequence()', () => {
 
 	test('throws error on lowercase input', () => {
 		expect(() => complementSequence('atcg')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence('a')).toThrow('Invalid DNA sequence');
 	});
 
 	test('throws error on mixed case', () => {
 		expect(() => complementSequence('AtCg')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 	});
 
 	test('throws error on invalid characters', () => {
 		expect(() => complementSequence('AT1G')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence('A*T^G')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence('ACGT!')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence('ACGT ')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 	});
 
 	test('throws error on whitespace', () => {
 		expect(() => complementSequence('A T G')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence('AT\nCG')).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 	});
 
@@ -1950,10 +1950,10 @@ describe('complementSequence()', () => {
 		expect(() => complementSequence(1234)).toThrow('Invalid DNA sequence');
 		expect(() => complementSequence(null)).toThrow('Invalid DNA sequence');
 		expect(() => complementSequence(undefined)).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => complementSequence(['A', 'T'])).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 	});
 });
@@ -2006,10 +2006,10 @@ describe('reverseComplement()', () => {
 		expect(() => reverseComplement(42)).toThrow('Invalid DNA sequence');
 		expect(() => reverseComplement(null)).toThrow('Invalid DNA sequence');
 		expect(() => reverseComplement(undefined)).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 		expect(() => reverseComplement(['A', 'T', 'C', 'G'])).toThrow(
-			'Invalid DNA sequence'
+			'Invalid DNA sequence',
 		);
 	});
 
@@ -2160,60 +2160,60 @@ describe('revCompSNV()', () => {
 	// SNV object has missing or extra keys
 	test('throws if snvSite is missing keys or has extra keys', () => {
 		expect(() => revCompSNV({ index: 5 }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ variantBase: 'A' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() =>
-			revCompSNV({ index: 5, variantBase: 'A', extra: true }, 10)
+			revCompSNV({ index: 5, variantBase: 'A', extra: true }, 10),
 		).toThrow('Invalid SNV object');
 	});
 
 	// Invalid index
 	test('throws for invalid index values', () => {
 		expect(() => revCompSNV({ index: -1, variantBase: 'A' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: 5.5, variantBase: 'C' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: '5', variantBase: 'G' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 	});
 
 	// Invalid base
 	test('throws for invalid variantBase', () => {
 		expect(() => revCompSNV({ index: 5, variantBase: 'X' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 'g' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: '' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 'AA' }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 1 }, 10)).toThrow(
-			'Invalid SNV object'
+			'Invalid SNV object',
 		);
 	});
 
 	test('throws for index out of range', () => {
 		expect(() => revCompSNV({ index: 2, variantBase: 'A' }, 1)).toThrow(
-			/is out of bounds/
+			/is out of bounds/,
 		);
 		expect(() => revCompSNV({ index: 10, variantBase: 'T' }, 10)).toThrow(
-			/is out of bounds/
+			/is out of bounds/,
 		);
 		expect(() => revCompSNV({ index: 5000, variantBase: 'C' }, 38)).toThrow(
-			/is out of bounds/
+			/is out of bounds/,
 		);
 		expect(() => revCompSNV({ index: 5, variantBase: 'G' }, 5)).toThrow(
-			/is out of bounds/
+			/is out of bounds/,
 		);
 	});
 });
@@ -2253,7 +2253,7 @@ describe('reverseSequence()', () => {
 	for (const [label, badInput] of invalidInputs) {
 		test(`throws for invalid input (${label})`, () => {
 			expect(() => reverseSequence(badInput)).toThrow(
-				/Invalid DNA sequence/
+				/Invalid DNA sequence/,
 			);
 		});
 	}
@@ -2277,7 +2277,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			stemSeq,
 			loopLen,
-			mismatch
+			mismatch,
 		);
 		expect(result).toBe(20.54);
 	});
@@ -2294,7 +2294,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			stemSeq,
 			loopLen,
-			mismatch
+			mismatch,
 		);
 		expect(result).toBe(8.31);
 	});
@@ -2311,7 +2311,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			stemSeq,
 			loopLen,
-			mismatch
+			mismatch,
 		);
 		expect(result).toBe(8.31);
 	});
@@ -2328,7 +2328,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			stemSeq,
 			loopLen,
-			mismatch
+			mismatch,
 		);
 		expect(result).toBe(20.54);
 	});
@@ -2366,7 +2366,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			validStem,
 			validLoopLen,
-			validMismatch
+			validMismatch,
 		);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
@@ -2375,7 +2375,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 	test('returns number for valid input with out a mismatch', async () => {
 		const result = await calculateSnapbackTmWittwer(
 			validStem,
-			validLoopLen
+			validLoopLen,
 		);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
@@ -2385,7 +2385,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 		const result = await calculateSnapbackTmWittwer(
 			validStem,
 			validLoopLen,
-			null
+			null,
 		);
 		expect(typeof result).toBe('number');
 		expect(Number.isFinite(result)).toBe(true);
@@ -2397,7 +2397,11 @@ describe('calculateSnapbackTmWittwer()', () => {
 	for (const [label, badStem] of badStems) {
 		test(`throws for invalid stemSeq (${label})`, async () => {
 			await expect(
-				calculateSnapbackTmWittwer(badStem, validLoopLen, validMismatch)
+				calculateSnapbackTmWittwer(
+					badStem,
+					validLoopLen,
+					validMismatch,
+				),
 			).rejects.toThrow(/invalid dna sequence/i);
 		});
 	}
@@ -2408,7 +2412,7 @@ describe('calculateSnapbackTmWittwer()', () => {
 	for (const [label, badLoop] of badLoopLens) {
 		test(`throws for invalid loopLen (${label})`, async () => {
 			await expect(
-				calculateSnapbackTmWittwer(validStem, badLoop, validMismatch)
+				calculateSnapbackTmWittwer(validStem, badLoop, validMismatch),
 			).rejects.toThrow(/loopLen/i);
 		});
 	}
@@ -2480,7 +2484,11 @@ describe('calculateSnapbackTmWittwer()', () => {
 	for (const [label, badMismatch] of badMismatchGroups) {
 		test(`throws for invalid mismatch (${label})`, async () => {
 			await expect(
-				calculateSnapbackTmWittwer(validStem, validLoopLen, badMismatch)
+				calculateSnapbackTmWittwer(
+					validStem,
+					validLoopLen,
+					badMismatch,
+				),
 			).rejects.toThrow(/mismatch/i);
 		});
 	}
@@ -2488,7 +2496,11 @@ describe('calculateSnapbackTmWittwer()', () => {
 	for (const [label, badMismatch] of badMismatchPositionBounds) {
 		test(`throws for out-of-bounds mismatch (${label})`, async () => {
 			await expect(
-				calculateSnapbackTmWittwer(validStem, validLoopLen, badMismatch)
+				calculateSnapbackTmWittwer(
+					validStem,
+					validLoopLen,
+					badMismatch,
+				),
 			).rejects.toThrow(/position/i);
 		});
 	}
@@ -2508,7 +2520,7 @@ describe('isValidMismatchObject()', () => {
 
 	test('returns true for large valid position', () => {
 		expect(isValidMismatchObject({ position: 999999, type: 'C' })).toBe(
-			true
+			true,
 		);
 	});
 
@@ -2544,7 +2556,7 @@ describe('isValidMismatchObject()', () => {
 
 	test('returns false if object has extra key', () => {
 		expect(
-			isValidMismatchObject({ position: 0, type: 'T', foo: 'bar' })
+			isValidMismatchObject({ position: 0, type: 'T', foo: 'bar' }),
 		).toBe(false);
 	});
 
@@ -2620,7 +2632,7 @@ describe('getRochesterHairpinLoopParams()', () => {
 			() => 5,
 		]) {
 			expect(() => getRochesterHairpinLoopParams(n)).toThrow(
-				/finite integer/i
+				/finite integer/i,
 			);
 		}
 	});
@@ -2628,7 +2640,7 @@ describe('getRochesterHairpinLoopParams()', () => {
 	test('throws when N < 3', () => {
 		for (const n of [2, 1, 0, -1, -100]) {
 			expect(() => getRochesterHairpinLoopParams(n)).toThrow(
-				/N ≥ 3|N >= 3/i
+				/N ≥ 3|N >= 3/i,
 			);
 		}
 	});
@@ -2749,7 +2761,7 @@ describe('getSantaLuciaHicksHairpinParams()', () => {
 	const isAnchor = (N) =>
 		Object.prototype.hasOwnProperty.call(
 			HAIRPIN_LOOP_PARAMETERS_SANTA_LUCIA_HICKS,
-			N
+			N,
 		);
 
 	// ----------------------- Parameter checking ------------------------ //
@@ -2767,7 +2779,7 @@ describe('getSantaLuciaHicksHairpinParams()', () => {
 			() => 7,
 		]) {
 			expect(() => getSantaLuciaHicksHairpinParams(n)).toThrow(
-				/finite integer/i
+				/finite integer/i,
 			);
 		}
 	});
@@ -2775,7 +2787,7 @@ describe('getSantaLuciaHicksHairpinParams()', () => {
 	test('throws when N < 3', () => {
 		for (const n of [2, 1, 0, -1, -100]) {
 			expect(() => getSantaLuciaHicksHairpinParams(n)).toThrow(
-				/N ≥ 3|N >= 3/i
+				/N ≥ 3|N >= 3/i,
 			);
 		}
 	});
@@ -2891,13 +2903,13 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 		for (const k of fiveKeys) {
 			expect(k).toMatch(/^[ATCG]{2}$/);
 			expect(Object.isFrozen(DANGLING_END_PARAMS.fivePrime[k])).toBe(
-				true
+				true,
 			);
 		}
 		for (const k of threeKeys) {
 			expect(k).toMatch(/^[ATCG]{2}$/);
 			expect(Object.isFrozen(DANGLING_END_PARAMS.threePrime[k])).toBe(
-				true
+				true,
 			);
 		}
 
@@ -2947,24 +2959,24 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 	//---------------------------------------------------------------------//
 	test('normalizeDanglingOrientation accepts 5p/3p and fivePrime/threePrime (case-insensitive, trims)', () => {
 		expect(normalizeDanglingOrientation('5p')).toBe(
-			DANGLING_ORIENTATION.FIVE_PRIME
+			DANGLING_ORIENTATION.FIVE_PRIME,
 		);
 		expect(normalizeDanglingOrientation('3p')).toBe(
-			DANGLING_ORIENTATION.THREE_PRIME
+			DANGLING_ORIENTATION.THREE_PRIME,
 		);
 
 		expect(normalizeDanglingOrientation('fivePrime')).toBe(
-			DANGLING_ORIENTATION.FIVE_PRIME
+			DANGLING_ORIENTATION.FIVE_PRIME,
 		);
 		expect(normalizeDanglingOrientation('ThreePrime')).toBe(
-			DANGLING_ORIENTATION.THREE_PRIME
+			DANGLING_ORIENTATION.THREE_PRIME,
 		);
 
 		expect(normalizeDanglingOrientation('  5P  ')).toBe(
-			DANGLING_ORIENTATION.FIVE_PRIME
+			DANGLING_ORIENTATION.FIVE_PRIME,
 		);
 		expect(normalizeDanglingOrientation('\tthreePRIME\n')).toBe(
-			DANGLING_ORIENTATION.THREE_PRIME
+			DANGLING_ORIENTATION.THREE_PRIME,
 		);
 	});
 
@@ -2980,7 +2992,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 	for (const [label, o] of badOrientations) {
 		test(`normalizeDanglingOrientation throws for invalid orientation (${label})`, () => {
 			expect(() => normalizeDanglingOrientation(o)).toThrow(
-				/orientation/i
+				/orientation/i,
 			);
 		});
 	}
@@ -3039,13 +3051,13 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 
 	test('getDanglingEndParams throws on invalid orientation tokens', () => {
 		expect(() => getDanglingEndParams('AC', 'west')).toThrow(
-			/Unrecognized orientation/i
+			/Unrecognized orientation/i,
 		);
 		expect(() => getDanglingEndParams('AC', '')).toThrow(
-			/Unrecognized orientation/i
+			/Unrecognized orientation/i,
 		);
 		expect(() => getDanglingEndParams('AC', null)).toThrow(
-			/orientation must be a string/i
+			/orientation must be a string/i,
 		);
 	});
 
@@ -3058,7 +3070,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 
 	test('getDanglingEndParams matches table values for ALL steps in both orientations', () => {
 		for (const [orientationKey, table] of Object.entries(
-			DANGLING_END_PARAMS
+			DANGLING_END_PARAMS,
 		)) {
 			// orientationKey is 'fivePrime' or 'threePrime'
 			const token = orientationKey === 'fivePrime' ? '5p' : '3p';
@@ -3070,7 +3082,7 @@ describe('Dangling-end parameter helpers (Bommarito 2000)', () => {
 				const lower = step.toLowerCase();
 				const gotLower = getDanglingEndParams(
 					lower,
-					token.toUpperCase()
+					token.toUpperCase(),
 				);
 				expect(gotLower).toEqual(expected);
 			}
@@ -3110,7 +3122,7 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 			expect(TERMINAL_MISMATCH_PARAMS[a]).toBeDefined();
 			expect(TERMINAL_MISMATCH_PARAMS[b]).toBeDefined();
 			expect(TERMINAL_MISMATCH_PARAMS[a]).toEqual(
-				TERMINAL_MISMATCH_PARAMS[b]
+				TERMINAL_MISMATCH_PARAMS[b],
 			);
 		}
 	});
@@ -3123,7 +3135,7 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 		expect(() => buildTerminalMismatchKey('A', 'TG')).toThrow(/NN step/i);
 		expect(() => buildTerminalMismatchKey('AC', 'T')).toThrow(/NN step/i);
 		expect(() => buildTerminalMismatchKey('AX', 'TG')).toThrow(
-			/contain only A\/T\/C\/G/i
+			/contain only A\/T\/C\/G/i,
 		);
 	});
 
@@ -3134,7 +3146,7 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 
 		expect(() => parseTerminalMismatchToken('TAAA')).toThrow(/Malformed/);
 		expect(() => parseTerminalMismatchToken('TA/AX')).toThrow(
-			/contain only A\/T\/C\/G/i
+			/contain only A\/T\/C\/G/i,
 		);
 		expect(() => parseTerminalMismatchToken(42)).toThrow(/string/i);
 	});
@@ -3225,12 +3237,12 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 	test('unknown motifs throw a clear error', () => {
 		// Valid shape but not in table
 		expect(() => getTerminalMismatchParams('AA', 'AA')).toThrow(
-			/No DNA terminal-mismatch entry/
+			/No DNA terminal-mismatch entry/,
 		);
 
 		// Correct the known transcription error ("T/GC" isn’t valid)
 		expect(() => getTerminalMismatchParamsFromToken('T/GC')).toThrow(
-			/Malformed|NN step/i
+			/Malformed|NN step/i,
 		);
 	});
 
@@ -3238,7 +3250,7 @@ describe('Terminal mismatch lookups (DNA NNDB, Bommarito 2000)', () => {
 		expect(() => getTerminalMismatchParams('A', 'TA')).toThrow(/NN step/i);
 		expect(() => getTerminalMismatchParams('AA', 'T')).toThrow(/NN step/i);
 		expect(() => getTerminalMismatchParamsFromToken('AATA')).toThrow(
-			/Malformed/
+			/Malformed/,
 		);
 	});
 });
@@ -3263,7 +3275,7 @@ describe('calculateTm()', () => {
 	for (const [label, v] of badDH) {
 		test(`throws for invalid sumDeltaH (${label})`, () => {
 			expect(() => calculateTm(v, DS, Aeq, Beq, false)).toThrow(
-				/sumDeltaH/i
+				/sumDeltaH/i,
 			);
 		});
 	}
@@ -3279,7 +3291,7 @@ describe('calculateTm()', () => {
 	for (const [label, v] of badDS) {
 		test(`throws for invalid sumDeltaS (${label})`, () => {
 			expect(() => calculateTm(DH, v, Aeq, Beq, false)).toThrow(
-				/sumDeltaS/i
+				/sumDeltaS/i,
 			);
 		});
 	}
@@ -3315,7 +3327,7 @@ describe('calculateTm()', () => {
 	test('throws for invalid selfComplementary flag type', () => {
 		// @ts-expect-error - intentionally wrong type for testing
 		expect(() => calculateTm(DH, DS, Aeq, Beq, 'yes')).toThrow(
-			/selfComplementary/i
+			/selfComplementary/i,
 		);
 	});
 
@@ -3379,7 +3391,7 @@ describe('calculateTm()', () => {
 	test('throws if denominator is ~0 (infinite Tm)', () => {
 		// Choose DS = 0 and equimolar A=B=2 M so term = (Ct/4) = 1 ⇒ ln(1)=0 ⇒ denom = 0
 		expect(() => calculateTm(-10, 0, 2000000, 2000000, false)).toThrow(
-			/Denominator is ~0|infinite Tm/i
+			/Denominator is ~0|infinite Tm/i,
 		);
 	});
 
@@ -3388,7 +3400,7 @@ describe('calculateTm()', () => {
 		// Example: DS = +1 cal/K/mol, term = 10 (ln>0), DH = +1 kcal/mol but then T positive; we need T ≤ 0
 		// Instead, pick DH very small negative and denom large positive
 		expect(() => calculateTm(-0.000001, 100, 1.0, 1.0, false)).toThrow(
-			/non-physical Tm/i
+			/non-physical Tm/i,
 		);
 	});
 
@@ -3398,7 +3410,7 @@ describe('calculateTm()', () => {
 	test('throws for invalid saltCorrection type', () => {
 		// @ts-expect-error - intentionally wrong type for testing
 		expect(() => calculateTm(DH, DS, Aeq, Beq, false, '10')).toThrow(
-			/saltCorrection/i
+			/saltCorrection/i,
 		);
 	});
 
@@ -3429,7 +3441,7 @@ describe('calculateTm()', () => {
 		// Choose saltCorrection ≈ -DS - R*ln(term) to cancel denom.
 		const sCloseToZero = -DS - 1.98720425864 * Math.log(0.5e-6); // ≈ 328.843
 		expect(() => calculateTm(DH, DS, 1, 1, false, sCloseToZero)).toThrow(
-			/Denominator is ~0|infinite Tm/i
+			/Denominator is ~0|infinite Tm/i,
 		);
 	});
 
@@ -3459,7 +3471,7 @@ describe('isSelfComplimentary()', () => {
 		test(`throws for invalid DNA sequence (${label})`, () => {
 			// @ts-expect-error – intentionally wrong types for testing
 			expect(() => isSelfComplimentary(v)).toThrow(
-				/Invalid DNA sequence/i
+				/Invalid DNA sequence/i,
 			);
 		});
 	}
@@ -3589,34 +3601,34 @@ describe('parseThermoParamsFromResponse()', () => {
 	test('throws if rawHtml is not a string', () => {
 		// @ts-expect-error intentional
 		expect(() => parseThermoParamsFromResponse(null)).toThrow(
-			/rawHtml must be a string/i
+			/rawHtml must be a string/i,
 		);
 	});
 
 	test('throws if rawHtml is empty', () => {
 		expect(() => parseThermoParamsFromResponse('')).toThrow(
-			/non-empty string/i
+			/non-empty string/i,
 		);
 	});
 
 	test('throws if dH tag missing', () => {
 		const html = `<html><body><dS>-1</dS><saltCorrection>0</saltCorrection></body></html>`;
 		expect(() => parseThermoParamsFromResponse(html)).toThrow(
-			/dH not found|unparsable/i
+			/dH not found|unparsable/i,
 		);
 	});
 
 	test('throws if dS is not numeric', () => {
 		const html = `<html><body><dH>-1000</dH><dS>abc</dS><saltCorrection>1</saltCorrection></body></html>`;
 		expect(() => parseThermoParamsFromResponse(html)).toThrow(
-			/dS not found|unparsable/i
+			/dS not found|unparsable/i,
 		);
 	});
 
 	test('throws if saltCorrection is missing', () => {
 		const html = `<html><body><dH>-1000</dH><dS>-10</dS></body></html>`;
 		expect(() => parseThermoParamsFromResponse(html)).toThrow(
-			/saltCorrection not found|unparsable/i
+			/saltCorrection not found|unparsable/i,
 		);
 	});
 });
@@ -3627,49 +3639,49 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('throws if seq is empty', async () => {
 		await expect(() => getThermoParams('', 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq is lowercase', async () => {
 		await expect(() => getThermoParams('atgc', 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq has invalid characters', async () => {
 		await expect(() => getThermoParams('ATGXAT', 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq is not a string (number)', async () => {
 		await expect(() => getThermoParams(12345, 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq is not a string (array)', async () => {
 		await expect(() => getThermoParams(['A', 'T'], 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq is null', async () => {
 		await expect(() => getThermoParams(null, 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq is undefined', async () => {
 		await expect(() => getThermoParams(undefined, 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('throws if seq includes whitespace', async () => {
 		await expect(() => getThermoParams('ATG C', 1, 1)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
@@ -3687,7 +3699,7 @@ describe('getThermoParams() — parameter checking', () => {
 	]) {
 		test(`throws if concentration is ${label}`, async () => {
 			await expect(() => getThermoParams('ATGCT', v, 1)).rejects.toThrow(
-				/concentration.*positive.*µm/i
+				/concentration.*positive.*µm/i,
 			);
 		});
 	}
@@ -3706,7 +3718,7 @@ describe('getThermoParams() — parameter checking', () => {
 	]) {
 		test(`throws if limitingConc is ${label}`, async () => {
 			await expect(() => getThermoParams('ATGCT', 1, v)).rejects.toThrow(
-				/limitingconc.*positive.*µm/i
+				/limitingconc.*positive.*µm/i,
 			);
 		});
 	}
@@ -3716,19 +3728,19 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('throws if mismatch is a string', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, 'oops')
+			getThermoParams('ATGCTAGC', 1, 1, 'oops'),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is a number', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, 42)
+			getThermoParams('ATGCTAGC', 1, 1, 42),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch is an array', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, [{ position: 2, type: 'A' }])
+			getThermoParams('ATGCTAGC', 1, 1, [{ position: 2, type: 'A' }]),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
@@ -3737,13 +3749,13 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('throws if mismatch missing position', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { type: 'A' })
+			getThermoParams('ATGCTAGC', 1, 1, { type: 'A' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch missing type', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: 2 })
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2 }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
@@ -3753,7 +3765,7 @@ describe('getThermoParams() — parameter checking', () => {
 				position: 2,
 				type: 'A',
 				extra: true,
-			})
+			}),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
@@ -3762,27 +3774,27 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('throws if mismatch.position is negative', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: -1, type: 'A' })
+			getThermoParams('ATGCTAGC', 1, 1, { position: -1, type: 'A' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position not integer', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: 2.5, type: 'A' })
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2.5, type: 'A' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.position equals seq.length', async () => {
 		const s = 'ATGCT'; // len 5; valid last index is 4
 		await expect(() =>
-			getThermoParams(s, 1, 1, { position: 5, type: 'A' })
+			getThermoParams(s, 1, 1, { position: 5, type: 'A' }),
 		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
 	test('throws if mismatch.position exceeds seq.length', async () => {
 		const s = 'ATGCT'; // len 5
 		await expect(() =>
-			getThermoParams(s, 1, 1, { position: 99, type: 'A' })
+			getThermoParams(s, 1, 1, { position: 99, type: 'A' }),
 		).rejects.toThrow(/exceeds sequence length/i);
 	});
 
@@ -3791,19 +3803,19 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('throws if mismatch.type is invalid base', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'Z' })
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'Z' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type is lowercase', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'g' })
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'g' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
 	test('throws if mismatch.type length > 1', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'AG' })
+			getThermoParams('ATGCTAGC', 1, 1, { position: 2, type: 'AG' }),
 		).rejects.toThrow(/invalid mismatch object/i);
 	});
 
@@ -3812,19 +3824,19 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('sequence check occurs before concentration checks', async () => {
 		await expect(() => getThermoParams('bad$x', 0, 0)).rejects.toThrow(
-			/invalid dna sequence/i
+			/invalid dna sequence/i,
 		);
 	});
 
 	test('concentration check occurs before mismatch checks', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 0, 1, { position: 2, type: 'A' })
+			getThermoParams('ATGCTAGC', 0, 1, { position: 2, type: 'A' }),
 		).rejects.toThrow(/concentration.*positive.*µm/i);
 	});
 
 	test('limitingConc check occurs before mismatch checks', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 0, { position: 2, type: 'A' })
+			getThermoParams('ATGCTAGC', 1, 0, { position: 2, type: 'A' }),
 		).rejects.toThrow(/limitingconc.*positive.*µm/i);
 	});
 
@@ -3834,13 +3846,13 @@ describe('getThermoParams() — parameter checking', () => {
 	// ────────────────────────────────────────────────────────────────
 	test('null mismatch is accepted as "no mismatch" (later checks may fail)', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 0, 1, null)
+			getThermoParams('ATGCTAGC', 0, 1, null),
 		).rejects.toThrow(/concentration.*positive.*µm/i);
 	});
 
 	test('undefined mismatch is treated as "no mismatch" (later checks may fail)', async () => {
 		await expect(() =>
-			getThermoParams('ATGCTAGC', 1, 0, undefined)
+			getThermoParams('ATGCTAGC', 1, 0, undefined),
 		).rejects.toThrow(/limitingconc.*positive.*µm/i);
 	});
 });
