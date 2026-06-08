@@ -86,38 +86,14 @@ export function renderTailSummary(result) {
 }
 
 export function renderTmSummary(result) {
-	// build display strings for Wild/Variant with labels: Wittwer, Rochester, SantaLucia
 	const wittWild = result.snapbackMeltingTms?.wildTm;
-	const rochWild = result.snapbackTmRochester?.wildTm;
-	const slWild = result.snapbackTmSantaLucia?.wildTm;
-	const wildParts = [];
-
-	if (Number.isFinite(wittWild))
-		wildParts.push(`${wittWild.toFixed(1)} -Wittwer`);
-	if (Number.isFinite(rochWild))
-		wildParts.push(`${rochWild.toFixed(1)} -Rochester`);
-	if (Number.isFinite(slWild))
-		wildParts.push(`${slWild.toFixed(1)} -SantaLucia`);
-
-	document.getElementById('wildTm').textContent = wildParts.length
-		? wildParts.join(', ')
+	document.getElementById('wildTm').textContent = Number.isFinite(wittWild)
+		? wittWild.toFixed(1)
 		: '—';
 
 	const wittVar = result.snapbackMeltingTms?.variantTm;
-	const rochVar = result.snapbackTmRochester?.variantTm;
-	const slVar = result.snapbackTmSantaLucia?.variantTm;
-
-	const varParts = [];
-
-	if (Number.isFinite(wittVar))
-		varParts.push(`${wittVar.toFixed(1)} -Wittwer`);
-	if (Number.isFinite(rochVar))
-		varParts.push(`${rochVar.toFixed(1)} -Rochester`);
-	if (Number.isFinite(slVar))
-		varParts.push(`${slVar.toFixed(1)} -SantaLucia`);
-
-	document.getElementById('varTm').textContent = varParts.length
-		? varParts.join(', ')
+	document.getElementById('varTm').textContent = Number.isFinite(wittVar)
+		? wittVar.toFixed(1)
 		: '—';
 }
 
