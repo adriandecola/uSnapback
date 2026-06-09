@@ -144,37 +144,16 @@ export function renderStemAndLoopSizes(result) {
 			threePrimeInnerLoopMismatchesLen,
 		});
 	} else {
-		// If any segment length is 0, show the problem (your request)
-		const zero = [];
-		if (fivePrimeInnerLoopMismatchesLen === 0)
-			zero.push('fivePrimeInnerLoopMismatches');
-		if (stuffBetweenLen === 0) zero.push('stuffBetween');
-		if (threePrimeInnerLoopMismatchesLen === 0)
-			zero.push('threePrimeInnerLoopMismatches');
+		// Empty inner-loop mismatch strings are valid when no loop-side
+		// mismatch is needed. Count whatever segments are present.
+		const loopBases =
+			fivePrimeInnerLoopMismatchesLen +
+			stuffBetweenLen +
+			threePrimeInnerLoopMismatchesLen;
 
-		if (zero.length) {
-			const msg = `Loop size error: ${zero.join(
-				', '
-			)} length is 0 (unexpected).`;
-			if (loopLength) {
-				loopLength.textContent = '—';
-				loopLength.title = msg;
-			}
-			console.error(msg, {
-				fivePrimeInnerLoopMismatchesLen,
-				stuffBetweenLen,
-				threePrimeInnerLoopMismatchesLen,
-			});
-		} else {
-			const loopBases =
-				fivePrimeInnerLoopMismatchesLen +
-				stuffBetweenLen +
-				threePrimeInnerLoopMismatchesLen;
-
-			if (loopLength) {
-				loopLength.textContent = String(loopBases);
-				loopLength.title = '';
-			}
+		if (loopLength) {
+			loopLength.textContent = String(loopBases);
+			loopLength.title = '';
 		}
 	}
 }

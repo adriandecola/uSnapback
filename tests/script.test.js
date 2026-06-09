@@ -61,6 +61,8 @@ import {
 	TERMINAL_MISMATCH_PARAMS,
 } from '../dist/script.js';
 
+import { renderStemAndLoopSizes } from '../src/js/pages/resultsRender.js';
+
 /****************************************************************/
 /*********************** Primary Function ***********************/
 /****************************************************************/
@@ -1454,6 +1456,28 @@ describe('conditional inner-loop mismatch helpers', () => {
 		expect(shouldInsertInnerLoopMismatch(seq, stemStart)).toBe(false);
 		expect(getInnerLoopMismatchCount(seq, stemStart)).toBe(0);
 		expect(getSnapbackLoopLength(seq, stemStart)).toBe(10);
+	});
+});
+
+describe('renderStemAndLoopSizes()', () => {
+	test('prints loop size when no inner-loop mismatch was inserted', () => {
+		document.body.innerHTML = `
+			<span id="stemBases"></span>
+			<span id="loopBases"></span>
+		`;
+
+		renderStemAndLoopSizes({
+			descriptiveExtendedSnapback: {
+				threePrimeStem: 'ACGTACGT',
+				fivePrimeInnerLoopMismatches: '',
+				stuffBetween: 'ACGTACGTAC',
+				threePrimeInnerLoopMismatches: '',
+			},
+		});
+
+		expect(document.getElementById('stemBases').textContent).toBe('8');
+		expect(document.getElementById('loopBases').textContent).toBe('10');
+		expect(document.getElementById('loopBases').title).toBe('');
 	});
 });
 
