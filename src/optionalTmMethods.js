@@ -307,7 +307,7 @@ const TERMINAL_MISMATCH_PARAMS = deepFreeze({
 /*****************************************************************************************/
 /**
  * Calculates snapback Tm (wild vs variant) for the extended snapback using:
- *   1) Rochester hairpin-loop initiation parameters (loop size = stuffBetween + fivePrimeInnerLoopMismatches)
+ *   1) Rochester hairpin-loop initiation parameters (loop size = stuffBetween + both strands of the optional inner-loop mismatch)
  *   2) A 5′-dangling-end correction on the loop side of the stem
  *   3) Designed terminal-mismatch correction on the 3′ end of the stem
  *   4) Stem nearest-neighbor thermodynamics with/without the SNV mismatch
@@ -466,7 +466,7 @@ async function calculateSnapbackTmRochester(extended, options = {}) {
 		threePrimeStem.slice(snvIdx + 1);
 
 	//──────────────────────────────────────────────────────────────────────────//
-	// 1) Loop initiation (Rochester): N = stuffBetween + fivePrimeInnerLoopMismatches
+	// 1) Loop initiation (Rochester): N = stuffBetween + both strands of the optional inner-loop mismatch
 	//──────────────────────────────────────────────────────────────────────────//
 	const loopN = stuffBetween.length + 2 * fivePrimeInnerLoopMismatches.length;
 	const loopParams = getRochesterHairpinLoopParams(loopN); // { dH (kcal/mol), dS (cal/K/mol) }
@@ -647,7 +647,7 @@ async function calculateSnapbackTmRochester(extended, options = {}) {
 
 /**
  * Calculates snapback Tm (wild vs variant) for the extended snapback using:
- *   1) SantaLucia hairpin-loop initiation parameters (loop size = stuffBetween + fivePrimeInnerLoopMismatches)
+ *   1) SantaLucia hairpin-loop initiation parameters (loop size = stuffBetween + both strands of the optional inner-loop mismatch)
  *   2) A 5′-dangling-end correction on the loop side of the stem
  *   3) Designed terminal-mismatch correction on the 3′ end of the stem
  *   4) Stem nearest-neighbor thermodynamics with/without the SNV mismatch
@@ -669,14 +669,13 @@ async function calculateSnapbackTmRochester(extended, options = {}) {
  *
  * Parameters
  * @param {DescriptiveExtendedSnapback}  extended
- * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed to prevent extension on the complementary snapback.
+ * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatch placed to prevent extension on the complementary snapback.
  * @property {string} fivePrimeStem                    Snapback 5' stem segment (reverse-complement orientation).
- * @property {string} fivePrimeInnerLoopMismatches     Inner-loop strong mismatches immediately 5' of the stem.
- * @property {string} stuffBetween                     seq.slice(0, stem.start - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED),
- *                                                     i.e., includes the forward primer and any bases up to (but not including) the inner-loop block.
- * @property {string} threePrimeInnerLoopMismatches    seq slice of the inner-loop block directly left of the stem.
+ * @property {string} fivePrimeInnerLoopMismatches     Optional inner-loop strong mismatch immediately 5' of the stem.
+ * @property {string} stuffBetween                     Sequence before the optional inner-loop block.
+ * @property {string} threePrimeInnerLoopMismatches    Optional seq slice of the inner-loop block directly left of the stem.
  * @property {string} threePrimeStem                   seq.slice(stem.start, stem.end+1).
- * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing strong mismatches.
+ * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing the extension-block mismatch.
  * @property {string} threePrimerRestOfAmplicon        Remainder of seq to the 3' end after the right-side mismatch block.
  * @property {SNVOnThreePrimeStem} snvOnThreePrimeStem SNV info indexed to threePrimeStem.
  * @property {SNVOnFivePrimeStem}  snvOnFivePrimeStem  SNV info indexed to fivePrimeStem (snapback side).
@@ -816,7 +815,7 @@ async function calculateSnapbackTmSantaLucia(extended, options = {}) {
 		threePrimeStem.slice(snvIdx + 1);
 
 	//──────────────────────────────────────────────────────────────────────────//
-	// 1) Loop initiation (SantaLucia-Hicks): N = stuffBetween + fivePrimeInnerLoopMismatches
+	// 1) Loop initiation (SantaLucia-Hicks): N = stuffBetween + both strands of the optional inner-loop mismatch
 	//──────────────────────────────────────────────────────────────────────────//
 	const loopN = stuffBetween.length + 2 * fivePrimeInnerLoopMismatches.length;
 	const loopParams = getSantaLuciaHicksHairpinParams(loopN); // { dH (kcal/mol), dS (cal/K/mol) }

@@ -12,8 +12,8 @@ const NUCLEOTIDE_COMPLEMENT = { A: 'T', T: 'A', C: 'G', G: 'C' };
 const STRONG_NUCLEOTIDE_MISMATCH = { A: 'G', G: 'A', C: 'C', T: 'T' };
 const VALID_BASES = new Set(['A', 'T', 'C', 'G']);
 const SNV_BASE_BUFFER = 3; // The number of matched bases required on either end of a mismatched SNV
-const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
-const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 2;
+const INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 1;
+const END_OF_STEM_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED = 1;
 const MINIMUM_TARGET_SNAPBACK_MELTING_TEMP = 40;
 const MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP = 80;
 const MAX_AMPLICON_LEN = 1000;
@@ -55,12 +55,12 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  *     until the wild-type stem Tm approaches `targetSnapMeltTemp`, or no
  *     further growth is possible.  This temperature must exceed `minSnapbackMeltTemp`.
  *  3. Building the final 5'→3' sequence:
- *        snapback-tail • inner-loop mismatches • stem (with chosen SNV base) • primer.
+ *        snapback-tail • optional inner-loop mismatch • stem (with chosen SNV base) • primer.
  *  4. Constructing descriptive objects for the unextended and extended products:
  *        - Unextended: a 5'→3' breakdown of the snapback primer itself.
  *        - Extended: segment strings taken directly from seq using the stem position as the guide:
- *            stuffBetween (includes the forward primer and any additional bases up to but not including the inner-loop block) •
- *            5' inner-loop mismatches (left of the stem) •
+ *            stuffBetween (includes the forward primer and any additional bases up to but not including the optional inner-loop block) •
+ *            optional 5' inner-loop mismatch (left of the stem) •
  *            threePrimeStem (the stem interval) •
  *            threePrimerLimSnapExtMismatches (right of the stem) •
  *            threePrimerRestOfAmplicon (everything after).
@@ -79,8 +79,10 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * - The SNV is ≥ {SNV_BASE_BUFFER} bases away from both primers.
  * - Stem Tm values are computed with the Santa Lucia nearest-neighbour model
  *   via dna-utah.org.
- * - We want to miminize the loop length to the primer on which the snapback tail is on
- *   plus the two strong mismatched in the inner loop so it doesn't zip
+ * - We want to miminize the loop length to the primer on which the snapback tail is on.
+ *   If the 5′ base of that primer complements the base immediately left of the stem,
+ *   one strong mismatch is inserted at the 3′ end of the snapback tail so the loop
+ *   does not zip.
  * - We want to keep the SNV in the middle of the stem or as close to centered as we
  *   can, as we build the snapback stem
  * - Extension can occur on the snapback's complement, on the side of the stem does not contain
@@ -88,8 +90,8 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  *   is added after the 5' end of the stem (on the snapback primer) help avoid this extension
  *   on its complement snapback
  * - All sequences are expressed 5'→3' in the frame of the primer that receives the tail.
- * - The inner-loop strong mismatches are immediately 5' of the stem (left of the stem).
- * - The strong end-of-stem mismatches used to block extension on the complementary snapback
+ * - The optional inner-loop strong mismatch is immediately 5' of the stem (left of the stem).
+ * - The strong end-of-stem mismatch used to block extension on the complementary snapback
  *   occur immediately 3' of the stem (right of the stem on this strand).
  * - For the extended descriptive object, stuffBetween includes the forward primer and all
  *   subsequent bases up to (but not including) the first inner-loop mismatch base.
@@ -137,9 +139,9 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  *
  *
  * @typedef {Object} DescriptiveUnExtendedSnapbackPrimer
- * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatches placed 3' of the stem on the snapback’s complement side (5' segment in snapback).
+ * @property {string} fivePrimerLimSnapExtMismatches  Strong mismatch placed 3' of the stem on the snapback’s complement side (5' segment in snapback).
  * @property {string} fivePrimeStem                    Reverse-complement of seq[stem.start..stem.end], with the chosen tail base at the SNV.
- * @property {string} fivePrimeInnerLoopMismatches     Strong mismatches immediately 5' of the stem.
+ * @property {string} fivePrimeInnerLoopMismatches     Optional strong mismatch immediately 5' of the stem.
  * @property {string} forwardPrimer                    The forward primer sequence (seq.slice(0, primerLen)).
  *
  * @typedef {Object} SNVOnThreePrimeStem
@@ -156,14 +158,13 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @property {string} compVariantBase       Complement of variantBase.
  *
  * @typedef {Object} DescriptiveExtendedSnapback
- * @property {string} fivePrimerLimSnapExtMismatches   Strong mismatches placed to prevent extension on the complementary snapback.
+ * @property {string} fivePrimerLimSnapExtMismatches   Strong mismatch placed to prevent extension on the complementary snapback.
  * @property {string} fivePrimeStem                    Snapback 5' stem segment (reverse-complement orientation).
- * @property {string} fivePrimeInnerLoopMismatches     Inner-loop strong mismatches immediately 5' of the stem.
- * @property {string} stuffBetween                     seq.slice(0, stem.start - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED),
- *                                                     i.e., includes the forward primer and any bases up to (but not including) the inner-loop block.
- * @property {string} threePrimeInnerLoopMismatches    seq slice of the inner-loop block directly left of the stem.
+ * @property {string} fivePrimeInnerLoopMismatches     Optional inner-loop strong mismatch immediately 5' of the stem.
+ * @property {string} stuffBetween                     Sequence before the optional inner-loop block.
+ * @property {string} threePrimeInnerLoopMismatches    Optional seq slice of the inner-loop block directly left of the stem.
  * @property {string} threePrimeStem                   seq.slice(stem.start, stem.end+1).
- * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing strong mismatches.
+ * @property {string} threePrimerLimSnapExtMismatches  seq slice immediately right of the stem containing the extension-block mismatch.
  * @property {string} threePrimerRestOfAmplicon        Remainder of seq to the 3' end after the right-side mismatch block.
  * @property {SNVOnThreePrimeStem} snvOnThreePrimeStem SNV info indexed to threePrimeStem.
  * @property {SNVOnFivePrimeStem}  snvOnFivePrimeStem  SNV info indexed to fivePrimeStem (snapback side).
@@ -720,12 +721,14 @@ async function calculateMeltingTempDifferences(
 
 	// 6) Calculating the loop lengths for each case.
 	//    They only depend on which primer the tail is attached to
-	const loopLenSamePrimer =
-		bestStemLoc.start +
-		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
-	const loopLenRevPrimer =
-		bestStemLocRevCompSnapPrimerRefPoint.start +
-		INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+	const loopLenSamePrimer = getSnapbackLoopLength(
+		targetStrandSeqSnapPrimerRefPoint,
+		bestStemLoc.start,
+	);
+	const loopLenRevPrimer = getSnapbackLoopLength(
+		targetStrandSeqRevCompSnapPrimerRefPoint,
+		bestStemLocRevCompSnapPrimerRefPoint.start,
+	);
 
 	// 7) Build mismatch object for wild and variant type on each primer to use in
 	//	  snapback Tm calculations
@@ -1592,8 +1595,9 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
  * proceeds symmetrically (right, then left, repeating) while:
  *   • Maintaining ≥ SNV_BASE_BUFFER perfectly matched bases between the SNV
  *     and each primer binding site.
- *   • Keeping the loop as short as possible
- *       (primerLen + INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED).
+ *   • Keeping the loop as short as possible, with one extra loop-side
+ *     mismatch only when the primer 5' base complements the base immediately
+ *     left of the stem.
  *   • Leaving the SNV centred (or as near-centred as sequence boundaries allow)
  *     within the final stem.
  *
@@ -1810,9 +1814,13 @@ async function createStem(
 				snvSiteSnapPrimerRefPoint.index + 1,
 				stemEnd + 1,
 			);
-		// 3c. Calculating the loop length
-		const loopLen =
-			stemStart + INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+		// 3c. Calculating the loop length. The loop-side strong mismatch is
+		// only inserted when the primer 5' base and base left of the stem are
+		// complementary in this candidate stem placement.
+		const loopLen = getSnapbackLoopLength(
+			targetStrandSeqSnapPrimerRefPoint,
+			stemStart,
+		);
 
 		// 3d. Build mismatch object for wild and variant type, if needed, for stem Tm calculation
 		let wildMismatch = null;
@@ -1908,11 +1916,11 @@ async function createStem(
  * receiving the snapback tail.
  *
  * The final sequence is composed of (from the 5' end to the 3' end):
- *   1. Strong mismatches at the stem end, these keep the complement snapback 
- *      from extending on its end. The strong mismatches are therefore complements
- *      to the strong mismatches on the complement strand at the stems end
+ *   1. A strong mismatch at the stem end, which keeps the complement snapback
+ *      from extending on its end. The strong mismatch is therefore a complement
+ *      to the strong mismatch on the complement strand at the stem's end
  *   2. The stem region of the snapbacks tail
- *   3. Stron inner-loop mismatchs to prevent the snapback loop from hybridizing
+ *   3. An optional strong inner-loop mismatch to prevent one extra loop-closing pair
  * 	 4. The primer
  *
  * Again, the final string is returned 5' → 3'
@@ -1926,10 +1934,10 @@ async function createStem(
  *   lengths on this strand and its complement, respectively.
  * 
  * - The SNV lies within the stem
- * - Additional strong mismatches can be appended without exceeding sequence bounds.
- * 		- This is not tested for as it is possible if the minimum primer length 
- * 		  exceeds the number of required inner loop mismatches and end of stem 
- *        mismatches. 
+ * - Additional mismatch bases can be appended without exceeding sequence bounds.
+ * 		- This is not tested for as it is possible if the minimum primer length
+ * 		  exceeds the number of required inner loop and end-of-stem mismatch
+ *        bases.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Parameters, Returns, and Errors
@@ -2119,7 +2127,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 		},
 	};
 
-	// 2. Create the strong mismatches that prevent extension on the 3' end of the complement
+	// 2. Create the strong mismatch that prevents extension on the 3' end of the complement
 	//    snapback primer
 	let fivePrimerLimSnapExtMismatches = '';
 	for (
@@ -2157,13 +2165,15 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 		fivePrimeStem += baseToInsert;
 	}
 
-	// 4. Create strong mismatches in the inner-loop region (before the stem) (5'->3').
-	//    These mismatch the snapback prevent intramolecular hybridization
-	//    (the loop zipping).
+	const innerLoopMismatchCount = getInnerLoopMismatchCount(seq, stemStart);
+
+	// 4. Create the optional strong mismatch in the inner-loop region (before the stem) (5'->3').
+	//    This prevents one extra loop-closing pair only when the primer 5' base
+	//    and the base immediately left of the stem would otherwise complement.
 	let fivePrimeInnerLoopMismatches = '';
 	for (
 		let i = stemStart - 1;
-		i >= stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED;
+		i >= stemStart - innerLoopMismatchCount;
 		i--
 	) {
 		const base = seq[i];
@@ -2189,7 +2199,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 
 	// 7) Build the extended snapback descriptive parts directly from `seq`.
 	//    Let the stem location bound everything. Immediately before the stem
-	//    are the 3′ inner-loop mismatches . Immediately after the stem are the
+	//    is the optional 3′ inner-loop mismatch. Immediately after the stem are the
 	// 	  complements to strong mismatches that prevent extension on the
 	//    reverse-complement snapback. Everything between the end of the forward
 	//    primer and the left inner-loop block is "stuffBetween"; everything after
@@ -2197,7 +2207,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 
 	// Indices around the left-side (5′) inner-loop block
 	const innerLoopMismatchesStartLoc =
-		stemStart - INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED; // inclusive
+		stemStart - innerLoopMismatchCount; // inclusive
 
 	// stuffBetween: includes the forward primer and every base up to (but not including)
 	// the first 5′ inner-loop mismatch base at innerLoopMismatchesStartLoc.
@@ -2268,7 +2278,7 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 		threePrimerRestOfAmplicon;
 
 	// 8) Extended limiting snapback descriptors by symmetry (reverse-complement)
-	const rc = (s) => reverseComplement(s);
+	const rc = (s) => (s ? reverseComplement(s) : '');
 
 	descriptiveExendedLimSnapback.threePrimerLimSnapExtMismatches = rc(
 		fivePrimerLimSnapExtMismatches,
@@ -2316,6 +2326,40 @@ function buildSnapbackAndFinalProducts(seq, snv, primers, stem, tailBaseAtSNV) {
 /*****************************************************************************************/
 /************************************ Helper Function ************************************/
 /*****************************************************************************************/
+
+function shouldInsertInnerLoopMismatch(seq, stemStart) {
+	if (!isValidDNASequence(seq)) {
+		throw new Error(`Invalid sequence: must be uppercase A/T/C/G string.`);
+	}
+	if (
+		typeof stemStart !== 'number' ||
+		!Number.isInteger(stemStart) ||
+		stemStart <= 0 ||
+		stemStart > seq.length
+	) {
+		throw new Error(
+			`stemStart must be an integer in [1, ${seq.length}]. Received: ${stemStart}.`,
+		);
+	}
+
+	const primerFivePrimeBase = seq[0];
+	const firstFivePrimeOverhangBase = seq[stemStart - 1];
+
+	return (
+		NUCLEOTIDE_COMPLEMENT[primerFivePrimeBase] ===
+		firstFivePrimeOverhangBase
+	);
+}
+
+function getInnerLoopMismatchCount(seq, stemStart) {
+	return shouldInsertInnerLoopMismatch(seq, stemStart)
+		? INNER_LOOP_NUMBER_OF_STRONG_BASE_MISMATCHES_REQUIRED
+		: 0;
+}
+
+function getSnapbackLoopLength(seq, stemStart) {
+	return stemStart + getInnerLoopMismatchCount(seq, stemStart);
+}
 
 /**
  * Determines whether a single-nucleotide variant (SNV) lies too close to the
@@ -3196,6 +3240,9 @@ export {
 	getThermoParams,
 	createStem,
 	buildSnapbackAndFinalProducts,
+	shouldInsertInnerLoopMismatch,
+	getInnerLoopMismatchCount,
+	getSnapbackLoopLength,
 
 	// Helper/logic functions
 	snvTooCloseToPrimer,

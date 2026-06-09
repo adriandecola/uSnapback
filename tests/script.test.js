@@ -12,6 +12,9 @@ import {
 	getThermoParams,
 	createStem,
 	buildSnapbackAndFinalProducts,
+	shouldInsertInnerLoopMismatch,
+	getInnerLoopMismatchCount,
+	getSnapbackLoopLength,
 
 	// Helper/logic functions
 	snvTooCloseToPrimer,
@@ -1224,7 +1227,7 @@ describe('buildSnapbackAndFinalProducts', () => {
 		const tailBaseAtSNV = 'C';
 
 		const expectedSnapback =
-			'GAGTTCTCAAAGCATCTCTGATGGTGACACCTGTTGGTGCCACAC';
+			'AGTTCTCAAAGCATCTCTGATGGACACCTGTTGGTGCCACAC';
 
 		const result = buildSnapbackAndFinalProducts(
 			seq,
@@ -1233,7 +1236,57 @@ describe('buildSnapbackAndFinalProducts', () => {
 			stem,
 			tailBaseAtSNV,
 		);
-		expect(result).toBe(expectedSnapback);
+		expect(result.snapback).toBe(expectedSnapback);
+		expect(
+			result.descriptiveUnExtendedSnapbackPrimer
+				.fivePrimerLimSnapExtMismatches,
+		).toBe('A');
+		expect(
+			result.descriptiveUnExtendedSnapbackPrimer
+				.fivePrimeInnerLoopMismatches,
+		).toBe('');
+		expect(
+			result.descriptiveExtendedSnapback
+				.threePrimeInnerLoopMismatches,
+		).toBe('');
+	});
+
+	test('adds one loop-side mismatch when the primer start complements the base left of the stem', () => {
+		const seq = 'ACGTACGTACGTGTTACGTACGACGTACGTACGTACGTAC';
+		const primers = {
+			primerLen: 12,
+			compPrimerLen: 12,
+		};
+		const snv = {
+			index: 18,
+			variantBase: 'A',
+		};
+		const stem = {
+			start: 15,
+			end: 21,
+		};
+		const tailBaseAtSNV = 'C';
+
+		const result = buildSnapbackAndFinalProducts(
+			seq,
+			snv,
+			primers,
+			stem,
+			tailBaseAtSNV,
+		);
+
+		expect(shouldInsertInnerLoopMismatch(seq, stem.start)).toBe(true);
+		expect(
+			result.descriptiveUnExtendedSnapbackPrimer
+				.fivePrimeInnerLoopMismatches,
+		).toBe('T');
+		expect(
+			result.descriptiveExtendedSnapback
+				.threePrimeInnerLoopMismatches,
+		).toBe('T');
+		expect(result.descriptiveExtendedSnapback.stuffBetween).toBe(
+			seq.slice(0, stem.start - 1),
+		);
 	});
 
 	// ─────────────────────────────────────────────────────────────────────────────
@@ -1378,9 +1431,29 @@ describe('buildSnapbackAndFinalProducts', () => {
 	// 6. Functional correctness check
 	// ─────────────────────────────────────────────────────────────────────────────
 	test('final primer ends with sequence primer region', () => {
-		const snap = baselineCall();
+		const { snapback: snap } = baselineCall();
 		const expectedEnd = validSeq.slice(0, validPrimerLens.primerLen);
 		expect(snap.endsWith(expectedEnd)).toBe(true);
+	});
+});
+
+describe('conditional inner-loop mismatch helpers', () => {
+	test('requests one loop mismatch when primer 5′ base complements the base left of the stem', () => {
+		const seq = 'ACCCCCCCCT';
+		const stemStart = 10;
+
+		expect(shouldInsertInnerLoopMismatch(seq, stemStart)).toBe(true);
+		expect(getInnerLoopMismatchCount(seq, stemStart)).toBe(1);
+		expect(getSnapbackLoopLength(seq, stemStart)).toBe(11);
+	});
+
+	test('requests no loop mismatch when primer 5′ base does not complement the base left of the stem', () => {
+		const seq = 'ACCCCCCCCG';
+		const stemStart = 10;
+
+		expect(shouldInsertInnerLoopMismatch(seq, stemStart)).toBe(false);
+		expect(getInnerLoopMismatchCount(seq, stemStart)).toBe(0);
+		expect(getSnapbackLoopLength(seq, stemStart)).toBe(10);
 	});
 });
 
