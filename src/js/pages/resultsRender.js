@@ -20,12 +20,15 @@ export function renderSnapbackPrimer(result, fwdLen, revLen) {
 			: 'Reverse primer';
 	}
 
-	// Tail applies to the UNextended snapback primer: everything except the primer segment
+	// The unextended primer descriptor follows the actual 5′→3′ sequence order:
+	// terminal mismatch, hybridizing stem, optional loop mismatch, primer.
 	const d0 = result.descriptiveUnExtendedSnapbackPrimer || {};
-	const expectedTail =
-		(d0.fivePrimeInnerLoopMismatches || '') +
-		(d0.fivePrimeStem || '') +
-		(d0.fivePrimerLimSnapExtMismatches || '');
+	const terminalMismatch = d0.fivePrimerLimSnapExtMismatches || '';
+	const stemPart = d0.fivePrimeStem || '';
+	const innerLoopMismatch = d0.fivePrimeInnerLoopMismatches || '';
+	const describedPrimer = d0.forwardPrimer || '';
+	const describedSnapSeq =
+		terminalMismatch + stemPart + innerLoopMismatch + describedPrimer;
 
 	const snapSeq = String(result.snapbackSeq || '');
 
@@ -33,13 +36,45 @@ export function renderSnapbackPrimer(result, fwdLen, revLen) {
 	let primerLen = result.tailOnForwardPrimer ? fwdLen : revLen;
 	if (!Number.isInteger(primerLen) || primerLen < 1) primerLen = null;
 
+	if (snapEl && describedSnapSeq && describedSnapSeq === snapSeq) {
+		snapEl.textContent = '';
+
+		const appendSegment = (text, className, label) => {
+			if (!text) return;
+			const span = document.createElement('span');
+			span.className = className;
+			span.textContent = text;
+			span.title = label;
+			snapEl.appendChild(span);
+		};
+
+		appendSegment(
+			terminalMismatch,
+			'seq-seg seq-seg--mismatch seq-seg--terminal-mismatch',
+			'End mismatch',
+		);
+		appendSegment(
+			stemPart,
+			'seq-seg seq-seg--tail',
+			'Snapback hybridizing sequence',
+		);
+		appendSegment(
+			innerLoopMismatch,
+			'seq-seg seq-seg--mismatch seq-seg--inner-loop-mismatch',
+			'Internal loop mismatch',
+		);
+		appendSegment(
+			describedPrimer,
+			'seq-seg seq-seg--primer',
+			result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer',
+		);
+		return;
+	}
+
 	let tailPart = '';
 	let primerPart = '';
 
-	if (expectedTail && snapSeq.startsWith(expectedTail)) {
-		tailPart = expectedTail;
-		primerPart = snapSeq.slice(expectedTail.length);
-	} else if (primerLen && snapSeq.length >= primerLen) {
+	if (primerLen && snapSeq.length >= primerLen) {
 		primerPart = snapSeq.slice(-primerLen);
 		tailPart = snapSeq.slice(0, snapSeq.length - primerLen);
 	} else {
@@ -158,23 +193,36 @@ export function renderStemAndLoopSizes(result) {
 	}
 }
 
-export function renderDeltaTmTable(result) {
+export function renderDeltaTmTable(result, wildBase, variantBase) {
+	const complement = { A: 'T', T: 'A', C: 'G', G: 'C' };
+	const wild = String(wildBase || '').trim().toUpperCase();
+	const variant = String(variantBase || '').trim().toUpperCase();
+	const setText = (id, text) => {
+		const el = document.getElementById(id);
+		if (el) el.textContent = text;
+	};
+
+	if (complement[wild] && complement[variant]) {
+		setText('dt-wild-heading', `Wild-type match (${wild})`);
+		setText('dt-var-heading', `Variant match (${variant})`);
+		setText(
+			'dt-fwd-heading',
+			`Tail on forward primer (${complement[wild]}/${complement[variant]})`,
+		);
+		setText(
+			'dt-rev-heading',
+			`Tail on reverse primer (${wild}/${variant})`,
+		);
+	}
+
 	// Populate ΔTm table (gracefully handle null/undefined)
 	const fmt = (v) => {
 		const n = Number(v);
 		return Number.isFinite(n) ? n.toFixed(1) : '—';
 	};
 	const d = result.meltingTempDiffs ?? {};
-	document.getElementById('dt-fwd-wild').textContent = fmt(
-		d.onForwardPrimer?.matchWild
-	);
-	document.getElementById('dt-fwd-var').textContent = fmt(
-		d.onForwardPrimer?.matchVariant
-	);
-	document.getElementById('dt-rev-wild').textContent = fmt(
-		d.onReversePrimer?.matchWild
-	);
-	document.getElementById('dt-rev-var').textContent = fmt(
-		d.onReversePrimer?.matchVariant
-	);
+	setText('dt-fwd-wild', fmt(d.onForwardPrimer?.matchWild));
+	setText('dt-fwd-var', fmt(d.onForwardPrimer?.matchVariant));
+	setText('dt-rev-wild', fmt(d.onReversePrimer?.matchWild));
+	setText('dt-rev-var', fmt(d.onReversePrimer?.matchVariant));
 }

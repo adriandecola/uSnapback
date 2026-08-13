@@ -121,6 +121,26 @@ function renderStemDiagram(
 		descriptivePrimer.fivePrimeInnerLoopMismatches || '';
 	const innerLoopBottomSeq =
 		descriptiveExtended.threePrimeInnerLoopMismatches || '';
+	const hasEngineeredInnerLoopMismatch = Boolean(
+		innerLoopTopSeq || innerLoopBottomSeq,
+	);
+	const naturalInnerLoopTopBase = normBase(
+		descriptivePrimer.forwardPrimer?.[0],
+	);
+	const naturalInnerLoopBottomBase = normBase(
+		descriptiveExtended.stuffBetween?.slice(-1),
+	);
+	const hasNaturalInnerLoopMismatch =
+		!hasEngineeredInnerLoopMismatch &&
+		isDnaBase(naturalInnerLoopTopBase) &&
+		isDnaBase(naturalInnerLoopBottomBase) &&
+		complementBase(naturalInnerLoopTopBase) !== naturalInnerLoopBottomBase;
+	const innerLoopTopDisplaySeq = hasNaturalInnerLoopMismatch
+		? naturalInnerLoopTopBase
+		: innerLoopTopSeq;
+	const innerLoopBottomDisplaySeq = hasNaturalInnerLoopMismatch
+		? naturalInnerLoopBottomBase
+		: innerLoopBottomSeq;
 
 	// 3′ terminal mismatches that block extension
 	const terminalTopSeq =
@@ -131,10 +151,13 @@ function renderStemDiagram(
 		descriptiveExtended.threePrimerRestOfAmplicon || '';
 
 	// Top row displayed 3′→5′, so reverse mismatch snippets for display.
-	const leftTopDisplay = summarizeMismatchEnds(innerLoopTopSeq, true);
+	const leftTopDisplay = summarizeMismatchEnds(innerLoopTopDisplaySeq, true);
 	const rightTopDisplay = summarizeMismatchEnds(terminalTopSeq, true);
 	// Bottom row displayed 5′→3′, so leave mismatch snippets alone.
-	const leftBottomDisplay = summarizeMismatchEnds(innerLoopBottomSeq, false);
+	const leftBottomDisplay = summarizeMismatchEnds(
+		innerLoopBottomDisplaySeq,
+		false,
+	);
 	// Bottom row: do NOT show the terminal mismatch block; extend the stem instead.
 	const bottomExtensionSeq =
 		(terminalBottomSeq.slice(0, 2) || '') +
@@ -200,6 +223,11 @@ function renderStemDiagram(
 			'stem-mismatch-block--inner-loop ' +
 			'stem-mismatch-block--left ' +
 			'stem-mismatch-block--top';
+		if (hasNaturalInnerLoopMismatch) {
+			topLeftMismatch.classList.add('stem-mismatch-block--natural');
+			topLeftMismatch.title =
+				'Naturally mismatched bases at the first position inside the loop';
+		}
 		topLeftMismatch.textContent = leftTopDisplay;
 		topRow.appendChild(topLeftMismatch);
 	}
@@ -233,6 +261,11 @@ function renderStemDiagram(
 			'stem-mismatch-block--inner-loop ' +
 			'stem-mismatch-block--left ' +
 			'stem-mismatch-block--bottom';
+		if (hasNaturalInnerLoopMismatch) {
+			bottomLeftMismatch.classList.add('stem-mismatch-block--natural');
+			bottomLeftMismatch.title =
+				'Naturally mismatched bases at the first position inside the loop';
+		}
 		bottomLeftMismatch.textContent = leftBottomDisplay;
 		bottomRow.appendChild(bottomLeftMismatch);
 	}

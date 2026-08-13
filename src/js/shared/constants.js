@@ -28,5 +28,9 @@ export const SNV_GAP = 3;
 export const TM_MIN = 40;
 export const TM_MAX = 80;
 
+/* Default ionic conditions for snapback Tm estimates (mM) */
+export const DEFAULT_MAGNESIUM_MM = 3.0;
+export const DEFAULT_MONOVALENT_MM = 13.7;
+
 /* Allowed DNA bases */
 export const BASES = ['A', 'C', 'G', 'T'];

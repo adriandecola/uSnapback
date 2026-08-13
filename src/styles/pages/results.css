@@ -331,6 +331,24 @@
 	background: var(--forward-primer-bg);
 }
 
+/* Engineered mismatches in the primer sequence use the same red cue and
+   opposing tilt as the extended-stem diagram. */
+.seq-seg--mismatch {
+	display: inline-block;
+	color: #991b1b;
+	background: rgba(220, 38, 38, 0.12);
+	border: 1px solid rgba(220, 38, 38, 0.6);
+	padding-inline: 0.08em;
+}
+
+.seq-seg--terminal-mismatch {
+	transform: translateY(-0.12em) rotate(-12deg);
+}
+
+.seq-seg--inner-loop-mismatch {
+	transform: translateY(0.12em) rotate(12deg);
+}
+
 .stem-row--tail .stem-core-row,
 .stem-row--tail .stem-mismatch-block {
 	border-radius: 2px;

@@ -4,11 +4,13 @@
 
 /* Keep the control from getting absurdly wide on desktop */
 #tmForm {
-	max-width: 10rem;
+	max-width: 18rem;
 }
 
 /* Main input styling */
-#desiredTm {
+#desiredTm,
+#magnesiumMm,
+#monovalentMm {
 	display: block;
 	width: 100%;
 
@@ -28,7 +30,9 @@
 }
 
 /* Placeholder color like the rest of UI */
-#desiredTm::placeholder {
+#desiredTm::placeholder,
+#magnesiumMm::placeholder,
+#monovalentMm::placeholder {
 	color: #64748b;
 	opacity: 1;
 
@@ -36,17 +40,29 @@
 }
 
 /* Focus style (matches blue theme) */
-#desiredTm:focus {
+#desiredTm:focus,
+#magnesiumMm:focus,
+#monovalentMm:focus {
 	border-color: #0284c7;
 	box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
 }
 
 /* Remove number spinners so it looks like other inputs */
 #desiredTm::-webkit-outer-spin-button,
-#desiredTm::-webkit-inner-spin-button {
+#desiredTm::-webkit-inner-spin-button,
+#magnesiumMm::-webkit-outer-spin-button,
+#magnesiumMm::-webkit-inner-spin-button,
+#monovalentMm::-webkit-outer-spin-button,
+#monovalentMm::-webkit-inner-spin-button {
 	-webkit-appearance: none;
 	margin: 0;
 }
-#desiredTm {
+#desiredTm,
+#magnesiumMm,
+#monovalentMm {
 	-moz-appearance: textfield;
+}
+
+.tm-field + .tm-field {
+	margin-top: 0.85rem;
 }

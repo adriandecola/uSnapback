@@ -5,6 +5,11 @@ Author:         Adrian deCola
 Relative Path:  uSnapback/src/script.js
 */
 
+import {
+	DEFAULT_MAGNESIUM_MM,
+	DEFAULT_MONOVALENT_MM,
+} from './js/shared/constants.js';
+
 /*****************************************************************************************/
 /*************************************** Constants ***************************************/
 /*****************************************************************************************/
@@ -21,8 +26,6 @@ const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
 // Chemisty parameters
-const MG = 2.2;
-const MONO = 20.0;
 const T_PARAM = 'SantaLuciaHicks';
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
@@ -114,6 +117,10 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @property {number} 				index				0-based position of the SNV on `targetSeqStrand`
  * @property {string}				variantBase			Variant base ('A', 'C', 'G', or 'T')
  *
+ * @typedef {Object} TmConditions
+ * @property {number} magnesiumMm   Free magnesium concentration in mM
+ * @property {number} monovalentMm  Total monovalent-cation concentration in mM
+ *
  * @typedef {Object} SnapbackMeltingTempDiffs
  * @property {{matchWild:number, matchVariant:number}} onForwardPrimer  ΔTms (°C) if tail is on the forward primer
  * @property {{matchWild:number, matchVariant:number}} onReversePrimer  ΔTms (°C) if tail is on the reverse primer
@@ -192,6 +199,7 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @param {number}				compPrimerLen					The length of the reverse primer
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
  * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
+ * @param {TmConditions} [tmConditions]				Ionic conditions; defaults to 3.0 mM Mg²⁺ and 13.7 mM monovalent cations
  *
  * @returns {Promise<SnapbackPrimerResult>} 	 				Final snapback and limiting primers, snapback Tms and ΔTms,
  *                                           					and descriptive objects for unextended/extended products with SNV indices.
@@ -205,6 +213,7 @@ async function createSnapback(
 	compPrimerLen,
 	snvSite,
 	targetSnapMeltTemp,
+	tmConditions,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                      //
@@ -286,6 +295,7 @@ async function createSnapback(
 			`Amplicon length (${targetSeqStrand.length}) exceeds maximum allowed (${MAX_AMPLICON_LEN}).`,
 		);
 	}
+	const normalizedTmConditions = normalizeTmConditions(tmConditions);
 
 	//──────────────────────────────────────────────────────────────────────────//
 	//								Function Logic								//
@@ -300,7 +310,11 @@ async function createSnapback(
 		tailOnForwardPrimer,
 		bestSnapbackTailBaseAtSNV: snapbackTailBaseAtSNV,
 		snapbackTailMatchesWild: matchesWild,
-	} = await useForwardPrimer(targetSeqStrand, snvSite);
+	} = await useForwardPrimer(
+		targetSeqStrand,
+		snvSite,
+		normalizedTmConditions,
+	);
 
 	// 2) Assigning variables in terms of the primer strand to use as the snapback
 	//	  It also creates variables for the information in the reverse complement frame of reference.
@@ -333,6 +347,7 @@ async function createSnapback(
 		snapbackTailBaseAtSNV,
 		matchesWild,
 		targetSnapMeltTemp,
+		normalizedTmConditions,
 	);
 	console.log('DONE CREATING STEM_______________________');
 
@@ -351,7 +366,10 @@ async function createSnapback(
 	);
 
 	const { snapbackTmRochester, snapbackTmSantaLucia } =
-		await calculateOptionalSnapbackTms(descriptiveExtendedSnapback);
+		await calculateOptionalSnapbackTms(
+			descriptiveExtendedSnapback,
+			normalizedTmConditions,
+		);
 
 	// 5) Calculate melting temperature differences if we kept the same
 	//	  stem location but changed the primer for which we attach the snapback
@@ -362,6 +380,7 @@ async function createSnapback(
 		snvSiteSnapPrimerRefPoint,
 		bestStemLoc,
 		tailOnForwardPrimer,
+		normalizedTmConditions,
 	);
 
 	// 6) Return the results
@@ -377,6 +396,7 @@ async function createSnapback(
 		matchesWild: matchesWild,
 		snapbackMeltingTms: meltingTemps,
 		meltingTempDiffs: meltingTempDiffs,
+		tmConditions: normalizedTmConditions,
 
 		descriptiveUnExtendedSnapbackPrimer,
 		descriptiveExtendedSnapback,
@@ -392,7 +412,10 @@ async function createSnapback(
 	};
 }
 
-async function calculateOptionalSnapbackTms(descriptiveExtendedSnapback) {
+async function calculateOptionalSnapbackTms(
+	descriptiveExtendedSnapback,
+	tmConditions,
+) {
 	if (!ENABLE_OPTIONAL_TM_METHODS) {
 		return {
 			snapbackTmRochester: null,
@@ -401,31 +424,48 @@ async function calculateOptionalSnapbackTms(descriptiveExtendedSnapback) {
 	}
 
 	const [snapbackTmRochester, snapbackTmSantaLucia] = await Promise.all([
-		calculateSnapbackTmRochester(descriptiveExtendedSnapback),
-		calculateSnapbackTmSantaLucia(descriptiveExtendedSnapback),
+		calculateSnapbackTmRochester(descriptiveExtendedSnapback, tmConditions),
+		calculateSnapbackTmSantaLucia(descriptiveExtendedSnapback, tmConditions),
 	]);
 
 	return { snapbackTmRochester, snapbackTmSantaLucia };
 }
 
-async function calculateSnapbackTmRochester(descriptiveExtendedSnapback) {
+async function calculateSnapbackTmRochester(
+	descriptiveExtendedSnapback,
+	tmConditions,
+) {
 	const optionalTmMethods = await import('./optionalTmMethods.js');
 	return optionalTmMethods.calculateSnapbackTmRochester(
 		descriptiveExtendedSnapback,
-		getOptionalTmMethodOptions(),
+		getOptionalTmMethodOptions(tmConditions),
 	);
 }
 
-async function calculateSnapbackTmSantaLucia(descriptiveExtendedSnapback) {
+async function calculateSnapbackTmSantaLucia(
+	descriptiveExtendedSnapback,
+	tmConditions,
+) {
 	const optionalTmMethods = await import('./optionalTmMethods.js');
 	return optionalTmMethods.calculateSnapbackTmSantaLucia(
 		descriptiveExtendedSnapback,
-		getOptionalTmMethodOptions(),
+		getOptionalTmMethodOptions(tmConditions),
 	);
 }
 
-function getOptionalTmMethodOptions() {
-	return { getThermoParams, conc: CONC, limitingConc: LIMITING_CONC };
+function getOptionalTmMethodOptions(tmConditions) {
+	return {
+		getThermoParams: (seq, concentration, limitingConc, mismatch) =>
+			getThermoParams(
+				seq,
+				concentration,
+				limitingConc,
+				mismatch,
+				tmConditions,
+			),
+		conc: CONC,
+		limitingConc: LIMITING_CONC,
+	};
 }
 
 /*****************************************************************************************/
@@ -497,6 +537,7 @@ async function calculateMeltingTempDifferences(
 	snvSiteSnapPrimerRefPoint,
 	bestStemLoc,
 	tailOnForwardPrimer,
+	tmConditions,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter Checking									                    //
@@ -777,35 +818,59 @@ async function calculateMeltingTempDifferences(
 	// 		Kick off ALL eight calls immediately (no awaiting yet):
 	const launches = [
 		// Same primer, wild stem
-		calculateSnapbackTmWittwer(stemSeqWildSamePrimer, loopLenSamePrimer), // 0: same-wild baseline
+		calculateSnapbackTmWittwer(
+			stemSeqWildSamePrimer,
+			loopLenSamePrimer,
+			undefined,
+			tmConditions,
+		), // 0: same-wild baseline
 		calculateSnapbackTmWittwer(
 			stemSeqWildSamePrimer,
 			loopLenSamePrimer,
 			variantTailSamePrimerMismatch,
+			tmConditions,
 		), // 1: same-wild + variant tail
 
 		// Same primer, variant stem
-		calculateSnapbackTmWittwer(stemSeqVariantSamePrimer, loopLenSamePrimer), // 2: same-variant baseline
+		calculateSnapbackTmWittwer(
+			stemSeqVariantSamePrimer,
+			loopLenSamePrimer,
+			undefined,
+			tmConditions,
+		), // 2: same-variant baseline
 		calculateSnapbackTmWittwer(
 			stemSeqVariantSamePrimer,
 			loopLenSamePrimer,
 			wildTailSamePrimerMismatch,
+			tmConditions,
 		), // 3: same-variant + wild tail
 
 		// Reverse primer, wild stem
-		calculateSnapbackTmWittwer(stemSeqWildRevPrimer, loopLenRevPrimer), // 4: rev-wild baseline
+		calculateSnapbackTmWittwer(
+			stemSeqWildRevPrimer,
+			loopLenRevPrimer,
+			undefined,
+			tmConditions,
+		), // 4: rev-wild baseline
 		calculateSnapbackTmWittwer(
 			stemSeqWildRevPrimer,
 			loopLenRevPrimer,
 			variantTailRevPrimerMismatch,
+			tmConditions,
 		), // 5: rev-wild + variant tail
 
 		// Reverse primer, variant stem
-		calculateSnapbackTmWittwer(stemSeqVariantRevPrimer, loopLenRevPrimer), // 6: rev-variant baseline
+		calculateSnapbackTmWittwer(
+			stemSeqVariantRevPrimer,
+			loopLenRevPrimer,
+			undefined,
+			tmConditions,
+		), // 6: rev-variant baseline
 		calculateSnapbackTmWittwer(
 			stemSeqVariantRevPrimer,
 			loopLenRevPrimer,
 			wildTailRevPrimerMismatch,
+			tmConditions,
 		), // 7: rev-variant + wild tail
 	];
 
@@ -908,7 +973,7 @@ async function calculateMeltingTempDifferences(
  *
  * @throws {Error} If inputs are malformed or violate positional constraints.
  */
-async function useForwardPrimer(targetSeqStrand, snvSite) {
+async function useForwardPrimer(targetSeqStrand, snvSite, tmConditions) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
@@ -987,6 +1052,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 			targetInitStem,
 			mismatchPos,
 			snvSite.variantBase,
+			tmConditions,
 		);
 
 	// 8) Evaluate Tm differences for snapback tail on complementary strand
@@ -995,6 +1061,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite) {
 			compInitStem,
 			mismatchPos,
 			revCompSnvSite.variantBase,
+			tmConditions,
 		);
 
 	console.log('tailOnForwardPrimerScenario', tailOnForwardPrimerScenario);
@@ -1056,6 +1123,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	initStem,
 	mismatchPos,
 	variantBase,
+	tmConditions,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
@@ -1104,7 +1172,11 @@ async function evaluateSnapbackTailMatchingOptions(
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1) Get Tm for a stem with the wild base where the snapback tail matches it
-	const wildMatchTmPromise = await getOligoTm(initStem);
+	const wildMatchTmPromise = await getOligoTm(
+		initStem,
+		undefined,
+		tmConditions,
+	);
 
 	// 2) Get Tm for a stem with the variant allele where the snapback tail matches it
 	const variantInitStem =
@@ -1112,7 +1184,11 @@ async function evaluateSnapbackTailMatchingOptions(
 		variantBase +
 		initStem.slice(mismatchPos + 1);
 
-	const variantMatchTmPromise = await getOligoTm(variantInitStem);
+	const variantMatchTmPromise = await getOligoTm(
+		variantInitStem,
+		undefined,
+		tmConditions,
+	);
 
 	// 3) Resolve both promises
 	//    I did this to learn more about aynchronous code, I could do it more
@@ -1132,6 +1208,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	const wildMatchingSnapbackTailToVariantTm = await getOligoTm(
 		variantInitStem,
 		wildMatchingSnapbackTailToVariantMismatchObj,
+		tmConditions,
 	);
 	const wildMatchingSnapbackTailTmDiff = Math.abs(
 		wildMatchTm - wildMatchingSnapbackTailToVariantTm,
@@ -1147,6 +1224,7 @@ async function evaluateSnapbackTailMatchingOptions(
 	const variantMatchingSnapbackTailToWildTm = await getOligoTm(
 		initStem,
 		variantMatchingSnapbackTailToWildMismatchObj,
+		tmConditions,
 	);
 	const variantMatchingSnapbackTailTmDiff = Math.abs(
 		variantMatchTm - variantMatchingSnapbackTailToWildTm,
@@ -1283,7 +1361,7 @@ async function evaluateSnapbackTailMatchingOptions(
  * ──────────────────────────────────────────────────────────────────────────
  * – `seq` is an uppercase DNA string (A/T/C/G) validated by `isValidDNASequence`.
  * – If `mismatch` is supplied it must pass `isValidMismatchObject`.
- * – Global constants (MG, MONO, etc.) are defined in module scope.
+ * – Ionic conditions default to the values requested by the CTW lab.
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Type definitions
@@ -1297,6 +1375,7 @@ async function evaluateSnapbackTailMatchingOptions(
  * ──────────────────────────────────────────────────────────────────────────
  * @param  {string}    seq              Fully matched reference sequence (5'→3')
  * @param  {Mismatch} [mismatch]        Optional mismatch specification
+ * @param  {TmConditions} [tmConditions] Ionic conditions for this calculation
  *
  * @returns {Promise<number>}           Melting temperature (°C) rounded to
  *                                      `TM_DECIMAL_PLACES`
@@ -1305,7 +1384,82 @@ async function evaluateSnapbackTailMatchingOptions(
  *                                      request fails, or the CGI response
  *                                      cannot be parsed
  */
-async function getOligoTm(seq, mismatch) {
+function normalizeTmConditions(tmConditions) {
+	if (
+		tmConditions !== undefined &&
+		tmConditions !== null &&
+		(typeof tmConditions !== 'object' || Array.isArray(tmConditions))
+	) {
+		throw new Error('tmConditions must be an object when provided.');
+	}
+
+	const magnesiumMm =
+		tmConditions?.magnesiumMm ?? DEFAULT_MAGNESIUM_MM;
+	const monovalentMm =
+		tmConditions?.monovalentMm ?? DEFAULT_MONOVALENT_MM;
+
+	for (const [name, value] of [
+		['magnesiumMm', magnesiumMm],
+		['monovalentMm', monovalentMm],
+	]) {
+		if (
+			typeof value !== 'number' ||
+			!Number.isFinite(value) ||
+			value < 0
+		) {
+			throw new Error(`${name} must be a finite, non-negative number.`);
+		}
+	}
+
+	return { magnesiumMm, monovalentMm };
+}
+
+function buildTmRequestParams(
+	seq,
+	mismatch,
+	tmConditions,
+	{
+		otype = O_TYPE,
+		concentration = null,
+		limitingConc = null,
+	} = {},
+) {
+	const { magnesiumMm, monovalentMm } =
+		normalizeTmConditions(tmConditions);
+	const params = new URLSearchParams({
+		mg: String(magnesiumMm),
+		mono: String(monovalentMm),
+		seq: seq.toLowerCase(),
+		tparam: T_PARAM,
+		saltcalctype: SALT_CALC_TYPE,
+		otype,
+		decimalplaces: String(TM_DECIMAL_PLACES),
+	});
+
+	if (concentration != null) {
+		params.set('concentration', String(concentration));
+	}
+	if (limitingConc != null) {
+		params.set('limitingconc', String(limitingConc));
+	}
+	if (USE_TOKEN && API_TOKEN) {
+		params.set('token', API_TOKEN);
+	}
+	if (mismatch) {
+		params.set('mmseq', buildMismatchSequenceForAPI(seq, mismatch));
+	}
+
+	return params;
+}
+
+function buildTmRequestUrl(params) {
+	const apiURL = `${API_URL}?${params.toString()}`;
+	return USE_PROXY
+		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
+		: apiURL;
+}
+
+async function getOligoTm(seq, mismatch, tmConditions) {
 	//──────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────//
@@ -1339,35 +1493,8 @@ async function getOligoTm(seq, mismatch) {
 	// Function Logic                                                          //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1. Build the mmseq string if a mismatch is present
-	let mmSeq = null;
-	if (mismatch) {
-		mmSeq = buildMismatchSequenceForAPI(seq, mismatch);
-	}
-
-	// 2. Assemble the query URL
-	let apiURL = API_URL;
-	apiURL += `?mg=${MG}`;
-	apiURL += `&mono=${MONO}`;
-	apiURL += `&seq=${seq.toLowerCase()}`;
-	apiURL += `&tparam=${T_PARAM}`;
-	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
-	apiURL += `&otype=${O_TYPE}`;
-
-	//apiURL += `&concentration=${CONC}`;
-	//apiURL += `&limitingconc=${LIMITING_CONC}`;
-	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	if (USE_TOKEN && API_TOKEN) {
-		apiURL += `&token=${API_TOKEN}`;
-	}
-	if (mmSeq) {
-		apiURL += `&mmseq=${mmSeq}`;
-	}
-
-	// 3. If proxying, encode the target and prepend the proxy URL
-	const finalURL = USE_PROXY
-		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
-		: apiURL;
+	const params = buildTmRequestParams(seq, mismatch, tmConditions);
+	const finalURL = buildTmRequestUrl(params);
 
 	// 4. Fetch the response
 	const res = await fetch(finalURL);
@@ -1401,7 +1528,7 @@ async function getOligoTm(seq, mismatch) {
  *                                      request fails, or the CGI response
  *                                      cannot be parsed
  */
-async function getPrimerTm(seq) {
+async function getPrimerTm(seq, tmConditions) {
 	//──────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────//
@@ -1417,26 +1544,10 @@ async function getPrimerTm(seq) {
 	// Function Logic                                                          //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1. Assemble the query URL
-	let apiURL = API_URL;
-	apiURL += `?mg=${MG}`; // 2.2 currently
-	apiURL += `&mono=${MONO}`; // 20 currently
-	apiURL += `&seq=${seq.toLowerCase()}`;
-	apiURL += `&tparam=${T_PARAM}`; //SantaLuciaHicks currently
-	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`; // 'bpdenominator' currenltly
-	apiURL += `&otype=${PRIMER_O_TYPE}`; // 'primer' currently
-
-	//apiURL += `&concentration=${CONC}`;
-	//apiURL += `&limitingconc=${LIMITING_CONC}`;
-	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	if (USE_TOKEN && API_TOKEN) {
-		apiURL += `&token=${API_TOKEN}`;
-	}
-
-	// 2. If proxying, encode the target and prepend the proxy URL
-	const finalURL = USE_PROXY
-		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
-		: apiURL;
+	const params = buildTmRequestParams(seq, null, tmConditions, {
+		otype: PRIMER_O_TYPE,
+	});
+	const finalURL = buildTmRequestUrl(params);
 
 	// 3. Fetch the response
 	const res = await fetch(finalURL);
@@ -1492,7 +1603,13 @@ async function getPrimerTm(seq) {
  * @throws  {Error} 						on invalid params, network failure,
  * 											or unparsable response.
  */
-async function getThermoParams(seq, concentration, limitingConc, mismatch) {
+async function getThermoParams(
+	seq,
+	concentration,
+	limitingConc,
+	mismatch,
+	tmConditions,
+) {
 	//──────────────────────────────────────────────────────────────────────//
 	// Parameter Checking                                                   //
 	//──────────────────────────────────────────────────────────────────────//
@@ -1548,34 +1665,11 @@ async function getThermoParams(seq, concentration, limitingConc, mismatch) {
 	// Request construction                                                //
 	//──────────────────────────────────────────────────────────────────────//
 
-	// 1. Build the mmseq string if a mismatch is present
-	let mmSeq = null;
-	if (mismatch) {
-		mmSeq = buildMismatchSequenceForAPI(seq, mismatch);
-	}
-
-	// 2. Assemble the query URL
-	let apiURL = API_URL;
-	apiURL += `?mg=${MG}`;
-	apiURL += `&mono=${MONO}`;
-	apiURL += `&seq=${seq.toLowerCase()}`;
-	apiURL += `&tparam=${T_PARAM}`;
-	apiURL += `&saltcalctype=${SALT_CALC_TYPE}`;
-	apiURL += `&concentration=${CONC}`;
-	apiURL += `&limitingconc=${LIMITING_CONC}`;
-	apiURL += `&otype=${O_TYPE}`;
-	apiURL += `&decimalplaces=${TM_DECIMAL_PLACES}`;
-	if (USE_TOKEN && API_TOKEN) {
-		apiURL += `&token=${API_TOKEN}`;
-	}
-	if (mmSeq) {
-		apiURL += `&mmseq=${mmSeq}`;
-	}
-
-	// 3. If proxying, encode the target and prepend the proxy URL
-	const finalURL = USE_PROXY
-		? `${PROXY_URL}?url=${encodeURIComponent(apiURL)}`
-		: apiURL;
+	const params = buildTmRequestParams(seq, mismatch, tmConditions, {
+		concentration: concentration ?? CONC,
+		limitingConc: limitingConc ?? LIMITING_CONC,
+	});
+	const finalURL = buildTmRequestUrl(params);
 
 	// 4. Fetch the response
 	const res = await fetch(finalURL);
@@ -1668,6 +1762,7 @@ async function createStem(
 	snapbackTailBaseAtSNV,
 	matchesWild,
 	targetSnapMeltTemp,
+	tmConditions,
 ) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//                          Parameter Checking                              //
@@ -1842,6 +1937,7 @@ async function createStem(
 			currentStem,
 			loopLen,
 			wildMismatch,
+			tmConditions,
 		);
 
 		// 3f. Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
@@ -1858,6 +1954,7 @@ async function createStem(
 				currentVariantStem,
 				loopLen,
 				variantMismatch,
+				tmConditions,
 			);
 		}
 
@@ -2733,12 +2830,18 @@ function parseThermoParamsFromResponse(rawHtml) {
  * @param   {number}    loopLen     Loop length in nucleotides
  * @param   {Mismatch} [mismatch]   Optional mismatch object:
  *                                  { position: number, type: string }
+ * @param   {TmConditions} [tmConditions] Ionic conditions for this calculation
  *
  * @returns {Promise<number>}       Estimated melting temperature (Tm)
  *
  * @throws  {Error}                 If parameters are invalid
  */
-async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
+async function calculateSnapbackTmWittwer(
+	stemSeq,
+	loopLen,
+	mismatch,
+	tmConditions,
+) {
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
@@ -2783,7 +2886,11 @@ async function calculateSnapbackTmWittwer(stemSeq, loopLen, mismatch) {
 	//──────────────────────────────────────────────────────────────────────────//
 
 	// 1. Calculate stem Tm from external method
-	const stemTm = await getOligoTm(stemSeq, mismatch ?? undefined);
+	const stemTm = await getOligoTm(
+		stemSeq,
+		mismatch ?? undefined,
+		tmConditions,
+	);
 
 	// 2. Apply snapback Tm formula
 	const tm = -5.25 * Math.log10(loopLen) + 0.837 * stemTm + 32.9;
@@ -3235,6 +3342,8 @@ export {
 	calculateMeltingTempDifferences,
 	useForwardPrimer,
 	evaluateSnapbackTailMatchingOptions,
+	buildTmRequestParams,
+	normalizeTmConditions,
 	getOligoTm,
 	getPrimerTm,
 	getThermoParams,

@@ -294,3 +294,40 @@ export function validateDesiredTm(tmRaw) {
 
 	return ok({ tm });
 }
+
+/* =========================================================
+   6) Ionic-condition validation
+   - values present
+   - finite numbers
+   - non-negative concentrations in mM
+========================================================= */
+export function validateTmConditions(magnesiumRaw, monovalentRaw) {
+	const parseConcentration = (raw, label) => {
+		const normalized = typeof raw === 'string' ? raw.trim() : raw;
+		if (normalized === '' || normalized == null) {
+			return fail(`Please enter ${label}.`);
+		}
+
+		const value =
+			typeof normalized === 'number' ? normalized : Number(normalized);
+		if (!Number.isFinite(value) || value < 0) {
+			return fail(`${label} must be a non-negative number in mM.`);
+		}
+
+		return ok({ value });
+	};
+
+	const magnesium = parseConcentration(magnesiumRaw, 'free Mg²⁺');
+	if (!magnesium.ok) return magnesium;
+
+	const monovalent = parseConcentration(
+		monovalentRaw,
+		'monovalent cations',
+	);
+	if (!monovalent.ok) return monovalent;
+
+	return ok({
+		magnesiumMm: magnesium.data.value,
+		monovalentMm: monovalent.data.value,
+	});
+}

@@ -8,7 +8,10 @@
 
 /* ---------------------------------------- Imports --------------------------------------- */
 import { createSnapback } from '../../script.js';
-// Dont import constants here as all inputs have already been collected
+import {
+	DEFAULT_MAGNESIUM_MM,
+	DEFAULT_MONOVALENT_MM,
+} from '../shared/constants.js';
 
 import { wireCopyButton } from '../shared/clipboard.js';
 import { renderStemDiagram } from './resultsStemDiagram.js';
@@ -27,6 +30,7 @@ import {
 	validatePrimerLengths,
 	validateSnv,
 	validateDesiredTm,
+	validateTmConditions,
 } from '../shared/validators.js';
 
 const PREV_PAGE = 'desiredTm.html';
@@ -55,13 +59,28 @@ function readInputs() {
 		snvIndex: +sessionStorage.getItem('snvIndex'),
 		snvBase: sessionStorage.getItem('snvBase'),
 		tmStr: sessionStorage.getItem('desiredTm') ?? '',
+		magnesiumStr:
+			sessionStorage.getItem('magnesiumMm') ??
+			String(DEFAULT_MAGNESIUM_MM),
+		monovalentStr:
+			sessionStorage.getItem('monovalentMm') ??
+			String(DEFAULT_MONOVALENT_MM),
 	};
 }
 
 /* --------------------------------------------------
 Helper: validate inputs before running the main algorithm
 -------------------------------------------------- */
-function validateInputs({ seq, fwdLen, revLen, snvIndex, snvBase, tmStr }) {
+function validateInputs({
+	seq,
+	fwdLen,
+	revLen,
+	snvIndex,
+	snvBase,
+	tmStr,
+	magnesiumStr,
+	monovalentStr,
+}) {
 	const vAmp = validateAmpliconSeq(seq);
 	if (!vAmp.ok) {
 		goBack(vAmp.msg);
@@ -86,7 +105,16 @@ function validateInputs({ seq, fwdLen, revLen, snvIndex, snvBase, tmStr }) {
 		return null;
 	}
 
-	return { tmC: vTm.data.tm };
+	const vConditions = validateTmConditions(magnesiumStr, monovalentStr);
+	if (!vConditions.ok) {
+		alert(vConditions.msg);
+		return null;
+	}
+
+	return {
+		tmC: vTm.data.tm,
+		tmConditions: vConditions.data,
+	};
 }
 
 async function initResultsPage() {
@@ -137,6 +165,7 @@ async function initResultsPage() {
 			inputs.revLen,
 			{ index: inputs.snvIndex, variantBase: inputs.snvBase },
 			validated.tmC,
+			validated.tmConditions,
 		);
 
 		// For debugging
@@ -162,7 +191,11 @@ async function initResultsPage() {
 		renderTailSummary(result);
 		renderTmSummary(result);
 		renderStemAndLoopSizes(result);
-		renderDeltaTmTable(result);
+		renderDeltaTmTable(
+			result,
+			inputs.seq[inputs.snvIndex],
+			inputs.snvBase,
+		);
 
 		/* Show results and hide loading screen */
 		resultBox.hidden = false;
