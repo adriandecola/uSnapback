@@ -8,6 +8,7 @@ import {
 import {
 	renderDeltaTmTable,
 	renderSnapbackPrimer,
+	renderTmConditions,
 } from '../src/js/pages/resultsRender.js';
 import { renderStemDiagram } from '../src/js/pages/resultsStemDiagram.js';
 import { validateTmConditions } from '../src/js/shared/validators.js';
@@ -95,6 +96,41 @@ describe('Carl-requested result annotations', () => {
 		);
 		expect(document.querySelector('.seq-seg--primer').textContent).toBe(
 			'TTAA',
+		);
+	});
+
+	test('boxes a natural first-loop primer base in blue when no base was added', () => {
+		document.body.innerHTML = `
+			<pre id="snapSeq"></pre>
+			<span id="snapPrimerLabel"></span>
+		`;
+
+		renderSnapbackPrimer(
+			{
+				tailOnForwardPrimer: true,
+				snapbackSeq: 'GACGTATTAA',
+				descriptiveUnExtendedSnapbackPrimer: {
+					fivePrimerLimSnapExtMismatches: 'G',
+					fivePrimeStem: 'ACGT',
+					fivePrimeInnerLoopMismatches: '',
+					forwardPrimer: 'ATTAA',
+				},
+				descriptiveExtendedSnapback: {
+					stuffBetween: 'CCCG',
+				},
+			},
+			5,
+			5,
+		);
+
+		const natural = document.querySelector(
+			'.seq-seg--inner-loop-mismatch.seq-seg--natural-mismatch',
+		);
+		expect(natural.textContent).toBe('A');
+		expect(natural.classList).toContain('seq-seg--primer');
+		expect(natural.classList).not.toContain('seq-seg--tail');
+		expect(document.getElementById('snapSeq').textContent).toBe(
+			'GACGTATTAA',
 		);
 	});
 
@@ -266,6 +302,22 @@ describe('Carl-requested cation inputs', () => {
 			msg: '',
 			data: { magnesiumMm: 3, monovalentMm: 13.7 },
 		});
+	});
+
+	test('labels the exact ionic quantities used on the results page', () => {
+		document.body.innerHTML = `
+			<span id="freeMagnesiumMm"></span>
+			<span id="totalMonovalentMm"></span>
+		`;
+
+		renderTmConditions({ magnesiumMm: 4.6, monovalentMm: 17.2 });
+
+		expect(document.getElementById('freeMagnesiumMm').textContent).toBe(
+			'4.6',
+		);
+		expect(document.getElementById('totalMonovalentMm').textContent).toBe(
+			'17.2',
+		);
 	});
 
 	test.each([

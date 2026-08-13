@@ -9,6 +9,12 @@ function segLen(s) {
 	return typeof s === 'string' ? s.trim().length : null;
 }
 
+function complementBase(base) {
+	return { A: 'T', T: 'A', C: 'G', G: 'C' }[
+		String(base || '').toUpperCase()
+	];
+}
+
 export function renderSnapbackPrimer(result, fwdLen, revLen) {
 	const snapEl = document.getElementById('snapSeq');
 	const primerLabelEl = document.getElementById('snapPrimerLabel');
@@ -27,6 +33,16 @@ export function renderSnapbackPrimer(result, fwdLen, revLen) {
 	const stemPart = d0.fivePrimeStem || '';
 	const innerLoopMismatch = d0.fivePrimeInnerLoopMismatches || '';
 	const describedPrimer = d0.forwardPrimer || '';
+	const naturalLoopPrimerBase = describedPrimer[0] || '';
+	const naturalLoopAmpliconBase =
+		result.descriptiveExtendedSnapback?.stuffBetween?.slice(-1) || '';
+	const hasNaturalInnerLoopMismatch = Boolean(
+		!innerLoopMismatch &&
+			naturalLoopPrimerBase &&
+			naturalLoopAmpliconBase &&
+			complementBase(naturalLoopPrimerBase) !==
+				naturalLoopAmpliconBase.toUpperCase(),
+	);
 	const describedSnapSeq =
 		terminalMismatch + stemPart + innerLoopMismatch + describedPrimer;
 
@@ -61,13 +77,26 @@ export function renderSnapbackPrimer(result, fwdLen, revLen) {
 		appendSegment(
 			innerLoopMismatch,
 			'seq-seg seq-seg--tail seq-seg--mismatch seq-seg--inner-loop-mismatch',
-			'Internal loop mismatch',
+			'Added internal-loop mismatch',
 		);
-		appendSegment(
-			describedPrimer,
-			'seq-seg seq-seg--primer',
-			result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer',
-		);
+		if (hasNaturalInnerLoopMismatch) {
+			appendSegment(
+				naturalLoopPrimerBase,
+				'seq-seg seq-seg--primer seq-seg--mismatch seq-seg--inner-loop-mismatch seq-seg--natural-mismatch',
+				'Natural first-loop mismatch; no base was added',
+			);
+			appendSegment(
+				describedPrimer.slice(1),
+				'seq-seg seq-seg--primer',
+				result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer',
+			);
+		} else {
+			appendSegment(
+				describedPrimer,
+				'seq-seg seq-seg--primer',
+				result.tailOnForwardPrimer ? 'Forward primer' : 'Reverse primer',
+			);
+		}
 		return;
 	}
 
@@ -130,6 +159,24 @@ export function renderTmSummary(result) {
 	document.getElementById('varTm').textContent = Number.isFinite(wittVar)
 		? wittVar.toFixed(1)
 		: '—';
+}
+
+export function renderTmConditions(tmConditions) {
+	const freeMagnesiumEl = document.getElementById('freeMagnesiumMm');
+	const totalMonovalentEl = document.getElementById('totalMonovalentMm');
+	const freeMagnesium = Number(tmConditions?.magnesiumMm);
+	const totalMonovalent = Number(tmConditions?.monovalentMm);
+
+	if (freeMagnesiumEl) {
+		freeMagnesiumEl.textContent = Number.isFinite(freeMagnesium)
+			? String(freeMagnesium)
+			: '—';
+	}
+	if (totalMonovalentEl) {
+		totalMonovalentEl.textContent = Number.isFinite(totalMonovalent)
+			? String(totalMonovalent)
+			: '—';
+	}
 }
 
 export function renderStemAndLoopSizes(result) {

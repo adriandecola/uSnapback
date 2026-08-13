@@ -322,7 +322,7 @@ export function validateTmConditions(magnesiumRaw, monovalentRaw) {
 
 	const monovalent = parseConcentration(
 		monovalentRaw,
-		'monovalent cations',
+		'total monovalent cations',
 	);
 	if (!monovalent.ok) return monovalent;
 

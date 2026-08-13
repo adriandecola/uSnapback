@@ -199,7 +199,7 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @param {number}				compPrimerLen					The length of the reverse primer
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
  * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
- * @param {TmConditions} [tmConditions]				Ionic conditions; defaults to 3.0 mM Mg²⁺ and 13.7 mM monovalent cations
+ * @param {TmConditions} [tmConditions]				Ionic conditions; defaults to 3.0 mM free Mg²⁺ and 13.7 mM total monovalent cations
  *
  * @returns {Promise<SnapbackPrimerResult>} 	 				Final snapback and limiting primers, snapback Tms and ΔTms,
  *                                           					and descriptive objects for unextended/extended products with SNV indices.

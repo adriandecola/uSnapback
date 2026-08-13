@@ -66,3 +66,11 @@
 .tm-field + .tm-field {
 	margin-top: 0.85rem;
 }
+
+.field-help {
+	display: block;
+	margin-top: 0.3rem;
+	color: #475569;
+	font-size: 0.78rem;
+	line-height: 1.35;
+}

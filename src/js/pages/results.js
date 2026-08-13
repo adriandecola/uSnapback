@@ -20,6 +20,7 @@ import {
 	renderLimitingPrimer,
 	renderTailSummary,
 	renderTmSummary,
+	renderTmConditions,
 	renderStemAndLoopSizes,
 	renderDeltaTmTable,
 } from './resultsRender.js';
@@ -190,6 +191,7 @@ async function initResultsPage() {
 
 		renderTailSummary(result);
 		renderTmSummary(result);
+		renderTmConditions(result.tmConditions);
 		renderStemAndLoopSizes(result);
 		renderDeltaTmTable(
 			result,
