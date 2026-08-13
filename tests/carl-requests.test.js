@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 
 import {
 	buildTmRequestParams,
+	createSnapback,
 	getOligoTm,
 } from '../dist/script.js';
 import {
@@ -81,9 +82,15 @@ describe('Carl-requested result annotations', () => {
 			document.querySelector('.seq-seg--terminal-mismatch').textContent,
 		).toBe('G');
 		expect(
+			document.querySelector('.seq-seg--terminal-mismatch').classList,
+		).toContain('seq-seg--tail');
+		expect(
 			document.querySelector('.seq-seg--inner-loop-mismatch').textContent,
 		).toBe('C');
-		expect(document.querySelector('.seq-seg--tail').textContent).toBe(
+		expect(
+			document.querySelector('.seq-seg--inner-loop-mismatch').classList,
+		).toContain('seq-seg--tail');
+		expect(document.querySelector('.seq-seg--stem').textContent).toBe(
 			'ACGT',
 		);
 		expect(document.querySelector('.seq-seg--primer').textContent).toBe(
@@ -133,7 +140,7 @@ describe('Carl-requested result annotations', () => {
 		jest.clearAllTimers();
 	});
 
-	test('adds allele and tail bases to both axes of the delta-Tm table', () => {
+	test('shows the actual mismatch pair in each delta-Tm cell', () => {
 		document.body.innerHTML = `
 			<table>
 				<thead><tr>
@@ -160,21 +167,99 @@ describe('Carl-requested result annotations', () => {
 		);
 
 		expect(document.getElementById('dt-wild-heading').textContent).toBe(
-			'Wild-type match (A)',
+			'Wild-type match',
 		);
 		expect(document.getElementById('dt-var-heading').textContent).toBe(
-			'Variant match (G)',
+			'Variant match',
 		);
 		expect(document.getElementById('dt-fwd-heading').textContent).toBe(
-			'Tail on forward primer (T/C)',
+			'Tail on forward primer',
 		);
 		expect(document.getElementById('dt-rev-heading').textContent).toBe(
-			'Tail on reverse primer (A/G)',
+			'Tail on reverse primer',
 		);
+		expect(document.getElementById('dt-fwd-wild').textContent).toBe(
+			'10.0 (G-T)',
+		);
+		expect(document.getElementById('dt-fwd-var').textContent).toBe(
+			'9.0 (A-C)',
+		);
+		expect(document.getElementById('dt-rev-wild').textContent).toBe(
+			'8.0 (C-A)',
+		);
+		expect(document.getElementById('dt-rev-var').textContent).toBe(
+			'7.0 (T-G)',
+		);
+	});
+
+	test('colors natural loop bases as primer and engineered loop/end bases as tail', () => {
+		document.body.innerHTML = `
+			<div id="stemDiagramWrapper">
+				<div id="stemDiagram"></div>
+				<div id="stemSnvLabel"></div>
+			</div>
+		`;
+
+		renderStemDiagram(
+			{
+				fivePrimeStem: 'ACGT',
+				fivePrimeInnerLoopMismatches: '',
+				fivePrimerLimSnapExtMismatches: 'G',
+				forwardPrimer: 'ACGTACGTACGT',
+			},
+			{
+				threePrimeStem: 'ACGT',
+				threePrimeInnerLoopMismatches: '',
+				threePrimerLimSnapExtMismatches: 'C',
+				threePrimerRestOfAmplicon: '',
+				stuffBetween: 'ACCCCCG',
+			},
+			'A',
+			'G',
+			null,
+			true,
+		);
+
+		expect(
+			document.querySelector('.stem-row--top .stem-mismatch-block--natural')
+				.classList,
+		).toContain('stem-mismatch-block--primer');
+		expect(
+			document.querySelector('.stem-row--top .stem-mismatch-block--terminal')
+				.classList,
+		).toContain('stem-mismatch-block--tail');
+
+		renderStemDiagram(
+			{
+				fivePrimeStem: 'ACGT',
+				fivePrimeInnerLoopMismatches: 'T',
+				fivePrimerLimSnapExtMismatches: 'G',
+				forwardPrimer: 'ACGTACGTACGT',
+			},
+			{
+				threePrimeStem: 'ACGT',
+				threePrimeInnerLoopMismatches: 'A',
+				threePrimerLimSnapExtMismatches: 'C',
+				threePrimerRestOfAmplicon: '',
+				stuffBetween: 'ACCCCCG',
+			},
+			'A',
+			'G',
+			null,
+			true,
+		);
+
+		expect(
+			document.querySelector('.stem-row--top .stem-mismatch-block--inner-loop')
+				.classList,
+		).toContain('stem-mismatch-block--tail');
 	});
 });
 
 describe('Carl-requested cation inputs', () => {
+	afterEach(() => {
+		jest.restoreAllMocks();
+	});
 	test('accepts the requested default free-magnesium and monovalent values', () => {
 		expect(validateTmConditions('3.0', '13.7')).toEqual({
 			ok: true,
@@ -230,5 +315,54 @@ describe('Carl-requested cation inputs', () => {
 		expect(direct.searchParams.get('mono')).toBe('9.4');
 
 		fetchSpy.mockRestore();
+	});
+
+	test('passes custom cations to every request in a complete design', async () => {
+		const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((url) => {
+			const outer = new URL(url);
+			const direct = new URL(
+				outer.searchParams.get('url') || outer.href,
+			);
+			const seq = direct.searchParams.get('seq') || '';
+			const tm = 20 + seq.length * 2;
+			const mismatchTm = tm - 10;
+			return Promise.resolve({
+				ok: true,
+				text: async () =>
+					`<html><body><tm>${tm}</tm><mmtm>${mismatchTm}</mmtm>` +
+					'<dH>-80000</dH><dS>-220</dS>' +
+					'<saltCorrection>-5</saltCorrection></body></html>',
+			});
+		});
+
+		const sequence = 'ACGT'.repeat(25);
+		await createSnapback(
+			sequence,
+			20,
+			20,
+			{ index: 50, variantBase: 'A' },
+			60,
+			{ magnesiumMm: 4.6, monovalentMm: 17.2 },
+		);
+
+		expect(fetchSpy).toHaveBeenCalled();
+		const directRequests = fetchSpy.mock.calls.map(([url]) => {
+			const outer = new URL(url);
+			return new URL(
+				outer.searchParams.get('url') || outer.href,
+			);
+		});
+		expect(directRequests.length).toBeGreaterThan(20);
+		expect(directRequests.some((url) => url.searchParams.has('mmseq'))).toBe(
+			true,
+		);
+		expect(
+			directRequests.some((url) => url.searchParams.has('concentration')),
+		).toBe(true);
+
+		for (const direct of directRequests) {
+			expect(direct.searchParams.get('mg')).toBe('4.6');
+			expect(direct.searchParams.get('mono')).toBe('17.2');
+		}
 	});
 });

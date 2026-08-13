@@ -219,7 +219,9 @@ function renderStemDiagram(
 		const topLeftMismatch = document.createElement('span');
 		topLeftMismatch.className =
 			'stem-mismatch-block ' +
-			'stem-mismatch-block--primer ' +
+			(hasNaturalInnerLoopMismatch
+				? 'stem-mismatch-block--primer '
+				: 'stem-mismatch-block--tail ') +
 			'stem-mismatch-block--inner-loop ' +
 			'stem-mismatch-block--left ' +
 			'stem-mismatch-block--top';
@@ -241,6 +243,7 @@ function renderStemDiagram(
 		const topRightMismatch = document.createElement('span');
 		topRightMismatch.className =
 			'stem-mismatch-block ' +
+			'stem-mismatch-block--tail ' +
 			'stem-mismatch-block--terminal ' +
 			'stem-mismatch-block--right ' +
 			'stem-mismatch-block--top';

@@ -50,17 +50,17 @@ export function renderSnapbackPrimer(result, fwdLen, revLen) {
 
 		appendSegment(
 			terminalMismatch,
-			'seq-seg seq-seg--mismatch seq-seg--terminal-mismatch',
+			'seq-seg seq-seg--tail seq-seg--mismatch seq-seg--terminal-mismatch',
 			'End mismatch',
 		);
 		appendSegment(
 			stemPart,
-			'seq-seg seq-seg--tail',
+			'seq-seg seq-seg--tail seq-seg--stem',
 			'Snapback hybridizing sequence',
 		);
 		appendSegment(
 			innerLoopMismatch,
-			'seq-seg seq-seg--mismatch seq-seg--inner-loop-mismatch',
+			'seq-seg seq-seg--tail seq-seg--mismatch seq-seg--inner-loop-mismatch',
 			'Internal loop mismatch',
 		);
 		appendSegment(
@@ -202,27 +202,42 @@ export function renderDeltaTmTable(result, wildBase, variantBase) {
 		if (el) el.textContent = text;
 	};
 
-	if (complement[wild] && complement[variant]) {
-		setText('dt-wild-heading', `Wild-type match (${wild})`);
-		setText('dt-var-heading', `Variant match (${variant})`);
-		setText(
-			'dt-fwd-heading',
-			`Tail on forward primer (${complement[wild]}/${complement[variant]})`,
-		);
-		setText(
-			'dt-rev-heading',
-			`Tail on reverse primer (${wild}/${variant})`,
-		);
-	}
+	setText('dt-wild-heading', 'Wild-type match');
+	setText('dt-var-heading', 'Variant match');
+	setText('dt-fwd-heading', 'Tail on forward primer');
+	setText('dt-rev-heading', 'Tail on reverse primer');
 
 	// Populate ΔTm table (gracefully handle null/undefined)
-	const fmt = (v) => {
+	const fmt = (v, mismatchPair = '') => {
 		const n = Number(v);
-		return Number.isFinite(n) ? n.toFixed(1) : '—';
+		if (!Number.isFinite(n)) return '—';
+		return `${n.toFixed(1)}${mismatchPair ? ` (${mismatchPair})` : ''}`;
 	};
 	const d = result.meltingTempDiffs ?? {};
-	setText('dt-fwd-wild', fmt(d.onForwardPrimer?.matchWild));
-	setText('dt-fwd-var', fmt(d.onForwardPrimer?.matchVariant));
-	setText('dt-rev-wild', fmt(d.onReversePrimer?.matchWild));
-	setText('dt-rev-var', fmt(d.onReversePrimer?.matchVariant));
+	const validAlleles = Boolean(complement[wild] && complement[variant]);
+	const mismatchPairs = validAlleles
+		? {
+				forwardWild: `${variant}-${complement[wild]}`,
+				forwardVariant: `${wild}-${complement[variant]}`,
+				reverseWild: `${complement[variant]}-${wild}`,
+				reverseVariant: `${complement[wild]}-${variant}`,
+			}
+		: {};
+
+	setText(
+		'dt-fwd-wild',
+		fmt(d.onForwardPrimer?.matchWild, mismatchPairs.forwardWild),
+	);
+	setText(
+		'dt-fwd-var',
+		fmt(d.onForwardPrimer?.matchVariant, mismatchPairs.forwardVariant),
+	);
+	setText(
+		'dt-rev-wild',
+		fmt(d.onReversePrimer?.matchWild, mismatchPairs.reverseWild),
+	);
+	setText(
+		'dt-rev-var',
+		fmt(d.onReversePrimer?.matchVariant, mismatchPairs.reverseVariant),
+	);
 }

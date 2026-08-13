@@ -331,22 +331,17 @@
 	background: var(--forward-primer-bg);
 }
 
-/* Engineered mismatches in the primer sequence use the same red cue and
-   opposing tilt as the extended-stem diagram. */
+/* Engineered mismatches in the primer sequence stay square. Their red outline
+   marks the mismatch while the yellow fill keeps them visually in the tail. */
 .seq-seg--mismatch {
 	display: inline-block;
-	color: #991b1b;
-	background: rgba(220, 38, 38, 0.12);
 	border: 1px solid rgba(220, 38, 38, 0.6);
+	border-radius: 2px;
 	padding-inline: 0.08em;
 }
 
-.seq-seg--terminal-mismatch {
-	transform: translateY(-0.12em) rotate(-12deg);
-}
-
-.seq-seg--inner-loop-mismatch {
-	transform: translateY(0.12em) rotate(12deg);
+.seq-seg--tail.seq-seg--mismatch {
+	background: rgba(251, 191, 36, 0.28);
 }
 
 .stem-row--tail .stem-core-row,
@@ -389,11 +384,17 @@
 	border: 1px solid rgba(220, 38, 38, 0.6);
 }
 
-/* Top-left mismatch belongs to the forward-primer side in the diagram. */
+/* On the snapback strand, a natural first loop mismatch is part of the primer
+   (blue), while an introduced loop mismatch and the terminal extension block
+   are part of the tail (yellow). All retain the red mismatch outline. */
 .stem-mismatch-block--primer {
-	/* Use solid blue here to avoid alpha stacking with the loop SVG accent. */
 	background-color: var(--forward-primer-solid-bg);
-	border: 1px solid var(--forward-primer-solid-border);
+	border: 1px solid rgba(220, 38, 38, 0.6);
+}
+
+.stem-row--tail .stem-mismatch-block--tail {
+	background-color: rgba(251, 191, 36, 0.28);
+	border: 1px solid rgba(220, 38, 38, 0.6);
 }
 
 /* Replace the four tilt rules with these */
