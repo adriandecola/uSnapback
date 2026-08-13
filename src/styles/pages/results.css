@@ -392,12 +392,6 @@
 	border: 1px solid rgba(220, 38, 38, 0.6);
 }
 
-/* Natural first-loop base: move the blue box slightly up and away from the
-   neighboring yellow stem box. Adjust the two translate values to fine-tune it. */
-.stem-mismatch-block--primer.stem-mismatch-block--inner-loop.stem-mismatch-block--left.stem-mismatch-block--top {
-	transform: translate(-0.08em, -0.46em) rotate(18deg);
-}
-
 .stem-row--tail .stem-mismatch-block--tail {
 	background-color: rgba(251, 191, 36, 0.28);
 	border: 1px solid rgba(220, 38, 38, 0.6);

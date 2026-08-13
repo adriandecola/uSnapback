@@ -7,9 +7,10 @@
 >
   <!-- Tall dotted hairpin loop, open to the right -->
   <g transform="translate(8,0)">
-    <!-- Background accent behind only the top-right mouth segment of the loop -->
+    <!-- Background accent behind only the top-right mouth segment of the loop.
+         The first M point controls how far down/right the blue highlight reaches. -->
     <path
-      d="M112 48
+      d="M98 37
         Q 87.56 26.32 73.96 22.17"
       fill="none"
       stroke="#dbeafe"
