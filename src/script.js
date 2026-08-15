@@ -25,11 +25,13 @@ const MAX_AMPLICON_LEN = 1000;
 const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
-// Chemisty parameters
+// Chemistry parameters
 const T_PARAM = 'SantaLuciaHicks';
+// The legacy endpoint does not recognize "owczarzy" and falls back to this mode.
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
 const PRIMER_O_TYPE = 'primer';
+// Primary snapback stems are calculated with both strands at 0.5 µM.
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
@@ -1426,6 +1428,7 @@ function buildTmRequestParams(
 ) {
 	const { magnesiumMm, monovalentMm } =
 		normalizeTmConditions(tmConditions);
+	// `mg` is the user-supplied free Mg²⁺ value; dNTP is intentionally omitted.
 	const params = new URLSearchParams({
 		mg: String(magnesiumMm),
 		mono: String(monovalentMm),
@@ -1493,7 +1496,11 @@ async function getOligoTm(seq, mismatch, tmConditions) {
 	// Function Logic                                                          //
 	//──────────────────────────────────────────────────────────────────────────//
 
-	const params = buildTmRequestParams(seq, mismatch, tmConditions);
+	const params = buildTmRequestParams(seq, mismatch, tmConditions, {
+		otype: O_TYPE,
+		concentration: CONC,
+		limitingConc: LIMITING_CONC,
+	});
 	const finalURL = buildTmRequestUrl(params);
 
 	// 4. Fetch the response
@@ -1522,6 +1529,7 @@ async function getOligoTm(seq, mismatch, tmConditions) {
  * This mirrors getOligoTm but targets the primer-specific calculation mode.
  *
  * @param  {string}    seq              Primer sequence (5'→3')
+ * @param  {TmConditions} [tmConditions] Ionic conditions for this calculation
  * @returns {Promise<number>}           Melting temperature (°C) rounded to
  *                                      `TM_DECIMAL_PLACES`
  * @throws {Error}                      If inputs are invalid, the network

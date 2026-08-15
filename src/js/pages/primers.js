@@ -23,6 +23,7 @@ import {
 	validateAmpliconSeq,
 	validatePrimerRanges,
 } from '../shared/validators.js';
+import { readStoredTmConditions } from '../shared/tmConditions.js';
 
 import { getPrimerTm } from '../../script.js';
 
@@ -487,7 +488,11 @@ async function updatePrimerTm(which, primerSeq) {
 	setTmLoading(cell);
 
 	try {
-		const tm = await getPrimerTm(primerSeq);
+		// A first visit uses the defaults; returning here reuses any saved choices.
+		const tm = await getPrimerTm(
+			primerSeq,
+			readStoredTmConditions(sessionStorage),
+		);
 		const currentSeq = which === 'fwd' ? fwdTmSeq : revTmSeq;
 		const currentId = which === 'fwd' ? fwdTmRequestId : revTmRequestId;
 		if (requestId !== currentId || primerSeq !== currentSeq) return;

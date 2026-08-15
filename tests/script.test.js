@@ -797,20 +797,20 @@ describe('evaluateSnapbackTailMatchingOptions()', () => {
 
 describe('getOligoTm()', () => {
 	// Valid parameters
-	test('returns 47.27 for sequence "gaaaaggagtgca" with no mismatch', async () => {
+	test('returns 47.57 for sequence "gaaaaggagtgca" with no mismatch', async () => {
 		const result = await getOligoTm('GAAAAGGAGTGCA');
-		expect(result).toBeCloseTo(47.27, 2);
+		expect(result).toBeCloseTo(47.57, 2);
 	});
 
-	test('returns 47.27 for sequence "gaaaaggagtgca" with null mismatch', async () => {
+	test('returns 47.57 for sequence "gaaaaggagtgca" with null mismatch', async () => {
 		const result = await getOligoTm('GAAAAGGAGTGCA', null);
-		expect(result).toBeCloseTo(47.27, 2);
+		expect(result).toBeCloseTo(47.57, 2);
 	});
 
-	test('returns 37.54 with valid mismatch', async () => {
+	test('returns 38.10 with valid mismatch', async () => {
 		const mismatch = { position: 4, type: 'G' };
 		const result = await getOligoTm('GAAAAGGAGTGCA', mismatch);
-		expect(result).toBeCloseTo(37.54, 2);
+		expect(result).toBeCloseTo(38.1, 2);
 	});
 
 	test('does NOT throw if mismatch is null', async () => {
