@@ -160,6 +160,15 @@ async function initResultsPage() {
 	/* ---------- Main logic ---------- */
 	try {
 		overlay.hidden = false; // Show loading screen during compute/render
+		// Let the browser paint the overlay before the CPU-heavy four-option stem
+		// search begins, especially for amplicons near the 1000-base limit.
+		await new Promise((resolve) => {
+			if (typeof requestAnimationFrame === 'function') {
+				requestAnimationFrame(() => resolve());
+			} else {
+				setTimeout(resolve, 0);
+			}
+		});
 		const result = await createSnapback(
 			inputs.seq,
 			inputs.fwdLen,

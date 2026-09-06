@@ -159,8 +159,9 @@
 
             <ul style="margin-top:1rem">
                 <li>Tail on <span id="tailSide"></span> that matches <span id="matchesWild"></span> allele</li>
-                <li><strong>Wild-type&nbsp;T<sub>m</sub>:</strong> <span id="wildTm"></span> °C</li>
-                <li><strong>Variant&nbsp;T<sub>m</sub>:</strong> <span id="varTm"></span> °C</li>
+                <li><strong>Wild-type&nbsp;T<sub>m</sub> (SantaLucia/Hicks + Owczarzy):</strong> <span id="wildTm"></span> °C</li>
+                <li><strong>Variant&nbsp;T<sub>m</sub> (SantaLucia/Hicks + Owczarzy):</strong> <span id="varTm"></span> °C</li>
+                <li><strong>Carl/Wittwer empirical comparison:</strong> wild <span id="wittwerWildTm"></span> °C; variant <span id="wittwerVarTm"></span> °C</li>
                 <li><strong>Stem size:</strong> <span id="stemBases"></span> bases</li>
 				<li><strong>Loop size:</strong> <span id="loopBases"></span> bases</li>
 				<li><strong>Free (unbound) Mg<sup>2+</sup> used:</strong> <span id="freeMagnesiumMm"></span> mM</li>
@@ -169,7 +170,7 @@
             </ul>
 
             <!-- ΔTm table -->
-            <h3 class="alt-title" id="deltaTitle">Snapback Options: ΔT<sub>m</sub> and Mismatch Pair (amplicon base–tail base; Wittwer parameters)</h3>
+            <h3 class="alt-title" id="deltaTitle">Target-Optimized Snapback Options: ΔT<sub>m</sub> and Mismatch Pair (amplicon base–tail base; SantaLucia/Hicks + Owczarzy)</h3>
             <div class="table-wrapper">
                 <table class="delta-table" id="deltaTable" aria-describedby="deltaCaption">
                     <thead>
@@ -192,7 +193,7 @@
                         </tr>
                     </tbody>
                     <caption id="deltaCaption">
-                        ΔT<sub>m</sub> = | T<sub>m</sub>(snapback with wild allele) − T<sub>m</sub>(snapback with variant allele) | (°C). Parentheses show the mismatched amplicon base–tail base pair.
+                        Each option independently uses its stem closest to the requested wild-type T<sub>m</sub> while remaining at least 40 °C, so stem lengths can differ. The selected primer has the largest unrounded ΔT<sub>m</sub>. Parentheses show the mismatched amplicon base–tail base pair.
                     </caption>
                 </table>
             </div>

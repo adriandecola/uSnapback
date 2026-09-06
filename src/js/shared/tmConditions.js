@@ -25,16 +25,26 @@ export function readStoredTmConditions(storage) {
 		throw new Error('A storage object with getItem() is required.');
 	}
 
-	return {
-		magnesiumMm: readStoredConcentration(
-			storage,
-			'magnesiumMm',
-			DEFAULT_MAGNESIUM_MM,
-		),
-		monovalentMm: readStoredConcentration(
-			storage,
-			'monovalentMm',
-			DEFAULT_MONOVALENT_MM,
-		),
-	};
+	const magnesiumMm = readStoredConcentration(
+		storage,
+		'magnesiumMm',
+		DEFAULT_MAGNESIUM_MM,
+	);
+	const monovalentMm = readStoredConcentration(
+		storage,
+		'monovalentMm',
+		DEFAULT_MONOVALENT_MM,
+	);
+
+	// The Owczarzy equations are undefined without either ion. Raw form values
+	// may briefly persist while navigating backward, so do not let a saved 0/0
+	// pair blank the ordinary-primer Tm previews on the preceding page.
+	if (magnesiumMm === 0 && monovalentMm === 0) {
+		return {
+			magnesiumMm: DEFAULT_MAGNESIUM_MM,
+			monovalentMm: DEFAULT_MONOVALENT_MM,
+		};
+	}
+
+	return { magnesiumMm, monovalentMm };
 }

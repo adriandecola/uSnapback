@@ -1,0 +1,562 @@
+IN-HOUSE SNAPBACK STEM TM CALCULATOR: ASSUMPTIONS AND SOURCE DECISIONS
+Version: 2026-09-06
+
+PURPOSE
+
+This file records the scientific and structural assumptions used by the two
+in-house snapback Tm functions:
+
+1. Carl/Wittwer empirical snapback Tm
+2. SantaLucia/Hicks thermodynamic snapback Tm with Owczarzy salt correction
+
+The web app uses the SantaLucia result for primer orientation, allele choice,
+stem growth, final wild/variant Tms, and the four-option delta-Tm table. The
+Carl/Wittwer result is retained as a comparison.
+
+
+PRIMARY LOCAL SOURCES
+
+- Resources:Papers/SW_Methods_Tm_Tool v.2 edit 16.pdf and .docx
+- Resources:Papers/Owczaray 2008.pdf
+- ../Snapback Tm for Adrian/Autocalc Datafile.xlsx
+- ../Snapback Tm for Adrian/Output Data - Adrian.xlsx
+- ../Snapback Tm for Adrian/Output Data - Adrian with DeltaTm Tab.xlsx
+- ../Snapback Tm for Adrian/Output Data - Adrian with Hugh Empirical Refit Formula.xlsx
+- ../dna-utah.com Website/Tm/00. LabView Tm Tool Version 2.pdf
+- ../dna-utah.com Website/Tm/*.vi (the non-empty 2025 LabVIEW source VIs)
+- ../dna-utah.com Website/Tm/Match.jpg
+- ../dna-utah.com Website/Tm/Mismatch.jpg
+- ../Tm for Adrian.pptx
+
+Source locators used in this implementation:
+
+- Methods PDF: salt/free-Mg discussion on physical PDF pages 8-11; matched
+  nearest-neighbor tables on pages 12-13; internal mismatches on pages 14-16;
+  SantaLucia/Hicks loop table on page 20; snapback equation on page 21; and
+  terminal-mismatch tables on pages 22-23.
+- Owczarzy 2008: published equations 3, 4, 16, 18-20, and 22.
+
+SHA-256 checksums of the principal frozen inputs inspected:
+
+- Methods PDF: 4e16d3e2372237fa1bef3637b5e5075d6ee4196718f570f213870f6847da7cd7
+- Methods DOCX: dbc654043d2635eb7a02ca9de512e0f66b4f4665e61f42fdeb1babb1dfe331de
+- Owczarzy PDF: 496ccd51e999ce07933564abcc521b3ea2b31fb3ce5beb34d617f291ed17602e
+- Autocalc workbook: 37da7ae010e29118666534c6f2b2e3aaccb4e8acc13c104c706b99b71f6c8ff5
+- Original output workbook: c585761777e2e3cce21c3f8f9c590b2ac953988dc28092464c68d038e96bf031
+- Delta-Tm workbook: d8e32c4dd05467a86288122b5338322e3c4a1382353051b25ac105dfa1890ceb
+- Hugh refit workbook: 530d9378b99d56a3fa1ff804ac99e838783fcb2c058200e2e9870f40b39ece9d
+- Carl email PDF: 7b83bceedcd27f8c63f3a810ca8b6026a16ac9c34405ee311dc7d14f0331769c
+- Match.jpg: 6a3558ba35dddd663b7d88065d42166effe9ca6892433379df20c78dc875f29d
+- Mismatch.jpg: d4ea74006810a89c0638b089a613423961318206b28905abb65051bdc58ba341
+- Presentation: 56b783fd73139e4bdde8cea34a739820f9af3b6a5364a752fbb820837ef6fb81
+
+The methods DOCX/PDF contains editorial highlighting and an unresolved literal
+"X.X values..." placeholder near the 2004 NN discussion. It supplies no numeric
+value and was not interpreted as an instruction or parameter. The snapback
+entropy-initiation line also omits K from one displayed entropy unit; the code
+uses cal/(mol K), consistently with every parameter table. On physical PDF page
+12, the 2004 GG/CC row's Weber-notation cell mistakenly repeats "ATpAT or
+TApTA"; the implementation follows that row's NN-sequence label and printed
+-8.0 kcal/mol, -19.9 cal/(mol K) values.
+
+The files in ../Snapback Tm for Adrian/Tm Macro Folder are zero-byte Dropbox
+placeholders. They cannot currently be inspected. In particular, exact parity
+with the 2026 Carl macro cannot be claimed until those files are available
+offline.
+
+At the project owner's direction, the obsolete ../SnapBack.mxml implementation
+is out of scope and is not used to choose the empirical equation, log base,
+defaults, or calculator behavior.
+
+
+SHARED STRUCTURAL ASSUMPTIONS
+
+1. DNA inputs contain uppercase A, C, G, and T only.
+
+2. The two stem arms are represented explicitly and antiparallel. The amplicon
+   stem arm is read 5' to 3'. The snapback-tail stem arm is also stored 5' to 3'
+   in its own direction, then reversed for aligned nearest-neighbor lookups.
+
+3. A mismatched snapback contains one internal allele mismatch. It is at least
+   three matched bases from either stem end because the existing design rule
+   uses SNV_BASE_BUFFER = 3.
+
+4. A single internal mismatch changes exactly the two nearest-neighbor tetrads
+   that contain that base. All other stem stacks use matched parameters.
+
+5. There is exactly one extension-blocking terminal mismatch outside the tail
+   end of the paired stem. The current construction adds one base on each
+   product side; older comments describing a two-base block are obsolete.
+
+6. There is exactly one loop-side terminal mismatch. If the natural pair made
+   by the primer's 5' base and the base immediately before the stem is already
+   mismatched, no new nucleotide is inserted and that natural mismatch receives
+   the terminal-mismatch parameter. If those bases would pair, the builder adds
+   one strong mismatch and that engineered mismatch receives the parameter.
+
+7. Loop length is the total number of unpaired nucleotides represented by:
+
+       stuffBetween
+       + threePrimeInnerLoopMismatches
+       + fivePrimeInnerLoopMismatches
+
+   Therefore an engineered loop-side mismatch contributes two loop nucleotides,
+   one on each side, while a natural loop-side mismatch is already present in
+   stuffBetween and requires no extra nucleotide. This is a local structural
+   convention: neither supplied paper explicitly says whether the two
+   nucleotides forming an engineered terminal mismatch belong in loop N.
+
+   The selected SantaLucia/Hicks loop model depends only on N. Base composition,
+   loop sequence, the identity of the closing pair, and special tri-/tetraloop
+   motif bonuses are not represented.
+
+8. Terminal-mismatch terms are added only after confirming that the outside
+   bases are actually noncanonical. The code rejects a supposedly terminal
+   mismatch that is Watson-Crick complementary.
+
+9. Dangling ends, deoxyinosine, and special penultimate G/T-with-terminal-
+   mismatch terms are outside scope and are not applied.
+
+10. The calculator scores only the prescribed snapback fold. It does not search
+    for competing partial folds, alternate hairpins, or self-dimers, and it does
+    not model annealing/melting kinetics. Dye, quencher, DMSO, molecular-crowding,
+    and other reagent-specific corrections are also outside scope. Owczarzy's
+    fitted duplex set excluded competing structures; applying it to the intended
+    intramolecular snapback fold is therefore an explicit extrapolation.
+
+
+SANTALUCIA/HICKS THERMODYNAMIC METHOD
+
+1. Matched nearest-neighbor, initiation, terminal-AT, and symmetry values come
+   from the SantaLucia and Hicks 2004 table in the supplied methods write-up.
+
+2. The matched-stem constants are:
+
+       ordinary initiation: delta H = +0.2 kcal/mol
+                            delta S = -5.7 cal/(mol K)
+       terminal AT penalty: delta H = +2.2 kcal/mol per AT end
+                            delta S = +6.9 cal/(mol K) per AT end
+
+   A terminal-AT penalty is retained for each matched end of the core stem. A
+   terminal mismatch outside that core is an additional, sequence-specific
+   stacking term; it does not replace the terminal-AT term on the adjacent
+   matched core pair. This is our reading of the write-up's "standard NN stem"
+   plus two separate end-mismatch terms; the source gives no worked numeric
+   snapback that independently settles replacement versus addition.
+
+3. Single internal-mismatch parameters use the Allawi and SantaLucia 1997-1999
+   tables reproduced in the methods write-up. The implementation includes all
+   orientations for G/T, G/A, A/C, C/T, and like-base mismatches. The original
+   Allawi G/T set is used instead of the alternate NNDB G/T table printed in the
+   same document. The A/C values are the pH 7.0 set.
+
+4. Terminal mismatch parameters use 48 numeric source rows, each naming two
+   reverse-equivalent tetrads, reproduced in the methods write-up. They are
+   expanded into 96 explicit lookup keys. One term is applied at the loop side
+   and one at the extension-blocking side.
+
+5. The hairpin loop uses the SantaLucia and Hicks 2004 set, not the Rochester
+   loop set. The corrected anchor values include N=8, delta S=-13.9, and N=10,
+   delta S=-14.8 cal/(mol K).
+
+6. For an omitted integer loop size from 3 through 30, delta G at 37 C is
+   linearly interpolated between the nearest listed anchors. Delta H remains
+   zero and delta S is derived as -1000*delta G/310.15 so the interpolated values
+   remain thermodynamically consistent. The source says only to "interpolate";
+   interpolation in delta G rather than rounded delta S is a local reproducibility
+   choice. Exact listed anchors retain the source's printed, rounded delta S.
+
+7. For N greater than 30, the full supplied expression is used:
+
+       delta G37(N) = 6.3 + [2.44*R*310.15/1000]*ln(N/30)
+       delta H(N)   = 0
+       delta S(N)   = -1000*delta G37(N)/310.15
+
+   The methods source prints R=1.9872 and also shows a rounded coefficient of
+   1.50. The implementation deliberately evaluates the full expression using
+   R=1.98720425864 cal/(mol K), a local higher-precision choice, rather than the
+   rounded 1.50 coefficient. This is the implementation-wide gas constant and is
+   also used in the empirical stem's concentration term. Loop sizes below 3 are
+   rejected.
+
+8. The ordinary duplex initiation term is first included while summing stem
+   thermodynamics, then removed exactly as specified by the snapback equation:
+
+       delta H stem contribution = delta H stem - 0.2
+       delta S stem contribution = delta S stem - (-5.7)
+
+   The source line is typographically ambiguous because it displays
+   "-delta S(initiation stem) = -5.7". The implementation reads the parameter
+   table literally: initiation delta S is -5.7, so removing it means adding 5.7.
+
+   With the extension-blocking terminal mismatch denoted tail-MM and the
+   loop-side terminal mismatch denoted loop-MM, the complete source-page-21 sums
+   are implemented as:
+
+       delta H snapback = (delta H stem - 0.2)
+                          + delta H tail-MM + delta H loop-MM
+                          + delta H loop(N)
+
+       delta S snapback = (delta S stem - (-5.7))
+                          + delta S tail-MM + delta S loop-MM
+                          + delta S loop(N)
+
+9. The final snapback equation is intramolecular and has no strand-concentration
+   term:
+
+       Tm(C) = 1000*delta H snapback /
+               (delta S snapback + delta S salt) - 273.15
+
+10. The duplex symmetry correction is not applied to the intramolecular
+    snapback. The two arms are structurally distinct regions of one product even
+    if the isolated stem sequence happens to be palindromic.
+
+    The empirical stem-duplex calculation also omits the self-complementary
+    symmetry correction, matching the historical ActionScript convention. No
+    special self-complementary concentration convention is implemented.
+
+
+OWCZARZY 2008 SALT ASSUMPTIONS
+
+1. The web input labelled magnesiumMm is interpreted as FREE, unbound Mg2+ in
+   mM. No dNTP chelation calculation is performed. The default is 2.2 mM free
+   Mg, corresponding approximately to the free fraction in the supplied Carl
+   example with 3 mM total Mg and 0.8 mM total dNTP. If a user manually enters
+   3 mM, this calculator still interprets that value as free Mg.
+
+2. monovalentMm is the total effective monovalent-cation concentration in mM.
+   Following Owczarzy equation 3, [Mon+] means effective [Na+] + [K+] +
+   [protonated Tris+]; for example, approximately half of total Tris is treated
+   as protonated near pH 8, so 10 mM total Tris contributes about 5 mM. The
+   web-app default is 13.7 mM, retained from the pre-existing application; no
+   literature or workbook provenance for that exact default was identified.
+   Both ionic inputs are converted to molar before logarithms are evaluated.
+
+3. Owczarzy is applied only to the paired stem. Stem length N, GC fraction, and
+   delta H are computed from the allele-specific stem. Loop and terminal-
+   mismatch delta H/delta S do not enter the salt-correction calculation. The
+   stem delta H used here is the complete duplex-stem value before the ordinary
+   initiation term is removed for the final intramolecular snapback sum; it
+   includes the internal-mismatch stacks and applicable core terminal-AT terms.
+   N is the number of bases in one paired stem arm. GC fraction is the count of
+   G and C bases in that allele's amplicon-side stem arm divided by N.
+
+   This stem-only scaling is a local resolution of an ambiguity in the methods
+   write-up: its snapback expression says only "Salt Correction," while the salt
+   section multiplies F by a generic sum of delta H and does not define whether
+   that means raw stem delta H or the complete stem+loop+ends snapback delta H.
+
+4. The published regime thresholds are used with
+
+       Rratio = sqrt([free Mg2+])/[monovalent+]   (units M^(-1/2))
+
+       Rratio < 0.22       monovalent-dominant equation
+       0.22 <= Rratio < 6 mixed-ion coefficients
+       Rratio >= 6         magnesium-dominant coefficients
+
+   Pure-monovalent and pure-magnesium cases are handled explicitly. Both ion
+   concentrations cannot be zero because the published logarithmic correction
+   is then undefined.
+
+   The reciprocal-temperature correction factor F, in K^-1, is evaluated with
+   natural logarithms and molar concentrations. In the monovalent-only or
+   monovalent-dominant regime (Owczarzy equation 4):
+
+       F = (4.29*fGC - 3.95)*10^-5*ln([Mon+])
+           + 9.40*10^-6*ln([Mon+])^2
+
+   In the magnesium-containing regimes (equation 16):
+
+       F = a + b*ln([Mg]) + fGC*(c + d*ln([Mg]))
+           + {e + f*ln([Mg]) + g*ln([Mg])^2}/{2*(N-1)}
+
+   For Rratio >= 6, and for pure magnesium, the constants are:
+
+       a =  3.92*10^-5     b = -9.11*10^-6
+       c =  6.26*10^-5     d =  1.42*10^-5
+       e = -4.82*10^-4     f =  5.25*10^-4
+       g =  8.31*10^-5
+
+   For 0.22 <= Rratio < 6, b, c, e, and f remain fixed while equations 18-20
+   adjust a, d, and g for [Mon+]:
+
+       a = 3.92*10^-5 *
+           {0.843 - 0.352*sqrt([Mon+])*ln([Mon+])}
+
+       d = 1.42*10^-5 *
+           {1.279 - 4.03*10^-3*ln([Mon+])
+                    - 8.03*10^-3*ln([Mon+])^2}
+
+       g = 8.31*10^-5 *
+           {0.486 - 0.258*ln([Mon+])
+                    + 5.25*10^-3*ln([Mon+])^3}
+
+5. The correction is converted into an entropy-like denominator contribution:
+
+       delta S salt = 1000*delta H stem*OwczarzyFactor
+
+   where delta H stem is in kcal/mol and is normally negative.
+
+6. The published equation-16 fit used 92 fully matched, blunt-ended,
+   non-self-complementary
+   duplexes of 10-30 base pairs and GC fractions from approximately 0.2 through
+   0.8. Independent validation in the paper spans 9-60 base pairs, including
+   explicit 40- and 60-base checks. The seven-base seed and mismatched snapback
+   context remain outside those data. Equation 16 itself does not require a
+   two-state transition; converting reciprocal-Tm factor F into the entropy-like
+   correction above (the paper's equation 22) assumes two-state melting, a
+   mostly entropic counterion effect, and delta Cp = 0; the implementation
+   consequently treats delta H as salt-invariant. Applying that transform to an
+   intramolecular hairpin topology, an internal mismatch, and terminally
+   mismatched ends is an explicit local extrapolation. Final stems are generally
+   longer than the seed.
+
+7. The equation-16 fit covers approximately 0.5-600 mM Mg2+. The Mg/K fit
+   buffers were adjusted to pH 8.3 +/- 0.03 at 25 C. A separate 12-duplex
+   experiment spanning pH 6.5-8.3 changed matched-duplex Tm by less than 0.5 C;
+   that experiment is not a general calibration range for every structure. The
+   monovalent equation cautions against concentrations above 100 mM for
+   hydrogen-bonding cations such as Tris and ammonium. The current API validates
+   only finite non-negative concentrations and at least one non-zero ion; it has
+   no pH input and does not enforce the paper's calibration ranges.
+
+
+CARL/WITTWER EMPIRICAL METHOD
+
+1. The Carl/Wittwer empirical calculation is defined in this project as:
+
+       Tm snapback = 32.9 + 0.837*Tm stem - 5.25*log10(loop length)
+
+   Tm stem is in degrees C and loop length is a nucleotide count. This is the
+   formula executed by the web app immediately before the in-house rewrite and
+   the convention used by the Hugh Refit workbook. Neither supplied paper
+   contains this regression. "Wittwer" is the historical/local label, and the
+   original fitting dataset and regression procedure are unavailable.
+
+2. The empirical loop logarithm is log10 everywhere. It is not a selectable
+   scientific option. Omitted log-base settings resolve to log10; an explicit
+   tmConditions.wittwerLogBase or legacy options.logBase value is accepted only
+   when it equals "log10". An explicit "ln" or any other value is rejected so a
+   caller cannot silently calculate a different model with the same -5.25
+   coefficient.
+
+   This rule applies only to the Carl/Wittwer empirical loop term. The natural
+   logarithms in the published Owczarzy equations, the thermodynamic strand-
+   concentration term, and the SantaLucia/Hicks large-loop extrapolation remain
+   natural logarithms as required by those separate equations.
+
+3. No validated loop-size range was identified for the empirical regression.
+   The implementation uses the shared physical loop count defined above and
+   rejects non-integer values or values below 3; normal web-app structures are
+   larger. Mapping the modern explicit physical loop count, including both bases
+   of an engineered loop-side mismatch, into the empirical regression is a
+   local, unvalidated adaptation.
+
+4. The new empirical function uses the same in-house SantaLucia/Hicks matched
+   and internal-mismatch stem parameters and Owczarzy free-Mg correction as the
+   new thermodynamic method. Because the empirical coefficients were fitted
+   against an unavailable earlier stem-Tm implementation, this is a deliberate
+   modernization rather than a claim of bit-for-bit reproduction.
+
+5. For a complete snapback structure, both sequence-specific terminal mismatch
+   terms are included in the empirical method's stem Tm. This is a deliberate
+   modern "with Ends" inference from the workbook columns and the current design,
+   not behavior proved by workbook formulas. The original output workbook
+   contains cached result values but no formulas or VBA. Its
+   Summary reports no-ends MAE 3.3215 C and bias +0.4398 C versus with-ends MAE
+   4.1215 C and bias +3.0914 C; with-ends has higher R-squared and lower standard
+   deviation. The measurements therefore do not unambiguously favor with-ends.
+   The low-level stemSeq/loopLength function remains callable without end contexts.
+
+6. The empirical stem Tm remains bimolecular and concentration dependent. The
+   default convention is 0.5 uM for each strand, matching the existing web-app
+   requests. Callers can change it without editing formulas by supplying:
+
+       tmConditions.concentrationUm
+       tmConditions.limitingConcentrationUm
+
+   These are calculation-model concentrations, not an assertion that the two
+   primers are used at equal reaction concentrations. The results page separately
+   recommends 0.5 uM snapback primer and 0.1 uM limiting primer. If the empirical
+   model should instead use those reaction values, pass 0.5 and 0.1 explicitly.
+
+   For total strand inputs A and B in uM, the concentration convention sets
+   duplex=min(A,B)/2, freeA=A-duplex, and freeB=B-duplex, then adds
+
+       R*ln((freeA*freeB/duplex)*10^-6)
+
+   to the entropy denominator. Equal 0.5/0.5 uM inputs therefore give an effective
+   concentration of 0.25 uM (2.5*10^-7 M). No self-complementary alternative is
+   applied.
+
+7. The modernized empirical result should be treated as a Carl/Wittwer-style
+   comparison, not bit-for-bit reproduction of the unavailable 2026 macro. The
+   SantaLucia/Hicks calculation remains the web app's primary design method.
+
+
+WEB-APP BEHAVIOR AND SCOPE
+
+1. SantaLucia/Hicks plus Owczarzy now controls all snapback design decisions:
+   primer orientation, which allele the tail matches, stem length, final Tms,
+   and the displayed four-option delta-Tm table.
+
+   The public createSnapback entry point enforces the same requested-Tm contract
+   as the web form: a whole number from 40 through 80 C, inclusive.
+
+   Unlike the pre-existing seed-only heuristic, all four forward/reverse x
+   wild/variant-match choices are now grown independently. Within each choice,
+   every viable stem length is evaluated and only wild-type Tms of at least 40 C
+   are admissible; the closest admissible value to the requested Tm is retained.
+   The app then selects the choice with the largest final unrounded wild/variant
+   delta Tm. Ties favor closer target Tm, then shorter stem, then the legacy
+   deterministic variant/reverse preference. A choice that cannot reach 40 C is
+   shown as unavailable rather than aborting other viable choices. The exported
+   useForwardPrimer helper retains seed-only behavior solely for compatibility
+   and is not used by the production createSnapback path.
+
+2. The empirical/Wittwer result is calculated from the same final structure and
+   displayed only as a comparison.
+
+   Orientation, allele, stem-length, and delta-Tm comparisons use unrounded
+   floating-point Tms. Calculator result objects round wild/variant and delta-Tm
+   values to two decimal places; the current results page displays those values
+   to one decimal place.
+
+   optimizedSnapbackOptions reports each stem's bounds both in its receiving-
+   primer coordinate frame and mapped back onto the original input strand, so
+   forward and reverse option coordinates are not accidentally compared as if
+   they shared a frame.
+
+3. The separate primer-preview Tm request used while choosing ordinary PCR
+   primers is outside this change. The in-house replacement applies to snapback
+   calculations.
+
+4. The supplied legacy test expectations were not treated as scientific truth,
+   as requested. New focused tests instead verify parameter summation, all
+   single-mismatch orientations, loop interpolation, the published Owczarzy
+   example factor, natural and engineered loop terminal mismatches, and both
+   complete calculator outputs.
+
+5. Two saved Carl LabVIEW screenshots provide independent nearest-neighbor
+   checks for AAGTGCACTTAGCTACGTAG. The in-house engine reproduces the displayed
+   matched totals (-154.2 kcal/mol, -421.3 cal/(mol K)) and the displayed T/G
+   internal-mismatch totals (-145.8 kcal/mol, -400.2 cal/(mol K)) exactly at the
+   precision shown. The mismatch vector is specifically {position: 3, type: G}
+   in the displayed sequence and validates nearest-neighbor H/S summation only,
+   not a complete loop, salt, or final snapback Tm. In particular, the
+   screenshots show 20 mM monovalent salt and a different primer-concentration
+   case, so their displayed final Tms are not comparison targets for the web
+   app's default conditions.
+
+6. Numeric precision must not be confused with model accuracy. Owczarzy reports
+   roughly 0.9 C mean error for its in-domain independent validation, while the
+   supplied presentation describes ordinary duplex predictions as roughly +/-2 C.
+   No validated error bound was identified for the intramolecular hairpin plus
+   internal/terminal-mismatch extrapolation used here.
+
+
+LEGACY WORKBOOK REGRESSION COVERAGE
+
+1. The 47 input experiments and all cached calculator outputs from the original
+   workbooks are frozen in tests/fixtures/legacySnapbackWorkbook.js. The fixture
+   records each original one-based workbook row and preserves the source sheet,
+   range, and SHA-256 checksum. Tests do not open a workbook from a parent folder
+   at runtime, so the regression suite remains portable and is not affected by
+   Excel recalculation or Dropbox hydration.
+
+   The three non-zero output-workbook variants contain the same underlying
+   Output 20 values. They are duplicate presentations of one reference dataset,
+   not three independent validations.
+
+2. The workbook does not state a complete calculation profile. Compatibility
+   tests reconstruct the profile shown in Carl's saved LabVIEW defaults and pass
+   it explicitly; these are not changes to the web-app defaults:
+
+       effective monovalent concentration = 20 mM
+       reported workbook Mg              = total Mg in mM
+       total dNTP                         = 0.8 mM
+       Mg-dNTP association constant       = 30000 M^-1
+       oligo concentration                = 0.5 uM
+       complementary concentration        = 0.125 uM
+       empirical loop logarithm           = log10
+
+   Free Mg is reconstructed with Carl's quadratic Free Mg expression. This
+   profile is strongly supported by the saved LabVIEW state and its close
+   agreement across the workbook, but the workbooks themselves contain only the
+   reported Mg column. The binary's saved primary-oligo value is 0.5005206 uM
+   while the visible control is 0.50 uM; the compatibility fixture uses the
+   displayed 0.5 uM convention. The production web input continues to mean free
+   Mg.
+
+3. Core Sequence uses the following plausible but not independently proven
+   mapping for workbook-only comparisons:
+   the first parenthesized base is the matched allele, the second is the variant,
+   the first and last bases outside the parentheses supply the top bases of the
+   two terminal contexts, and the bases between those outside bases form the
+   paired stem. L mismatch and R mismatch supply their recorded opposing bases.
+   The fixed tail is complementary to the matched allele, so the second sequence
+   contains one internal mismatch.
+
+   The very close agreement across all no-ends rows supports this mapping, but
+   the workbook does not record strand orientation and the unavailable 2026
+   Input-to-Tetrads VI is required to prove the L/R ordering.
+
+   This makes 45 of the 47 rows structurally complete. In Output/Input rows 8
+   and 9 (SNP3), the recorded left pair is Watson-Crick complementary. The modern
+   construction would insert a loop-side mismatch, but its base identity is not
+   present in the workbook. Those two rows remain in all no-ends and workbook-
+   arithmetic tests and are excluded only from terminal-end and complete
+   SantaLucia compatibility checks. No terminal identity was invented.
+
+4. The most direct workbook regression is the Hugh Refit composition step. All
+   44 peaks in Hugh Refit!D2:H45 are recomposed from the cached recovered stem Tm,
+   loop length, coefficients 32.9/-5.25/0.837, and log10. This tests the shared
+   Carl/Wittwer combination helper exactly. Because each recovered stem Tm was
+   algebraically solved from the same rounded empirical output, this establishes
+   formula and log-base compatibility, not independent physical accuracy.
+
+5. The reconstructed historical profile gives the following observed agreement
+   with Carl's cached one-decimal outputs:
+
+       empirical, no ends, 47 rows
+         matched:    MAE 0.167 C, maximum absolute error 0.29 C
+         mismatched: MAE 0.222 C, maximum absolute error 0.47 C
+
+       empirical, with ends, 45 reconstructable rows
+         matched:    MAE 0.221 C, maximum absolute error 0.86 C
+         mismatched: MAE 0.303 C, maximum absolute error 0.83 C
+
+       SantaLucia, 45 reconstructable rows
+         matched:    MAE 0.598 C, maximum absolute error 1.28 C
+         mismatched: MAE 0.502 C, maximum absolute error 1.04 C
+
+   Tests enforce deliberately named historical compatibility envelopes rather
+   than equality: 0.50 C per peak for empirical no-ends, 1.00 C for empirical
+   with ends, and 1.50 C for SantaLucia, plus tighter aggregate-MAE bounds. These
+   tests will flag drift for review without asserting that a guessed missing
+   convention is scientific ground truth.
+
+6. Additional fixture tests independently recalculate the workbook's 46 complete
+   measured delta-Tm summaries and 93 individual-peak summaries, verify all 14
+   recorded Mg titrations move in the expected direction, and verify identical
+   cached predictions for the six duplicate calculation-input groups. These
+   checks protect the transcription and historical benchmark dataset.
+
+   Measured melt peaks are experimental validation data, not exact expected
+   outputs of either new calculator. They are used to reproduce the workbook's
+   descriptive statistics, not to require any one sequence prediction to equal
+   a measured peak. Rochester outputs are preserved for provenance and summary
+   reconstruction but remain outside the requested calculator implementation.
+
+
+OPEN VALIDATION ITEM (NOT A BLOCKER FOR THIS IMPLEMENTATION)
+
+Hydrate the zero-byte files in ../Snapback Tm for Adrian/Tm Macro Folder and add
+one or more fully specified reference cases containing sequence, stem bounds,
+both terminal mismatch tetrads, loop length, free Mg, monovalent concentration,
+strand concentrations, and expected matched/mismatched outputs. Those cases can
+then quantify exact agreement with the log10 implementation and settle the
+remaining terminal-orientation and hidden-profile assumptions. The current
+workbook tests quantify compatibility under the explicit reconstruction above,
+but the files alone do not contain enough inputs or formulas to establish strict
+parity uniquely.

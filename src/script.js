@@ -9,6 +9,16 @@ import {
 	DEFAULT_MAGNESIUM_MM,
 	DEFAULT_MONOVALENT_MM,
 } from './js/shared/constants.js';
+import {
+	calculateDuplexThermodynamics,
+	calculateSnapbackTmSantaLucia as calculateSnapbackTmSantaLuciaInHouse,
+	calculateSnapbackTmWittwer as calculateSnapbackTmWittwerInHouse,
+	calculateSnapbackTmWittwerFromStructure,
+	calculateTmFromThermodynamics,
+	getSantaLuciaHairpinLoopParams,
+	normalizeInHouseTmConditions,
+} from './js/tm/snapbackTm.js';
+import { calculateOwczarzySaltCorrection } from './js/tm/saltCorrection.js';
 
 /*****************************************************************************************/
 /*************************************** Constants ***************************************/
@@ -25,13 +35,16 @@ const MAX_AMPLICON_LEN = 1000;
 const MIN_LOOP_LEN = 6;
 const MIN_PRIMER_LEN = 12;
 const TM_DECIMAL_PLACES = 2;
+const NO_ADMISSIBLE_STEM_CODE = 'NO_ADMISSIBLE_STEM';
 // Chemistry parameters
 const T_PARAM = 'SantaLuciaHicks';
 // The legacy endpoint does not recognize "owczarzy" and falls back to this mode.
 const SALT_CALC_TYPE = 'bpdenominator';
 const O_TYPE = 'oligo';
 const PRIMER_O_TYPE = 'primer';
-// Primary snapback stems are calculated with both strands at 0.5 µM.
+// The empirical stem-duplex calculation defaults to both strands at 0.5 µM.
+// Callers can override these with tmConditions.concentrationUm and
+// tmConditions.limitingConcentrationUm.
 const CONC = 0.5;
 const LIMITING_CONC = 0.5;
 // This gets replaced by build.js
@@ -41,8 +54,8 @@ const USE_PROXY = __USE_PROXY__; // true  |  false  (a real Boolean)
 const USE_TOKEN = __USE_TOKEN__; // true | false (real Boolean)
 const API_TOKEN = __API_TOKEN__; // string or "" (build-time)
 
-// Optional Santa Lucia/Rochester Tm data and calculators live in optionalTmMethods.js.
-// Set this to false to run only the primary Wittwer method in the app.
+// Retained for backward compatibility only. Rochester is no longer part of the
+// production design path; the app now uses the in-house SantaLucia calculator.
 const ENABLE_OPTIONAL_TM_METHODS = true;
 
 /*****************************************************************************************/
@@ -51,14 +64,12 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
 
 /**
  * Creates a snapback primer by:
- *  1. Evaluating both strands to decide which primer receives the tail and
- *     whether the tail pairs to the wild or variant allele (choose the option
- *     with the largest wild/variant Tm difference in an initial small stem).
- * 	   This initial stem is built by adding `SNV_BASE_BUFFER` bases on each end
- *     of the single nucleotide variant (SNV).
- *  2. Extending that initial stem outward, respecting primer annealing locations,
- *     until the wild-type stem Tm approaches `targetSnapMeltTemp`, or no
- *     further growth is possible.  This temperature must exceed `minSnapbackMeltTemp`.
+ *  1. Independently growing all four primer-orientation × allele-match options.
+ *     Every candidate starts with `SNV_BASE_BUFFER` matched bases on each side
+ *     of the single nucleotide variant and evaluates every viable stem length.
+ *  2. For each option, retaining the stem whose wild-type SantaLucia snapback
+ *     Tm is closest to `targetSnapMeltTemp` while remaining at or above 40 °C,
+ *     then selecting the option with the largest final wild/variant Tm separation.
  *  3. Building the final 5'→3' sequence:
  *        snapback-tail • optional inner-loop mismatch • stem (with chosen SNV base) • primer.
  *  4. Constructing descriptive objects for the unextended and extended products:
@@ -82,17 +93,16 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * - targetSeqStrand is a valid uppercase DNA string given 5'→3'.
  * - primerLen and compPrimerLen ≥ {MIN_PRIMER_LEN}.
  * - The SNV is ≥ {SNV_BASE_BUFFER} bases away from both primers.
- * - Stem Tm values are computed with the Santa Lucia nearest-neighbour model
- *   via dna-utah.org.
+ * - Snapback Tm values are computed locally with the complete SantaLucia/Hicks
+ *   model and stem-only Owczarzy salt correction.
  * - We want to miminize the loop length to the primer on which the snapback tail is on.
  *   If the 5′ base of that primer complements the base immediately left of the stem,
  *   one strong mismatch is inserted at the 3′ end of the snapback tail so the loop
  *   does not zip.
  * - We want to keep the SNV in the middle of the stem or as close to centered as we
  *   can, as we build the snapback stem
- * - Extension can occur on the snapback's complement, on the side of the stem does not contain
- *   the loop, if the polymerase can easily attach to that location. A 2 base pair, strong mismatch,
- *   is added after the 5' end of the stem (on the snapback primer) help avoid this extension
+ * - Extension can occur on the snapback's complement at the non-loop stem end.
+ *   Exactly one strong terminal mismatch pair is used to discourage extension.
  *   on its complement snapback
  * - All sequences are expressed 5'→3' in the frame of the primer that receives the tail.
  * - The optional inner-loop strong mismatch is immediately 5' of the stem (left of the stem).
@@ -100,17 +110,6 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  *   occur immediately 3' of the stem (right of the stem on this strand).
  * - For the extended descriptive object, stuffBetween includes the forward primer and all
  *   subsequent bases up to (but not including) the first inner-loop mismatch base.
- *
- * ──────────────────────────────────────────────────────────────────────────
- * Possible improvements
- * ──────────────────────────────────────────────────────────────────────────
- * - I could represent DNA sequences as an array of 2 bit encoded neucleotides. This could save some memory,
- *   albeit minimal. It would be a fun thing to code
- * 		- Then DNA functions could be implemented as methods
- * - I could implement the SantaLucia melting temperature calculations for the STEM in JavaScript in this file
- *   as it's own function
- * - I could add in some temperature correction for the dangling end/end mismatch for the snapback primer on
- *   on the end of the stem (the strong mismatches that prevent extension on the complementary primer)
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Type definitions
@@ -122,10 +121,13 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @typedef {Object} TmConditions
  * @property {number} magnesiumMm   Free magnesium concentration in mM
  * @property {number} monovalentMm  Total monovalent-cation concentration in mM
+ * @property {number} [concentrationUm]          Empirical reference-strand concentration in µM
+ * @property {number} [limitingConcentrationUm]  Empirical partner-strand concentration in µM
+ * @property {'log10'} [wittwerLogBase]           Empirical loop logarithm convention; only log10 is supported
  *
  * @typedef {Object} SnapbackMeltingTempDiffs
- * @property {{matchWild:number, matchVariant:number}} onForwardPrimer  ΔTms (°C) if tail is on the forward primer
- * @property {{matchWild:number, matchVariant:number}} onReversePrimer  ΔTms (°C) if tail is on the reverse primer
+ * @property {{matchWild:number|null, matchVariant:number|null}} onForwardPrimer  ΔTms (°C) if tail is on the forward primer
+ * @property {{matchWild:number|null, matchVariant:number|null}} onReversePrimer  ΔTms (°C) if tail is on the reverse primer
  *
  * @typedef {Object} SnapbackMeltingTm
  * @property {number} 				wildTm     			Calculated Tm (°C) of the snapback on the wilt type allele
@@ -144,7 +146,8 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * @property {boolean}						matchesWild			true if the snapback base at the SNV matches on is tail
  *                                			       				the wild-type allele
  * @property {SnapbackMeltingTm}			snapbackMeltingTms	Object holding wild/variant snapback Tm values.
- * @property {SnapbackMeltingTempDiffs}		meltingTempDiffs 	Wild/variant ΔTm values for both primer orientations.
+ * @property {SnapbackMeltingTempDiffs}		meltingTempDiffs 	Wild/variant ΔTm values for four independently target-optimized designs.
+ * @property {Object} optimizedSnapbackOptions Component Tms and stem bounds in both receiving-primer and original-input frames for those four designs.
  *
  *
  * @typedef {Object} DescriptiveUnExtendedSnapbackPrimer
@@ -200,8 +203,8 @@ const ENABLE_OPTIONAL_TM_METHODS = true;
  * 																`targetSeqStrand`)
  * @param {number}				compPrimerLen					The length of the reverse primer
  * @param {SNVSite}				snvSite							An object representing the single nucleotide variant site
- * @param {number}				targetSnapMeltTemp				The desired snapback melting temperature for the wild type allele
- * @param {TmConditions} [tmConditions]				Ionic conditions; defaults to 3.0 mM free Mg²⁺ and 13.7 mM total monovalent cations
+ * @param {number}				targetSnapMeltTemp				Whole-number desired wild-type snapback Tm in the web-app range, 40-80 °C
+ * @param {TmConditions} [tmConditions]				Ionic conditions; defaults to 2.2 mM free Mg²⁺ and 13.7 mM total monovalent cations
  *
  * @returns {Promise<SnapbackPrimerResult>} 	 				Final snapback and limiting primers, snapback Tms and ΔTms,
  *                                           					and descriptive objects for unextended/extended products with SNV indices.
@@ -232,10 +235,12 @@ async function createSnapback(
 	if (
 		typeof targetSnapMeltTemp !== 'number' ||
 		!Number.isFinite(targetSnapMeltTemp) ||
-		targetSnapMeltTemp <= 0
+		!Number.isInteger(targetSnapMeltTemp) ||
+		targetSnapMeltTemp < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP ||
+		targetSnapMeltTemp > MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP
 	) {
 		throw new Error(
-			'targetSnapMeltTemp must be a positive, finite number.',
+			`targetSnapMeltTemp must be a whole number from ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP} to ${MAXIMUM_TARGET_SNAPBACK_MELTING_TEMP} °C.`,
 		);
 	}
 
@@ -303,89 +308,42 @@ async function createSnapback(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1) Calculate the initial melting temperature differences for variants and choose the primer and base match (variant or wild),
-	//	  with the largest difference, as the snapback primer.
-	//
-	// 	  Note: It is assumed that the melting temperature difference will scale(decrease) stem length is increased, but that the
-	//	  snapback choice with the greatest temperature difference will remain the same bestSnapbackTailBaseAtSNV
+	// Independently optimize forward/reverse × wild/variant-match choices. This
+	// avoids assuming that the largest seven-base seed separation remains best
+	// after the complete stem and its terminal contexts have been grown.
 	const {
-		tailOnForwardPrimer,
-		bestSnapbackTailBaseAtSNV: snapbackTailBaseAtSNV,
-		snapbackTailMatchesWild: matchesWild,
-	} = await useForwardPrimer(
+		selected,
+		meltingTempDiffs,
+		optimizedSnapbackOptions,
+	} = await optimizeSnapbackDesignOptions(
 		targetSeqStrand,
 		snvSite,
-		normalizedTmConditions,
-	);
-
-	// 2) Assigning variables in terms of the primer strand to use as the snapback
-	//	  It also creates variables for the information in the reverse complement frame of reference.
-	//	  This is used later for calculating the melting temperature differences for
-	var targetStrandSeqSnapPrimerRefPoint;
-	var snvSiteSnapPrimerRefPoint;
-	var primerLensSnapPrimerRefPoint;
-	if (tailOnForwardPrimer) {
-		targetStrandSeqSnapPrimerRefPoint = targetSeqStrand;
-		snvSiteSnapPrimerRefPoint = snvSite;
-		primerLensSnapPrimerRefPoint = {
-			primerLen: primerLen,
-			compPrimerLen: compPrimerLen,
-		};
-	} else {
-		targetStrandSeqSnapPrimerRefPoint = reverseComplement(targetSeqStrand);
-		snvSiteSnapPrimerRefPoint = revCompSNV(snvSite, targetSeqStrand.length);
-		primerLensSnapPrimerRefPoint = {
-			primerLen: compPrimerLen,
-			compPrimerLen: primerLen,
-		};
-	}
-
-	console.log('CREATING STEM_______________________');
-	// 3) Calculating the stem in the snapback primers reference point (inculsive on both ends)
-	const { bestStemLoc, meltingTemps } = await createStem(
-		targetStrandSeqSnapPrimerRefPoint,
-		snvSiteSnapPrimerRefPoint,
-		primerLensSnapPrimerRefPoint,
-		snapbackTailBaseAtSNV,
-		matchesWild,
+		{ primerLen, compPrimerLen },
 		targetSnapMeltTemp,
 		normalizedTmConditions,
 	);
-	console.log('DONE CREATING STEM_______________________');
-
-	// 4) Create a final snapback primer (in its reference point)
+	const tailOnForwardPrimer = selected.context.tailOnForwardPrimer;
+	const targetStrandSeqSnapPrimerRefPoint = selected.context.seq;
+	const primerLensSnapPrimerRefPoint = selected.context.primerLens;
+	const matchesWild = selected.matchesWild;
+	const meltingTemps = {
+		wildTm: selected.santaLucia.wildTm,
+		variantTm: selected.santaLucia.variantTm,
+	};
 	const {
 		snapback,
 		descriptiveUnExtendedSnapbackPrimer,
 		descriptiveExtendedSnapback,
 		descriptiveExendedLimSnapback,
-	} = buildSnapbackAndFinalProducts(
-		targetStrandSeqSnapPrimerRefPoint,
-		snvSiteSnapPrimerRefPoint,
-		primerLensSnapPrimerRefPoint,
-		bestStemLoc,
-		snapbackTailBaseAtSNV,
-	);
-
-	const { snapbackTmRochester, snapbackTmSantaLucia } =
-		await calculateOptionalSnapbackTms(
-			descriptiveExtendedSnapback,
-			normalizedTmConditions,
-		);
-
-	// 5) Calculate melting temperature differences if we kept the same
-	//	  stem location but changed the primer for which we attach the snapback
-	//	  tail to or change which allele we match the nucleotide on the tail
-	//	  to
-	const meltingTempDiffs = await calculateMeltingTempDifferences(
-		targetStrandSeqSnapPrimerRefPoint,
-		snvSiteSnapPrimerRefPoint,
-		bestStemLoc,
-		tailOnForwardPrimer,
+	} = selected.products;
+	const snapbackTmSantaLucia = selected.santaLucia;
+	const snapbackTmWittwer = calculateSnapbackTmWittwerFromStructure(
+		descriptiveExtendedSnapback,
 		normalizedTmConditions,
 	);
+	const snapbackTmRochester = null;
 
-	// 6) Return the results
+	// Return the selected design plus all independently optimized option scores.
 	return {
 		snapbackSeq: snapback,
 		limitingPrimerSeq: reverseComplement(
@@ -398,19 +356,22 @@ async function createSnapback(
 		matchesWild: matchesWild,
 		snapbackMeltingTms: meltingTemps,
 		meltingTempDiffs: meltingTempDiffs,
+		optimizedSnapbackOptions,
 		tmConditions: normalizedTmConditions,
 
 		descriptiveUnExtendedSnapbackPrimer,
 		descriptiveExtendedSnapback,
 		descriptiveExendedLimSnapback,
 
-		// Rochester hairpin model across loop + terminal mismatches + stem NN with/without SNV
-		// This is the full object returned by calculateSnapbackTmRochester
+		// Retained compatibility field; Rochester is outside the two-method
+		// production path and is intentionally null.
 		snapbackTmRochester,
 
-		// SantaLucia hairpin model across loop + terminal mismatches + stem NN with/without SNV
-		// This is the full object returned by calculateSnapbackTmSantaLucia
+		// Complete component-level SantaLucia result used for the primary Tms.
 		snapbackTmSantaLucia,
+
+		// Carl/Wittwer empirical comparison, calculated fully in-house.
+		snapbackTmWittwer,
 	};
 }
 
@@ -422,15 +383,24 @@ async function calculateOptionalSnapbackTms(
 		return {
 			snapbackTmRochester: null,
 			snapbackTmSantaLucia: null,
+			snapbackTmWittwer: null,
 		};
 	}
 
-	const [snapbackTmRochester, snapbackTmSantaLucia] = await Promise.all([
-		calculateSnapbackTmRochester(descriptiveExtendedSnapback, tmConditions),
-		calculateSnapbackTmSantaLucia(descriptiveExtendedSnapback, tmConditions),
-	]);
+	const snapbackTmSantaLucia = await calculateSnapbackTmSantaLucia(
+		descriptiveExtendedSnapback,
+		tmConditions,
+	);
+	const snapbackTmWittwer = calculateSnapbackTmWittwerFromStructure(
+		descriptiveExtendedSnapback,
+		tmConditions,
+	);
 
-	return { snapbackTmRochester, snapbackTmSantaLucia };
+	return {
+		snapbackTmRochester: null,
+		snapbackTmSantaLucia,
+		snapbackTmWittwer,
+	};
 }
 
 async function calculateSnapbackTmRochester(
@@ -448,10 +418,9 @@ async function calculateSnapbackTmSantaLucia(
 	descriptiveExtendedSnapback,
 	tmConditions,
 ) {
-	const optionalTmMethods = await import('./optionalTmMethods.js');
-	return optionalTmMethods.calculateSnapbackTmSantaLucia(
+	return calculateSnapbackTmSantaLuciaInHouse(
 		descriptiveExtendedSnapback,
-		getOptionalTmMethodOptions(tmConditions),
+		tmConditions,
 	);
 }
 
@@ -467,6 +436,169 @@ function getOptionalTmMethodOptions(tmConditions) {
 			),
 		conc: CONC,
 		limitingConc: LIMITING_CONC,
+	};
+}
+
+/**
+ * Independently grow the four orientation × allele-match designs with the
+ * complete SantaLucia model, then choose the final design with the largest
+ * unrounded wild/variant separation. Each option first gets its own stem that
+ * is closest to the requested wild-type Tm while remaining at or above 40 °C.
+ */
+async function optimizeSnapbackDesignOptions(
+	targetSeqStrand,
+	snvSite,
+	primerLens,
+	targetSnapMeltTemp,
+	tmConditions,
+) {
+	const reverseSeq = reverseComplement(targetSeqStrand);
+	const reverseSnv = revCompSNV(snvSite, targetSeqStrand.length);
+	const contexts = [
+		{
+			tailOnForwardPrimer: true,
+			seq: targetSeqStrand,
+			snv: snvSite,
+			primerLens,
+		},
+		{
+			tailOnForwardPrimer: false,
+			seq: reverseSeq,
+			snv: reverseSnv,
+			primerLens: {
+				primerLen: primerLens.compPrimerLen,
+				compPrimerLen: primerLens.primerLen,
+			},
+		},
+	];
+
+	const candidates = [];
+	const failures = [];
+	let order = 0;
+	for (const context of contexts) {
+		for (const matchesWild of [true, false]) {
+			const tailBaseAtSNV = NUCLEOTIDE_COMPLEMENT[
+				matchesWild
+					? context.seq[context.snv.index]
+					: context.snv.variantBase
+			];
+			try {
+				const { bestStemLoc } = await createStem(
+					context.seq,
+					context.snv,
+					context.primerLens,
+					tailBaseAtSNV,
+					matchesWild,
+					targetSnapMeltTemp,
+					tmConditions,
+				);
+				const products = buildSnapbackAndFinalProducts(
+					context.seq,
+					context.snv,
+					context.primerLens,
+					bestStemLoc,
+					tailBaseAtSNV,
+				);
+				const santaLucia = calculateSnapbackTmSantaLuciaInHouse(
+					products.descriptiveExtendedSnapback,
+					tmConditions,
+				);
+				const wildUnrounded = santaLucia.alleles.wild.unroundedTm;
+				const variantUnrounded = santaLucia.alleles.variant.unroundedTm;
+				candidates.push({
+					order,
+					context,
+					matchesWild,
+					tailBaseAtSNV,
+					bestStemLoc,
+					products,
+					santaLucia,
+					wildUnrounded,
+					variantUnrounded,
+					deltaTmUnrounded: Math.abs(wildUnrounded - variantUnrounded),
+					targetDistance: Math.abs(
+						wildUnrounded - targetSnapMeltTemp,
+					),
+					stemLength: bestStemLoc.end - bestStemLoc.start + 1,
+				});
+			} catch (error) {
+				if (error?.code !== NO_ADMISSIBLE_STEM_CODE) throw error;
+				failures.push({
+					order,
+					tailOnForwardPrimer: context.tailOnForwardPrimer,
+					matchesWild,
+					highestWildTm: error.highestWildTm,
+				});
+			}
+			order += 1;
+		}
+	}
+
+	if (candidates.length === 0) {
+		const highestWildTm = Math.max(
+			...failures.map((failure) => failure.highestWildTm),
+		);
+		const error = new Error(
+			`No orientation or allele-match option reached ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Highest wildTm = ${highestWildTm.toFixed(2)}°C.`,
+		);
+		error.code = NO_ADMISSIBLE_STEM_CODE;
+		error.highestWildTm = highestWildTm;
+		error.candidateFailures = failures;
+		throw error;
+	}
+
+	const selected = [...candidates].sort((left, right) => {
+		if (left.deltaTmUnrounded !== right.deltaTmUnrounded) {
+			return right.deltaTmUnrounded - left.deltaTmUnrounded;
+		}
+		if (left.targetDistance !== right.targetDistance) {
+			return left.targetDistance - right.targetDistance;
+		}
+		if (left.stemLength !== right.stemLength) {
+			return left.stemLength - right.stemLength;
+		}
+		// Preserve the legacy exact-tie preference: variant, then reverse.
+		return right.order - left.order;
+	})[0];
+
+	const meltingTempDiffs = {
+		onForwardPrimer: { matchWild: null, matchVariant: null },
+		onReversePrimer: { matchWild: null, matchVariant: null },
+	};
+	const optimizedSnapbackOptions = {
+		onForwardPrimer: { matchWild: null, matchVariant: null },
+		onReversePrimer: { matchWild: null, matchVariant: null },
+	};
+	for (const candidate of candidates) {
+		const side = candidate.context.tailOnForwardPrimer
+			? 'onForwardPrimer'
+			: 'onReversePrimer';
+		const match = candidate.matchesWild ? 'matchWild' : 'matchVariant';
+		const deltaTm = roundToTmPrecision(candidate.deltaTmUnrounded);
+		meltingTempDiffs[side][match] = deltaTm;
+		const stemStartOnInputStrand = candidate.context.tailOnForwardPrimer
+			? candidate.bestStemLoc.start
+			: targetSeqStrand.length - 1 - candidate.bestStemLoc.end;
+		const stemEndOnInputStrand = candidate.context.tailOnForwardPrimer
+			? candidate.bestStemLoc.end
+			: targetSeqStrand.length - 1 - candidate.bestStemLoc.start;
+		optimizedSnapbackOptions[side][match] = {
+			stemStartInPrimerFrame: candidate.bestStemLoc.start,
+			stemEndInPrimerFrame: candidate.bestStemLoc.end,
+			stemStartOnInputStrand,
+			stemEndOnInputStrand,
+			stemLength: candidate.stemLength,
+			wildTm: candidate.santaLucia.wildTm,
+			variantTm: candidate.santaLucia.variantTm,
+			deltaTm,
+		};
+	}
+
+	return {
+		selected,
+		meltingTempDiffs,
+		optimizedSnapbackOptions,
+		failures,
 	};
 }
 
@@ -498,8 +630,8 @@ function getOptionalTmMethodOptions(tmConditions) {
  * - The mismatch objects used in calculating Tm are derived from valid
  *   wild/variant bases and aligned to the correct positions in their stem
  *   sequences.
- * - The Santa Lucia nearest-neighbour model (via `calculateSnapbackTmWittwer`) is
- *   used to compute Tm values.
+ * - The complete in-house SantaLucia/Hicks snapback model, with Owczarzy salt
+ *   correction applied to the stem, is used to compute all four Tm differences.
  *
  *
  * ──────────────────────────────────────────────────────────────────────────
@@ -534,7 +666,7 @@ function getOptionalTmMethodOptions(tmConditions) {
  * @throws {Error} 										When any of the parameters passed in don't make sense or the API doesn't respond
  * 														correctly
  */
-async function calculateMeltingTempDifferences(
+async function calculateMeltingTempDifferencesLegacy(
 	targetStrandSeqSnapPrimerRefPoint,
 	snvSiteSnapPrimerRefPoint,
 	bestStemLoc,
@@ -952,6 +1084,149 @@ async function calculateMeltingTempDifferences(
 }
 
 /**
+ * Calculate the four displayed option differences with the complete in-house
+ * SantaLucia snapback model. Each option is rebuilt as a real snapback so its
+ * own loop length, natural/engineered loop-end mismatch, extension-blocking
+ * mismatch, internal mismatch, and Owczarzy correction are all represented.
+ */
+async function calculateMeltingTempDifferences(
+	targetStrandSeqSnapPrimerRefPoint,
+	snvSiteSnapPrimerRefPoint,
+	bestStemLoc,
+	tailOnForwardPrimer,
+	tmConditions,
+	primerLensSnapPrimerRefPoint = undefined,
+) {
+	if (!isValidDNASequence(targetStrandSeqSnapPrimerRefPoint)) {
+		throw new Error('A valid uppercase target DNA sequence is required.');
+	}
+	if (!isValidSNVObject(snvSiteSnapPrimerRefPoint)) {
+		throw new Error('A valid SNV object is required.');
+	}
+	if (
+		!bestStemLoc ||
+		!Number.isInteger(bestStemLoc.start) ||
+		!Number.isInteger(bestStemLoc.end) ||
+		bestStemLoc.start < 0 ||
+		bestStemLoc.end >= targetStrandSeqSnapPrimerRefPoint.length ||
+		bestStemLoc.start > bestStemLoc.end ||
+		snvSiteSnapPrimerRefPoint.index < bestStemLoc.start ||
+		snvSiteSnapPrimerRefPoint.index > bestStemLoc.end
+	) {
+		throw new Error('bestStemLoc must be valid and contain the SNV.');
+	}
+	if (typeof tailOnForwardPrimer !== 'boolean') {
+		throw new Error('tailOnForwardPrimer must be a boolean.');
+	}
+
+	const fallbackPrimerLength = Math.min(
+		MIN_PRIMER_LEN,
+		bestStemLoc.start,
+	);
+	const primers = primerLensSnapPrimerRefPoint ?? {
+		primerLen: fallbackPrimerLength,
+		compPrimerLen: fallbackPrimerLength,
+	};
+	const reverseSeq = reverseComplement(targetStrandSeqSnapPrimerRefPoint);
+	const reverseSnv = revCompSNV(
+		snvSiteSnapPrimerRefPoint,
+		targetStrandSeqSnapPrimerRefPoint.length,
+	);
+	const reverseStem = {
+		start:
+			targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.end - 1,
+		end:
+			targetStrandSeqSnapPrimerRefPoint.length - bestStemLoc.start - 1,
+	};
+	const reversePrimers = {
+		primerLen: primers.compPrimerLen,
+		compPrimerLen: primers.primerLen,
+	};
+
+	const evaluate = (seq, snv, primerLengths, stem, tailBaseAtSNV) => {
+		const { descriptiveExtendedSnapback } = buildSnapbackAndFinalProducts(
+			seq,
+			snv,
+			primerLengths,
+			stem,
+			tailBaseAtSNV,
+		);
+		return calculateSnapbackTmSantaLuciaInHouse(
+			descriptiveExtendedSnapback,
+			tmConditions,
+		);
+	};
+
+	const sameWild = evaluate(
+		targetStrandSeqSnapPrimerRefPoint,
+		snvSiteSnapPrimerRefPoint,
+		primers,
+		bestStemLoc,
+		NUCLEOTIDE_COMPLEMENT[
+			targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index]
+		],
+	);
+	const sameVariant = evaluate(
+		targetStrandSeqSnapPrimerRefPoint,
+		snvSiteSnapPrimerRefPoint,
+		primers,
+		bestStemLoc,
+		NUCLEOTIDE_COMPLEMENT[snvSiteSnapPrimerRefPoint.variantBase],
+	);
+	const reverseWild = evaluate(
+		reverseSeq,
+		reverseSnv,
+		reversePrimers,
+		reverseStem,
+		NUCLEOTIDE_COMPLEMENT[reverseSeq[reverseSnv.index]],
+	);
+	const reverseVariant = evaluate(
+		reverseSeq,
+		reverseSnv,
+		reversePrimers,
+		reverseStem,
+		NUCLEOTIDE_COMPLEMENT[reverseSnv.variantBase],
+	);
+
+	const same = {
+		matchWild: roundToTmPrecision(
+			Math.abs(
+				sameWild.alleles.wild.unroundedTm -
+					sameWild.alleles.variant.unroundedTm,
+			),
+		),
+		matchVariant: roundToTmPrecision(
+			Math.abs(
+				sameVariant.alleles.wild.unroundedTm -
+					sameVariant.alleles.variant.unroundedTm,
+			),
+		),
+	};
+	const opposite = {
+		matchWild: roundToTmPrecision(
+			Math.abs(
+				reverseWild.alleles.wild.unroundedTm -
+					reverseWild.alleles.variant.unroundedTm,
+			),
+		),
+		matchVariant: roundToTmPrecision(
+			Math.abs(
+				reverseVariant.alleles.wild.unroundedTm -
+					reverseVariant.alleles.variant.unroundedTm,
+			),
+		),
+	};
+
+	return tailOnForwardPrimer
+		? { onForwardPrimer: same, onReversePrimer: opposite }
+		: { onForwardPrimer: opposite, onReversePrimer: same };
+}
+
+function roundToTmPrecision(value) {
+	return Number(value.toFixed(TM_DECIMAL_PLACES));
+}
+
+/**
  * Decide whether the snapback tail should be appended to the forward primer
  * (target-sequence strand) or to the reverse primer, and which base at the SNV
  * position, on the snapback tail, maximizes the absolute melting-temperature
@@ -975,7 +1250,7 @@ async function calculateMeltingTempDifferences(
  *
  * @throws {Error} If inputs are malformed or violate positional constraints.
  */
-async function useForwardPrimer(targetSeqStrand, snvSite, tmConditions) {
+async function useForwardPrimerLegacy(targetSeqStrand, snvSite, tmConditions) {
 	//──────────────────────────────────────────────────────────────────────────//
 	// Parameter checking                                                      //
 	//──────────────────────────────────────────────────────────────────────────//
@@ -1093,6 +1368,153 @@ async function useForwardPrimer(targetSeqStrand, snvSite, tmConditions) {
 }
 
 /**
+ * Select the primer orientation and allele-matching tail with the complete
+ * SantaLucia snapback calculation. The seven-base seed stem retains the
+ * required three matched bases on each side of the SNV.
+ */
+async function useForwardPrimer(
+	targetSeqStrand,
+	snvSite,
+	tmConditions,
+	primerLens = undefined,
+) {
+	if (!isValidDNASequence(targetSeqStrand)) {
+		throw new Error('targetSeqStrand must be a valid uppercase DNA sequence.');
+	}
+	if (!isValidSNVObject(snvSite) || snvSite.index >= targetSeqStrand.length) {
+		throw new Error('snvSite must identify a valid position and variant base.');
+	}
+	if (
+		snvSite.index < SNV_BASE_BUFFER ||
+		snvSite.index > targetSeqStrand.length - SNV_BASE_BUFFER - 1
+	) {
+		throw new Error(
+			`The SNV needs ${SNV_BASE_BUFFER} matched bases on each side.`,
+		);
+	}
+
+	// Preserve the older three-argument helper surface. Without primer lengths
+	// there is not enough information to construct the two real loops, so this
+	// compatibility path compares the two local seed stems only.
+	if (primerLens === undefined) {
+		const reverseSeq = reverseComplement(targetSeqStrand);
+		const reverseSnv = revCompSNV(snvSite, targetSeqStrand.length);
+		const forwardStem = targetSeqStrand.slice(
+			snvSite.index - SNV_BASE_BUFFER,
+			snvSite.index + SNV_BASE_BUFFER + 1,
+		);
+		const reverseStem = reverseSeq.slice(
+			reverseSnv.index - SNV_BASE_BUFFER,
+			reverseSnv.index + SNV_BASE_BUFFER + 1,
+		);
+		const forward = await evaluateSnapbackTailMatchingOptions(
+			forwardStem,
+			SNV_BASE_BUFFER,
+			snvSite.variantBase,
+			tmConditions,
+		);
+		const reverse = await evaluateSnapbackTailMatchingOptions(
+			reverseStem,
+			SNV_BASE_BUFFER,
+			reverseSnv.variantBase,
+			tmConditions,
+		);
+		return forward.bestTmDifference > reverse.bestTmDifference
+			? { tailOnForwardPrimer: true, ...forward }
+			: { tailOnForwardPrimer: false, ...reverse };
+	}
+
+	const forwardPrimers = primerLens;
+	if (
+		!Number.isInteger(forwardPrimers.primerLen) ||
+		!Number.isInteger(forwardPrimers.compPrimerLen)
+	) {
+		throw new Error('primerLens must contain integer primerLen and compPrimerLen.');
+	}
+
+	const forwardStem = {
+		start: snvSite.index - SNV_BASE_BUFFER,
+		end: snvSite.index + SNV_BASE_BUFFER,
+	};
+	const reverseSeq = reverseComplement(targetSeqStrand);
+	const reverseSnv = revCompSNV(snvSite, targetSeqStrand.length);
+	const reverseStem = {
+		start: reverseSnv.index - SNV_BASE_BUFFER,
+		end: reverseSnv.index + SNV_BASE_BUFFER,
+	};
+	const reversePrimers = {
+		primerLen: forwardPrimers.compPrimerLen,
+		compPrimerLen: forwardPrimers.primerLen,
+	};
+
+	const evaluateOrientation = (seq, orientedSnv, primers, stem) => {
+		const wildTailBase = NUCLEOTIDE_COMPLEMENT[seq[orientedSnv.index]];
+		const variantTailBase =
+			NUCLEOTIDE_COMPLEMENT[orientedSnv.variantBase];
+		const wildStructure = buildSnapbackAndFinalProducts(
+			seq,
+			orientedSnv,
+			primers,
+			stem,
+			wildTailBase,
+		).descriptiveExtendedSnapback;
+		const variantStructure = buildSnapbackAndFinalProducts(
+			seq,
+			orientedSnv,
+			primers,
+			stem,
+			variantTailBase,
+		).descriptiveExtendedSnapback;
+		const wildResult = calculateSnapbackTmSantaLuciaInHouse(
+			wildStructure,
+			tmConditions,
+		);
+		const variantResult = calculateSnapbackTmSantaLuciaInHouse(
+			variantStructure,
+			tmConditions,
+		);
+		const wildDifference = Math.abs(
+			wildResult.alleles.wild.unroundedTm -
+				wildResult.alleles.variant.unroundedTm,
+		);
+		const variantDifference = Math.abs(
+			variantResult.alleles.wild.unroundedTm -
+				variantResult.alleles.variant.unroundedTm,
+		);
+		if (wildDifference > variantDifference) {
+			return {
+				bestSnapbackTailBaseAtSNV: wildTailBase,
+				bestTmDifference: wildDifference,
+				snapbackTailMatchesWild: true,
+			};
+		}
+		return {
+			bestSnapbackTailBaseAtSNV: variantTailBase,
+			bestTmDifference: variantDifference,
+			snapbackTailMatchesWild: false,
+		};
+	};
+
+	const forward = evaluateOrientation(
+		targetSeqStrand,
+		snvSite,
+		forwardPrimers,
+		forwardStem,
+	);
+	const reverse = evaluateOrientation(
+		reverseSeq,
+		reverseSnv,
+		reversePrimers,
+		reverseStem,
+	);
+
+	if (forward.bestTmDifference > reverse.bestTmDifference) {
+		return { tailOnForwardPrimer: true, ...forward };
+	}
+	return { tailOnForwardPrimer: false, ...reverse };
+}
+
+/**
  * Evaluates which snapback-tail base (wild-matching vs. variant-matching)
  * maximises the Tm difference between wild-type and variant stems in the
  * initial “seed” slice.
@@ -1121,7 +1543,7 @@ async function useForwardPrimer(targetSeqStrand, snvSite, tmConditions) {
  *
  * @throws {Error} If any argument is invalid.
  */
-async function evaluateSnapbackTailMatchingOptions(
+async function evaluateSnapbackTailMatchingOptionsLegacy(
 	initStem,
 	mismatchPos,
 	variantBase,
@@ -1355,6 +1777,83 @@ async function evaluateSnapbackTailMatchingOptions(
 }
 
 /**
+ * Backward-compatible seed-stem helper implemented locally with the same
+ * SantaLucia/Hicks nearest-neighbour and Owczarzy models as the full calculator.
+ * The main web-app path uses complete snapback structures in useForwardPrimer.
+ */
+async function evaluateSnapbackTailMatchingOptions(
+	initStem,
+	mismatchPos,
+	variantBase,
+	tmConditions,
+) {
+	if (!isValidDNASequence(initStem)) {
+		throw new Error('initStem must be a non-empty uppercase DNA sequence.');
+	}
+	if (
+		!Number.isInteger(mismatchPos) ||
+		mismatchPos < 1 ||
+		mismatchPos >= initStem.length - 1
+	) {
+		throw new Error('mismatchPos must be an internal stem index.');
+	}
+	if (!VALID_BASES.has(variantBase) || variantBase === initStem[mismatchPos]) {
+		throw new Error('variantBase must be a valid base different from wild type.');
+	}
+
+	const normalized = normalizeTmConditions(tmConditions);
+	const stemTm = (sequence, mismatch) => {
+		const thermo = calculateDuplexThermodynamics(sequence, mismatch);
+		const salt = calculateOwczarzySaltCorrection({
+			stemSequence: sequence,
+			stemDeltaH: thermo.dH,
+			magnesiumMm: normalized.magnesiumMm,
+			monovalentMm: normalized.monovalentMm,
+		});
+		return calculateTmFromThermodynamics({
+			dH: thermo.dH,
+			dS: thermo.dS,
+			saltCorrection: salt.saltCorrection,
+			concentrationUm: normalized.concentrationUm,
+			limitingConcentrationUm: normalized.limitingConcentrationUm,
+		});
+	};
+
+	const wildBase = initStem[mismatchPos];
+	const variantStem =
+		initStem.slice(0, mismatchPos) +
+		variantBase +
+		initStem.slice(mismatchPos + 1);
+	const wildMatchTm = stemTm(initStem);
+	const variantMatchTm = stemTm(variantStem);
+	const wildTailMismatchTm = stemTm(variantStem, {
+		position: mismatchPos,
+		type: NUCLEOTIDE_COMPLEMENT[wildBase],
+	});
+	const variantTailMismatchTm = stemTm(initStem, {
+		position: mismatchPos,
+		type: NUCLEOTIDE_COMPLEMENT[variantBase],
+	});
+	const wildDifference = Math.abs(wildMatchTm - wildTailMismatchTm);
+	const variantDifference = Math.abs(
+		variantMatchTm - variantTailMismatchTm,
+	);
+
+	if (wildDifference > variantDifference) {
+		return {
+			bestSnapbackTailBaseAtSNV: NUCLEOTIDE_COMPLEMENT[wildBase],
+			bestTmDifference: wildDifference,
+			snapbackTailMatchesWild: true,
+		};
+	}
+	return {
+		bestSnapbackTailBaseAtSNV: NUCLEOTIDE_COMPLEMENT[variantBase],
+		bestTmDifference: variantDifference,
+		snapbackTailMatchesWild: false,
+	};
+}
+
+/**
  * Retrieves the melting temperature (Tm) of a perfectly matched or
  * single-mismatch DNA stem by querying the dna-utah.org Santa Lucia CGI.
  *
@@ -1399,6 +1898,10 @@ function normalizeTmConditions(tmConditions) {
 		tmConditions?.magnesiumMm ?? DEFAULT_MAGNESIUM_MM;
 	const monovalentMm =
 		tmConditions?.monovalentMm ?? DEFAULT_MONOVALENT_MM;
+	const concentrationUm = tmConditions?.concentrationUm ?? CONC;
+	const limitingConcentrationUm =
+		tmConditions?.limitingConcentrationUm ?? LIMITING_CONC;
+	const wittwerLogBase = tmConditions?.wittwerLogBase ?? 'log10';
 
 	for (const [name, value] of [
 		['magnesiumMm', magnesiumMm],
@@ -1412,8 +1915,34 @@ function normalizeTmConditions(tmConditions) {
 			throw new Error(`${name} must be a finite, non-negative number.`);
 		}
 	}
+	if (magnesiumMm === 0 && monovalentMm === 0) {
+		throw new Error(
+			'At least one ionic concentration must be greater than zero for the Owczarzy correction.',
+		);
+	}
+	for (const [name, value] of [
+		['concentrationUm', concentrationUm],
+		['limitingConcentrationUm', limitingConcentrationUm],
+	]) {
+		if (
+			typeof value !== 'number' ||
+			!Number.isFinite(value) ||
+			value <= 0
+		) {
+			throw new Error(`${name} must be a finite, positive number.`);
+		}
+	}
+	if (wittwerLogBase !== 'log10') {
+		throw new Error('wittwerLogBase must be "log10".');
+	}
 
-	return { magnesiumMm, monovalentMm };
+	return {
+		magnesiumMm,
+		monovalentMm,
+		concentrationUm,
+		limitingConcentrationUm,
+		wittwerLogBase,
+	};
 }
 
 function buildTmRequestParams(
@@ -1883,9 +2412,8 @@ async function createStem(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	//// We will keep enlarging the stem, right then left... (as long as we are not up against the primers), keeping
-	//// track of the melting temperature of the snapback for the wild-type allele, until we go over the desired meling
-	//// temperature or we run out of viable stem location
+	// Enlarge the stem right then left while respecting the primer sites, and
+	// retain the complete-structure SantaLucia result closest to the requested Tm.
 
 	// 1. Initialize variable to hold the snapback melting temperature for the wild type allele that is closest to the desired
 	// snapback melting temperature for the wild type allele. Also initialize a variable for the corresponding melting
@@ -1893,115 +2421,84 @@ async function createStem(
 	let bestWildTm = null;
 	let correspondingVariantStemTm = null;
 	let bestStemLoc = { start: null, end: null };
+	let highestWildTm = Number.NEGATIVE_INFINITY;
 
 	// 2. Initialize stem region
 	const snvIndex = snvSiteSnapPrimerRefPoint.index;
 	let stemStart = snvIndex - SNV_BASE_BUFFER;
 	let stemEnd = snvIndex + SNV_BASE_BUFFER;
 
-	// 3. Loop to grow stem until we go above desired Tm OR we've come up against both primers
+	// 3. Evaluate every viable stem length until both primer boundaries are reached.
 	while (true) {
-		// 3a. Slice current stem
-		const currentStem = targetStrandSeqSnapPrimerRefPoint.slice(
-			stemStart,
-			stemEnd + 1,
-		);
-		// 3b. Get the currentVariantStem
-		const currentVariantStem =
-			targetStrandSeqSnapPrimerRefPoint.slice(
-				stemStart,
-				snvSiteSnapPrimerRefPoint.index,
-			) +
-			snvSiteSnapPrimerRefPoint.variantBase +
-			targetStrandSeqSnapPrimerRefPoint.slice(
-				snvSiteSnapPrimerRefPoint.index + 1,
-				stemEnd + 1,
-			);
-		// 3c. Calculating the loop length. The loop-side strong mismatch is
-		// only inserted when the primer 5' base and base left of the stem are
-		// complementary in this candidate stem placement.
-		const loopLen = getSnapbackLoopLength(
+		// 3a. Build this exact candidate and calculate both alleles using the
+		// complete intramolecular SantaLucia model. This ensures stem growth sees
+		// the loop and both real terminal mismatches, not just an isolated duplex.
+		const candidateExtendedSnapback = buildSnapbackAndFinalProducts(
 			targetStrandSeqSnapPrimerRefPoint,
-			stemStart,
-		);
-
-		// 3d. Build mismatch object for wild and variant type, if needed, for stem Tm calculation
-		let wildMismatch = null;
-		let variantMismatch = null;
-		if (!matchesWild) {
-			wildMismatch = {
-				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
-				type: snapbackTailBaseAtSNV,
-			};
-		} else {
-			variantMismatch = {
-				position: snvIndex - stemStart, // Appropriate position is relative to the start of the stem
-				type: snapbackTailBaseAtSNV,
-			};
-		}
-
-		// 3e. Compute the wild type allele melting temperature of the snapback
-		const wildTm = await calculateSnapbackTmWittwer(
-			currentStem,
-			loopLen,
-			wildMismatch,
+			snvSiteSnapPrimerRefPoint,
+			primerLensSnapPrimerRefPoint,
+			{ start: stemStart, end: stemEnd },
+			snapbackTailBaseAtSNV,
+		).descriptiveExtendedSnapback;
+		const candidateTms = calculateSnapbackTmSantaLuciaInHouse(
+			candidateExtendedSnapback,
 			tmConditions,
 		);
+		const wildTm = candidateTms.alleles.wild.unroundedTm;
+		highestWildTm = Math.max(highestWildTm, wildTm);
 
-		// 3f. Update the closest to desired wild type snapback melting temperature and corresponding stem location if applicable
+		// 3b. Update the closest admissible wild-type Tm and its corresponding
+		// variant Tm. A sub-40 candidate must not hide a viable warmer stem merely
+		// because it is numerically closer to a low requested target.
 		if (
-			!bestWildTm ||
-			Math.abs(wildTm - targetSnapMeltTemp) <
-				Math.abs(bestWildTm - targetSnapMeltTemp)
+			wildTm >= MINIMUM_TARGET_SNAPBACK_MELTING_TEMP &&
+			(bestWildTm === null ||
+				Math.abs(wildTm - targetSnapMeltTemp) <
+					Math.abs(bestWildTm - targetSnapMeltTemp))
 		) {
 			bestWildTm = wildTm;
 			bestStemLoc.start = stemStart;
 			bestStemLoc.end = stemEnd;
-			// Compute and save the corresponding best variant type snapback temperature
-			correspondingVariantStemTm = await calculateSnapbackTmWittwer(
-				currentVariantStem,
-				loopLen,
-				variantMismatch,
-				tmConditions,
-			);
+			correspondingVariantStemTm =
+				candidateTms.alleles.variant.unroundedTm;
 		}
 
-		// 3g. Loop temination if wildTm has become larger than the desired snapback melting temperature
-		// for the wild type allele
-		if (wildTm >= targetSnapMeltTemp) {
-			break;
-		}
-
-		// 3h. Grow the stem in the appropriate direction (if it can be grown without overlapping a primer location)
+		// 3c. Grow the stem in the appropriate direction (if it can be grown without overlapping a primer location).
+		// Evaluate every viable length instead of stopping at the first crossing:
+		// sequence-specific terminal-mismatch changes can make the full SantaLucia
+		// snapback Tm slightly non-monotonic.
 		if (
 			stemStart > primerLen &&
 			(snvIndex - stemStart < stemEnd - snvIndex ||
 				!(stemEnd < seqLen - compPrimerLen - 1))
 		) {
-			// 3hI. Push the start of the stem one nucleotide to the left only if (the stem is not going to overlap with
+			// 3cI. Push the start of the stem one nucleotide to the left only if (the stem is not going to overlap with
 			// the primer attachment location) AND [(the beginning of the stem is closer to the SNV that the end of
 			// the stem) OR (the end of the stem is up against the reverse primers attachment location (in this frame
 			// of reference))]
 			stemStart -= 1;
 		} else if (stemEnd < seqLen - compPrimerLen - 1) {
-			// 3hII. Otherwise we push the end of the stem one nucleotide if (the end of the stem is not up against the
+			// 3cII. Otherwise we push the end of the stem one nucleotide if (the end of the stem is not up against the
 			// reverse primer attachment location)
 			// We should push the start of the stem one nucleotide to the left
 			stemEnd += 1;
 		} else {
-			// 3hIII. If we can do neither, we break out of the loop as the stem as grown as large as it can without
+			// 3cIII. If we can do neither, we break out of the loop as the stem as grown as large as it can without
 			// interfering with primer attachment locations
 			break;
 		}
 	}
 
-	// 4. Final check if final stem doesn’t meet minimum melting temperature requirement
-	if (bestWildTm < MINIMUM_TARGET_SNAPBACK_MELTING_TEMP) {
-		throw new Error(
-			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Final wildTm = ${bestWildTm.toFixed(
+	// 4. Final check if no viable stem meets the minimum melting temperature.
+	if (bestWildTm === null) {
+		const error = new Error(
+			`Could not meet minimum snapback melting temp of ${MINIMUM_TARGET_SNAPBACK_MELTING_TEMP}°C. Highest wildTm = ${highestWildTm.toFixed(
 				2,
 			)}°C. Please consider moving primers farther out so a larger, more stable snapback stem can be created. `,
 		);
+		error.code = NO_ADMISSIBLE_STEM_CODE;
+		error.highestWildTm = highestWildTm;
+		throw error;
 	}
 
 	// 5. Return the created stem, with its wild and variant allele snapback melting temperatures.
@@ -2809,7 +3306,7 @@ function parseThermoParamsFromResponse(rawHtml) {
 /**
  * Estimates the melting temperature (Tm) of a snapback structure using:
  *
- *     Tm = -5.25 * ln(loopLen) + 0.837 * stemTm + 32.9
+ *     Tm = -5.25 * log10(loopLen) + 0.837 * stemTm + 32.9
  *
  * ──────────────────────────────────────────────────────────────────────────
  * Assumptions
@@ -2850,6 +3347,16 @@ async function calculateSnapbackTmWittwer(
 	mismatch,
 	tmConditions,
 ) {
+	// Complete-structure overload: both public snapback methods can be called as
+	// (descriptiveExtendedSnapback, tmConditions). The legacy four-argument
+	// stem/loop form remains supported below.
+	if (stemSeq && typeof stemSeq === 'object' && !Array.isArray(stemSeq)) {
+		return calculateSnapbackTmWittwerFromStructure(
+			stemSeq,
+			loopLen ?? {},
+		);
+	}
+
 	//──────────────────────────────────────────────────────────────────────────//
 	//							Parameter Checking								//
 	//──────────────────────────────────────────────────────────────────────────//
@@ -2893,18 +3400,16 @@ async function calculateSnapbackTmWittwer(
 	//								Function Logic								//
 	//──────────────────────────────────────────────────────────────────────────//
 
-	// 1. Calculate stem Tm from external method
-	const stemTm = await getOligoTm(
+	// Calculate locally with the log10 empirical convention used by the prior
+	// uSnapback web app and the reference workbook calculations.
+	const normalizedConditions = normalizeTmConditions(tmConditions);
+	return calculateSnapbackTmWittwerInHouse(
 		stemSeq,
+		loopLen,
 		mismatch ?? undefined,
-		tmConditions,
+		normalizedConditions,
+		{ logBase: normalizedConditions.wittwerLogBase },
 	);
-
-	// 2. Apply snapback Tm formula
-	const tm = -5.25 * Math.log10(loopLen) + 0.837 * stemTm + 32.9;
-
-	// 3. Round result
-	return parseFloat(tm.toFixed(TM_DECIMAL_PLACES));
 }
 
 
@@ -3369,6 +3874,12 @@ export {
 	calculateSnapbackTmWittwer,
 	calculateSnapbackTmRochester,
 	calculateSnapbackTmSantaLucia,
+	calculateSnapbackTmWittwerFromStructure,
+	calculateDuplexThermodynamics,
+	calculateTmFromThermodynamics,
+	calculateOwczarzySaltCorrection,
+	getSantaLuciaHairpinLoopParams,
+	normalizeInHouseTmConditions,
 
 	// DNA utility functions
 	isValidDNASequence,
@@ -3390,8 +3901,8 @@ export {
 };
 
 
-// Optional Santa Lucia/Rochester data and helper exports live in their own file.
-// Comment this block out if script.js should expose only the primary Wittwer API.
+// Legacy Rochester data and parameter lookup helpers remain available for
+// compatibility, but Rochester is not used by the production design path.
 export {
 	calculateTm,
 	getRochesterHairpinLoopParams,

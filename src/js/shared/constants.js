@@ -30,7 +30,7 @@ export const TM_MAX = 80;
 
 /* Default ionic conditions for snapback Tm estimates (mM): free Mg²⁺ and
    total monovalent-cation concentration, respectively. */
-export const DEFAULT_MAGNESIUM_MM = 3.0;
+export const DEFAULT_MAGNESIUM_MM = 2.2;
 export const DEFAULT_MONOVALENT_MM = 13.7;
 
 /* Allowed DNA bases */

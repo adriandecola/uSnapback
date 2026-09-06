@@ -325,6 +325,11 @@ export function validateTmConditions(magnesiumRaw, monovalentRaw) {
 		'total monovalent cations',
 	);
 	if (!monovalent.ok) return monovalent;
+	if (magnesium.data.value === 0 && monovalent.data.value === 0) {
+		return fail(
+			'Enter a non-zero free Mg²⁺ or monovalent-cation concentration for the Owczarzy correction.',
+		);
+	}
 
 	return ok({
 		magnesiumMm: magnesium.data.value,

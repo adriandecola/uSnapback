@@ -150,15 +150,30 @@ export function renderTailSummary(result) {
 }
 
 export function renderTmSummary(result) {
-	const wittWild = result.snapbackMeltingTms?.wildTm;
-	document.getElementById('wildTm').textContent = Number.isFinite(wittWild)
-		? wittWild.toFixed(1)
+	const santaWild = result.snapbackMeltingTms?.wildTm;
+	document.getElementById('wildTm').textContent = Number.isFinite(santaWild)
+		? santaWild.toFixed(1)
 		: '—';
 
-	const wittVar = result.snapbackMeltingTms?.variantTm;
-	document.getElementById('varTm').textContent = Number.isFinite(wittVar)
-		? wittVar.toFixed(1)
+	const santaVariant = result.snapbackMeltingTms?.variantTm;
+	document.getElementById('varTm').textContent = Number.isFinite(santaVariant)
+		? santaVariant.toFixed(1)
 		: '—';
+
+	const empiricalWild = result.snapbackTmWittwer?.wildTm;
+	const empiricalVariant = result.snapbackTmWittwer?.variantTm;
+	const empiricalWildEl = document.getElementById('wittwerWildTm');
+	const empiricalVariantEl = document.getElementById('wittwerVarTm');
+	if (empiricalWildEl) {
+		empiricalWildEl.textContent = Number.isFinite(empiricalWild)
+			? empiricalWild.toFixed(1)
+			: '—';
+	}
+	if (empiricalVariantEl) {
+		empiricalVariantEl.textContent = Number.isFinite(empiricalVariant)
+			? empiricalVariant.toFixed(1)
+			: '—';
+	}
 }
 
 export function renderTmConditions(tmConditions) {
@@ -256,6 +271,7 @@ export function renderDeltaTmTable(result, wildBase, variantBase) {
 
 	// Populate ΔTm table (gracefully handle null/undefined)
 	const fmt = (v, mismatchPair = '') => {
+		if (v == null || v === '') return '—';
 		const n = Number(v);
 		if (!Number.isFinite(n)) return '—';
 		return `${n.toFixed(1)}${mismatchPair ? ` (${mismatchPair})` : ''}`;
