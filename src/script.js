@@ -370,7 +370,7 @@ async function createSnapback(
 		// Complete component-level SantaLucia result used for the primary Tms.
 		snapbackTmSantaLucia,
 
-		// Carl/Wittwer empirical comparison, calculated fully in-house.
+		// Wittwer/empirical comparison, calculated fully in-house.
 		snapbackTmWittwer,
 	};
 }

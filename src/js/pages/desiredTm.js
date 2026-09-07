@@ -45,7 +45,7 @@ const PREV = 'variant.html';
 
 /* restore previous value */
 const saved = sessionStorage.getItem('desiredTm');
-if (saved) input.value = saved;
+if (saved !== null) input.value = saved;
 
 const savedMagnesium = sessionStorage.getItem('magnesiumMm');
 magnesiumInput.value =

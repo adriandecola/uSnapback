@@ -182,7 +182,7 @@ describe('loop and salt models', () => {
 });
 
 describe('complete snapback methods', () => {
-	test('uses log10 exclusively for the Carl/Wittwer loop term', async () => {
+	test('uses log10 exclusively for the Wittwer/empirical loop term', async () => {
 		const defaultResult = calculateSnapbackTmWittwer(
 			'ACGTACGT',
 			6,
@@ -315,7 +315,7 @@ describe('complete snapback methods', () => {
 		);
 	});
 
-	test('returns a complete empirical/Wittwer comparison from the same structure', () => {
+	test('returns a complete Wittwer/empirical comparison from the same structure', () => {
 		const result = calculateSnapbackTmWittwerFromStructure(
 			naturalLoopStructure(),
 			conditions,

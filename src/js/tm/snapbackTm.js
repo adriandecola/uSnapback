@@ -35,13 +35,13 @@ function roundTm(value) {
 
 function wittwerLoopLog(loopLength, logBase) {
 	if (logBase !== 'log10') {
-		throw new Error('The Carl/Wittwer empirical method uses log10 only.');
+		throw new Error('The Wittwer/empirical method uses log10 only.');
 	}
 	return Math.log10(loopLength);
 }
 
 /**
- * Combine an already-calculated stem Tm with the Carl/Wittwer regression.
+ * Combine an already-calculated stem Tm with the Wittwer/empirical regression.
  *
  * This deliberately does not round so callers can retain full precision while
  * selecting a design. The later Hugh-refit workbook also exposes this exact
@@ -383,7 +383,7 @@ function calculateStemDuplexTm(
 }
 
 /**
- * Carl/Wittwer empirical snapback Tm.
+ * Wittwer/empirical snapback Tm.
  *
  * The empirical loop term always uses log10, matching the prior uSnapback web
  * app and the workbook compatibility calculation. An explicit non-log10
@@ -667,7 +667,7 @@ function calculateAlleleWittwer(
 	});
 }
 
-/** Empirical/Wittwer calculation for a complete web-app snapback structure. */
+/** Wittwer/empirical calculation for a complete web-app snapback structure. */
 export function calculateSnapbackTmWittwerFromStructure(
 	extendedSnapback,
 	conditions = {},
@@ -688,7 +688,7 @@ export function calculateSnapbackTmWittwerFromStructure(
 		conditions,
 	);
 	return Object.freeze({
-		method: 'Wittwer/Carl empirical',
+		method: 'Wittwer/empirical',
 		wildTm: wild.tm,
 		variantTm: variant.tm,
 		loopLength,

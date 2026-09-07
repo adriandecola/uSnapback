@@ -176,24 +176,6 @@ export function renderTmSummary(result) {
 	}
 }
 
-export function renderTmConditions(tmConditions) {
-	const freeMagnesiumEl = document.getElementById('freeMagnesiumMm');
-	const totalMonovalentEl = document.getElementById('totalMonovalentMm');
-	const freeMagnesium = Number(tmConditions?.magnesiumMm);
-	const totalMonovalent = Number(tmConditions?.monovalentMm);
-
-	if (freeMagnesiumEl) {
-		freeMagnesiumEl.textContent = Number.isFinite(freeMagnesium)
-			? String(freeMagnesium)
-			: '—';
-	}
-	if (totalMonovalentEl) {
-		totalMonovalentEl.textContent = Number.isFinite(totalMonovalent)
-			? String(totalMonovalent)
-			: '—';
-	}
-}
-
 export function renderStemAndLoopSizes(result) {
 	// ---------------- Stem + Loop sizes ----------------
 	// Stem size (bases) = threePrimeStem length (canonical stem interval)

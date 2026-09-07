@@ -6,12 +6,12 @@ PURPOSE
 This file records the scientific and structural assumptions used by the two
 in-house snapback Tm functions:
 
-1. Carl/Wittwer empirical snapback Tm
+1. Wittwer/empirical snapback Tm
 2. SantaLucia/Hicks thermodynamic snapback Tm with Owczarzy salt correction
 
 The web app uses the SantaLucia result for primer orientation, allele choice,
 stem growth, final wild/variant Tms, and the four-option delta-Tm table. The
-Carl/Wittwer result is retained as a comparison.
+Wittwer/empirical result is retained as a comparison.
 
 
 PRIMARY LOCAL SOURCES
@@ -321,9 +321,9 @@ OWCZARZY 2008 SALT ASSUMPTIONS
    no pH input and does not enforce the paper's calibration ranges.
 
 
-CARL/WITTWER EMPIRICAL METHOD
+WITTWER/EMPIRICAL METHOD
 
-1. The Carl/Wittwer empirical calculation is defined in this project as:
+1. The Wittwer/empirical calculation is defined in this project as:
 
        Tm snapback = 32.9 + 0.837*Tm stem - 5.25*log10(loop length)
 
@@ -340,7 +340,7 @@ CARL/WITTWER EMPIRICAL METHOD
    caller cannot silently calculate a different model with the same -5.25
    coefficient.
 
-   This rule applies only to the Carl/Wittwer empirical loop term. The natural
+   This rule applies only to the Wittwer/empirical loop term. The natural
    logarithms in the published Owczarzy equations, the thermodynamic strand-
    concentration term, and the SantaLucia/Hicks large-loop extrapolation remain
    natural logarithms as required by those separate equations.
@@ -389,7 +389,7 @@ CARL/WITTWER EMPIRICAL METHOD
    concentration of 0.25 uM (2.5*10^-7 M). No self-complementary alternative is
    applied.
 
-7. The modernized empirical result should be treated as a Carl/Wittwer-style
+7. The modernized empirical result should be treated as a Wittwer/empirical
    comparison, not bit-for-bit reproduction of the unavailable 2026 macro. The
    SantaLucia/Hicks calculation remains the web app's primary design method.
 
@@ -403,6 +403,10 @@ WEB-APP BEHAVIOR AND SCOPE
    The public createSnapback entry point enforces the same requested-Tm contract
    as the web form: a whole number from 40 through 80 C, inclusive.
 
+   On the first visit with no saved session value, the desired wild-type Tm
+   field is prefilled with 65 C. Returning through the workflow preserves the
+   user's previously entered value; Restart clears it and restores 65 C.
+
    Unlike the pre-existing seed-only heuristic, all four forward/reverse x
    wild/variant-match choices are now grown independently. Within each choice,
    every viable stem length is evaluated and only wild-type Tms of at least 40 C
@@ -414,7 +418,7 @@ WEB-APP BEHAVIOR AND SCOPE
    useForwardPrimer helper retains seed-only behavior solely for compatibility
    and is not used by the production createSnapback path.
 
-2. The empirical/Wittwer result is calculated from the same final structure and
+2. The Wittwer/empirical result is calculated from the same final structure and
    displayed only as a comparison.
 
    Orientation, allele, stem-length, and delta-Tm comparisons use unrounded
@@ -511,7 +515,7 @@ LEGACY WORKBOOK REGRESSION COVERAGE
 4. The most direct workbook regression is the Hugh Refit composition step. All
    44 peaks in Hugh Refit!D2:H45 are recomposed from the cached recovered stem Tm,
    loop length, coefficients 32.9/-5.25/0.837, and log10. This tests the shared
-   Carl/Wittwer combination helper exactly. Because each recovered stem Tm was
+   Wittwer/empirical combination helper exactly. Because each recovered stem Tm was
    algebraically solved from the same rounded empirical output, this establishes
    formula and log-base compatibility, not independent physical accuracy.
 

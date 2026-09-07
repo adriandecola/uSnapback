@@ -13,7 +13,6 @@ import {
 import {
 	renderDeltaTmTable,
 	renderSnapbackPrimer,
-	renderTmConditions,
 } from '../src/js/pages/resultsRender.js';
 import { renderStemDiagram } from '../src/js/pages/resultsStemDiagram.js';
 import { readStoredTmConditions } from '../src/js/shared/tmConditions.js';
@@ -337,6 +336,17 @@ describe('2026 result annotations', () => {
 });
 
 describe('2026 page copy', () => {
+	test('prefills the desired wild-type Tm with 65 on first visit', () => {
+		const html = readFileSync(
+			new URL('../src/pages/desiredTm.html', import.meta.url),
+			'utf8',
+		);
+		const page = new DOMParser().parseFromString(html, 'text/html');
+		const desiredTm = page.getElementById('desiredTm');
+
+		expect(desiredTm.value).toBe('65');
+	});
+
 	test('uses the shorter ion labels without help text', () => {
 		const html = readFileSync(
 			new URL('../src/pages/desiredTm.html', import.meta.url),
@@ -371,6 +381,27 @@ describe('2026 page copy', () => {
 		expect(copy).toMatch(/total monovalent cations/i);
 		expect(copy.length).toBeLessThan(150);
 	});
+
+	test('uses the requested concise results labels and temporary note', () => {
+		const html = readFileSync(
+			new URL('../src/pages/results.html', import.meta.url),
+			'utf8',
+		);
+		const page = new DOMParser().parseFromString(html, 'text/html');
+		const copy = page.body.textContent.replace(/\s+/g, ' ').trim();
+		const caption = page
+			.getElementById('deltaCaption')
+			.textContent.replace(/\s+/g, ' ')
+			.trim();
+
+		expect(copy).toMatch(/Wittwer\/empirical comparison:/);
+		expect(copy).not.toMatch(/Carl\/Wittwer/i);
+		expect(page.getElementById('freeMagnesiumMm')).toBeNull();
+		expect(page.getElementById('totalMonovalentMm')).toBeNull();
+		expect(caption).toBe(
+			"Note this is now calculated entirely for each option including the logic, so stem lengths may vary. It won't be included in the final program.",
+		);
+	});
 });
 
 describe('Tm condition inputs and requests', () => {
@@ -385,22 +416,6 @@ describe('Tm condition inputs and requests', () => {
 			msg: '',
 			data: { magnesiumMm: 3, monovalentMm: 13.7 },
 		});
-	});
-
-	test('labels the exact ionic quantities used on the results page', () => {
-		document.body.innerHTML = `
-			<span id="freeMagnesiumMm"></span>
-			<span id="totalMonovalentMm"></span>
-		`;
-
-		renderTmConditions({ magnesiumMm: 4.6, monovalentMm: 17.2 });
-
-		expect(document.getElementById('freeMagnesiumMm').textContent).toBe(
-			'4.6',
-		);
-		expect(document.getElementById('totalMonovalentMm').textContent).toBe(
-			'17.2',
-		);
 	});
 
 	test.each([
