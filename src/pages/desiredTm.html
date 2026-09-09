@@ -74,7 +74,8 @@
                 near this value.<br><br>
                 • Allowed range: <strong>40 – 80 °C</strong><br>
                 • Whole numbers only (no decimals)<br><br>
-                Enter the <strong>free Mg<sup>2+</sup></strong> concentration and the
+                Enter the <strong>free Mg<sup>2+</sup></strong> concentration
+                (total Mg<sup>2+</sup> &minus; total dNTPs) and the
                 <strong>total concentration of all monovalent cations</strong> used in the reaction.
                 The defaults are <strong>2.2 mM free Mg<sup>2+</sup></strong> and
                 <strong>13.7 mM total monovalent cations</strong>.
@@ -84,7 +85,7 @@
         <!-- ───────────── Form ───────────── -->
          <form id="tmForm" autocomplete="off" novalidate>
             <div class="tm-field">
-                <label for="desiredTm" class="field-label">Desired T<sub>m</sub> (°C)</label>
+                <label for="desiredTm" class="field-label">Desired wild-type T<sub>m</sub> (°C)</label>
                 <input type="number" id="desiredTm" name="desiredTm"
                     min="40" max="80" step="1"
                     required inputmode="numeric" pattern="\d*"

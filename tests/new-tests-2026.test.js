@@ -347,16 +347,28 @@ describe('2026 page copy', () => {
 		expect(desiredTm.value).toBe('65');
 	});
 
-	test('uses the shorter ion labels without help text', () => {
+	test('labels the desired Tm as wild-type and defines free magnesium', () => {
 		const html = readFileSync(
 			new URL('../src/pages/desiredTm.html', import.meta.url),
 			'utf8',
 		);
 		const page = new DOMParser().parseFromString(html, 'text/html');
+		const desiredTmLabel = page.querySelector('label[for="desiredTm"]');
 		const magnesiumLabel = page.querySelector('label[for="magnesiumMm"]');
+		const instructions = page
+			.querySelector('.instructions')
+			.textContent.replace(/\s+/g, ' ')
+			.trim();
+
+		expect(desiredTmLabel.textContent.replace(/\s+/g, ' ').trim()).toBe(
+			'Desired wild-type Tm (°C)',
+		);
 
 		expect(magnesiumLabel.textContent.replace(/\s+/g, ' ').trim()).toBe(
 			'Free Mg2+ (mM)',
+		);
+		expect(instructions).toMatch(
+			/free Mg2\+ concentration \(total Mg2\+ − total dNTPs\)/i,
 		);
 		expect(page.body.textContent).not.toMatch(/unbound/i);
 		expect(page.querySelectorAll('.field-help')).toHaveLength(0);
@@ -398,6 +410,9 @@ describe('2026 page copy', () => {
 		expect(copy).not.toMatch(/Carl\/Wittwer/i);
 		expect(page.getElementById('freeMagnesiumMm')).toBeNull();
 		expect(page.getElementById('totalMonovalentMm')).toBeNull();
+		expect(
+			page.querySelector('script[type="module"]')?.getAttribute('src'),
+		).toMatch(/results\.js\?v=\d+$/);
 		expect(caption).toBe(
 			"Note this is now calculated entirely for each option including the logic, so stem lengths may vary. It won't be included in the final program.",
 		);

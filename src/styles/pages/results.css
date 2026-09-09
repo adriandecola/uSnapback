@@ -166,6 +166,18 @@
 	z-index: 1000;
 	font-weight: 600;
 }
+.loading-overlay p {
+	margin: 0;
+}
+.loading-overlay .loading-detail {
+	max-width: 34rem;
+	margin-top: 0.5rem;
+	padding: 0 1rem;
+	color: #475569;
+	font-size: 0.9rem;
+	font-weight: 400;
+	text-align: center;
+}
 .lds-ring {
 	display: inline-block;
 	width: 80px;

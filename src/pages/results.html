@@ -197,9 +197,18 @@
             </div>
         </div>
         <!-- full-page loading overlay ▼▼ -->
-        <div id="loadingOverlay" class="loading-overlay" hidden>
+        <div
+            id="loadingOverlay"
+            class="loading-overlay"
+            role="status"
+            aria-live="polite"
+            hidden
+        >
             <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
             <p>Calculating snapback&nbsp;primer…</p>
+            <p class="loading-detail">
+                This calculation runs on your device. Longer amplicons may take several seconds.
+            </p>
         </div>
 
     </main>
@@ -213,7 +222,7 @@
 
 
 	<!-- Javascript for this page -->
-	<script type="module" src="../js/pages/results.js"></script>
+	<script type="module" src="../js/pages/results.js?v=20260909"></script>
 
 </body>
 

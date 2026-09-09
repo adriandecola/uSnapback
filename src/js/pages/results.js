@@ -16,6 +16,10 @@ import {
 import { wireCopyButton } from '../shared/clipboard.js';
 import { renderStemDiagram } from './resultsStemDiagram.js';
 import {
+	calculateSnapbackForResults,
+	waitForInitialPaint,
+} from './resultsCalculation.js';
+import {
 	renderSnapbackPrimer,
 	renderLimitingPrimer,
 	renderTailSummary,
@@ -161,21 +165,18 @@ async function initResultsPage() {
 		overlay.hidden = false; // Show loading screen during compute/render
 		// Let the browser paint the overlay before the CPU-heavy four-option stem
 		// search begins, especially for amplicons near the 1000-base limit.
-		await new Promise((resolve) => {
-			if (typeof requestAnimationFrame === 'function') {
-				requestAnimationFrame(() => resolve());
-			} else {
-				setTimeout(resolve, 0);
-			}
-		});
-		const result = await createSnapback(
+		await waitForInitialPaint();
+		const calculationArgs = [
 			inputs.seq,
 			inputs.fwdLen,
 			inputs.revLen,
 			{ index: inputs.snvIndex, variantBase: inputs.snvBase },
 			validated.tmC,
 			validated.tmConditions,
-		);
+		];
+		const result = await calculateSnapbackForResults(calculationArgs, {
+			directCalculate: createSnapback,
+		});
 
 		// For debugging
 		console.log(result);
