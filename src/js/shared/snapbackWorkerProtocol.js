@@ -1,4 +1,7 @@
 export const SNAPBACK_WORKER_CALCULATE = 'usnapback:calculate';
+export const SNAPBACK_WORKER_READY = 'usnapback:ready';
+export const SNAPBACK_WORKER_CALCULATION_STARTED =
+	'usnapback:calculation-started';
 export const SNAPBACK_WORKER_SUCCESS = 'usnapback:success';
 export const SNAPBACK_WORKER_FAILURE = 'usnapback:failure';
 

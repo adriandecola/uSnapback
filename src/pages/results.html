@@ -54,7 +54,7 @@
 
     <!-- Link to CSS File -->
     <link rel="stylesheet" href="../styles/base.css">
-    <link rel="stylesheet" href="../styles/pages/results.css">
+    <link rel="stylesheet" href="../styles/pages/results.css?v=20260909.2">
 </head>
 
 <body>
@@ -221,8 +221,98 @@
     <button type="button" id="restartBtn" class="restart-btn">Restart ↺</button>
 
 
-	<!-- Javascript for this page -->
-	<script type="module" src="../js/pages/results.js?v=20260909"></script>
+	<!-- Bootstrap diagnostics before loading the results module so import failures are visible. -->
+	<script type="module">
+		void (async () => {
+			const releaseId = '20260909.2';
+			let diagnostics = null;
+			let bootstrapStage = 'diagnostics_module_import';
+			const showStartupFailure = () => {
+				const overlay = document.getElementById('loadingOverlay');
+				if (!overlay) return;
+				overlay.hidden = false;
+				overlay.classList.add('loading-error');
+				const spinner = overlay.querySelector('.lds-ring');
+				if (spinner) spinner.hidden = true;
+				const message = overlay.querySelector('p');
+				if (message) message.textContent = 'The results page could not start.';
+				const detail = overlay.querySelector('.loading-detail');
+				if (detail) {
+					detail.textContent =
+						'Reload the page. If this happens again, send the browser console messages beginning “[uSnapback diagnostics]”.';
+				}
+			};
+
+			try {
+				const diagnosticsModule = await import(
+					`../js/pages/resultsDiagnostics.js?v=${releaseId}`
+				);
+				diagnostics = diagnosticsModule.createResultsDiagnostics({ releaseId });
+				diagnostics.installGlobalHandlers();
+				diagnostics.info('bootstrap_started', {
+					documentReadyState: document.readyState,
+					visibilityState: document.visibilityState,
+					online: navigator.onLine,
+					secureContext: window.isSecureContext,
+				});
+
+				bootstrapStage = 'results_module_import';
+				const moduleImportStartedAt = diagnostics.elapsedMs();
+				diagnostics.info('module_import_started', { module: 'results' });
+				const resultsModule = await import(
+					`../js/pages/results.js?v=${releaseId}`
+				);
+				diagnostics.info('module_import_succeeded', {
+					module: 'results',
+					durationMs:
+						Math.round(
+							Math.max(
+								0,
+								diagnostics.elapsedMs() - moduleImportStartedAt,
+							) * 10,
+						) / 10,
+				});
+				bootstrapStage = 'results_initialization';
+				await resultsModule.initResultsPage({ diagnostics });
+			} catch (error) {
+				if (diagnostics) {
+					const event =
+						bootstrapStage === 'results_module_import'
+							? 'module_import_failed'
+							: 'initialization_failed';
+					diagnostics.error(event, {
+						stage: bootstrapStage,
+						error: diagnostics.describeError(error),
+					});
+				} else {
+					const safeMessage = String(
+						error?.message || 'The diagnostics module could not be loaded.',
+					)
+						.replace(/(["'`])([ACGT]+)\1/gi, (_match, _quote, sequence) =>
+							`[DNA:${sequence.length} bases]`,
+						)
+						.replace(/[ACGT]{8,}/gi, (sequence) =>
+							`[DNA:${sequence.length} bases]`,
+						)
+						.slice(0, 1000);
+					console.error(
+						`[uSnapback diagnostics] ${JSON.stringify({
+							schemaVersion: 1,
+							releaseId,
+							page: 'results',
+							level: 'error',
+							event: 'diagnostics_module_load_failed',
+							error: {
+								name: error?.name || 'Error',
+								message: safeMessage,
+							},
+						})}`,
+					);
+				}
+				showStartupFailure();
+			}
+		})();
+	</script>
 
 </body>
 

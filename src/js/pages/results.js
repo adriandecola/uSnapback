@@ -7,7 +7,7 @@
 */
 
 /* ---------------------------------------- Imports --------------------------------------- */
-import { createSnapback } from '../../script.js';
+import { createSnapback } from '../../script.js?v=20260909.2';
 import {
 	DEFAULT_MAGNESIUM_MM,
 	DEFAULT_MONOVALENT_MM,
@@ -18,7 +18,13 @@ import { renderStemDiagram } from './resultsStemDiagram.js';
 import {
 	calculateSnapbackForResults,
 	waitForInitialPaint,
-} from './resultsCalculation.js';
+} from './resultsCalculation.js?v=20260909.2';
+import {
+	createResultsDiagnostics,
+	describeDiagnosticError,
+	detectBrowserSummary,
+	summarizeResultsInputs,
+} from './resultsDiagnostics.js?v=20260909.2';
 import {
 	renderSnapbackPrimer,
 	renderLimitingPrimer,
@@ -75,42 +81,50 @@ function readInputs() {
 /* --------------------------------------------------
 Helper: validate inputs before running the main algorithm
 -------------------------------------------------- */
-function validateInputs({
-	seq,
-	fwdLen,
-	revLen,
-	snvIndex,
-	snvBase,
-	tmStr,
-	magnesiumStr,
-	monovalentStr,
-}) {
+function validateInputs(
+	{
+		seq,
+		fwdLen,
+		revLen,
+		snvIndex,
+		snvBase,
+		tmStr,
+		magnesiumStr,
+		monovalentStr,
+	},
+	diagnostics,
+) {
 	const vAmp = validateAmpliconSeq(seq);
 	if (!vAmp.ok) {
+		diagnostics.warn('validation_failed', { check: 'amplicon_sequence' });
 		goBack(vAmp.msg);
 		return null;
 	}
 
 	const vPrim = validatePrimerLengths(seq.length, fwdLen, revLen);
 	if (!vPrim.ok) {
+		diagnostics.warn('validation_failed', { check: 'primer_lengths' });
 		goBack(vPrim.msg);
 		return null;
 	}
 
 	const vSnv = validateSnv(seq, fwdLen, revLen, snvIndex, snvBase);
 	if (!vSnv.ok) {
+		diagnostics.warn('validation_failed', { check: 'snv_selection' });
 		alert(vSnv.msg);
 		return null;
 	}
 
 	const vTm = validateDesiredTm(tmStr);
 	if (!vTm.ok) {
+		diagnostics.warn('validation_failed', { check: 'desired_tm' });
 		alert(vTm.msg);
 		return null;
 	}
 
 	const vConditions = validateTmConditions(magnesiumStr, monovalentStr);
 	if (!vConditions.ok) {
+		diagnostics.warn('validation_failed', { check: 'tm_conditions' });
 		alert(vConditions.msg);
 		return null;
 	}
@@ -121,51 +135,135 @@ function validateInputs({
 	};
 }
 
-async function initResultsPage() {
-	/* ---------- DOM elements ---------- */
-	const prevBtn = document.getElementById('prevBtn');
-	const restartBtn = document.getElementById('restartBtn');
-	const resultBox = document.getElementById('resultBox');
-	const overlay = document.getElementById('loadingOverlay');
-	/* Copy buttons */
-	const copySnapBtn = document.getElementById('copySnapSeqBtn');
-	const copyLimitBtn = document.getElementById('copyLimitSeqBtn');
-	const copySnapStatus = document.getElementById('copySnapStatus');
-	const copyLimitStatus = document.getElementById('copyLimitStatus');
-
-	/* ---------- Wire up copy buttons ---------- */
-	wireCopyButton(copySnapBtn, document.getElementById('snapSeq'), {
-		statusEl: copySnapStatus,
-	});
-	wireCopyButton(copyLimitBtn, document.getElementById('limitSeq'), {
-		statusEl: copyLimitStatus,
-	});
-
-	/* ---------- Back button ---------- */
-	prevBtn.addEventListener('click', () => {
-		/* keep current inputs intact – just step back */
-		window.location.href = PREV_PAGE;
-	});
-
-	/* --------------------------------------------------
-	Event: restart button → clear storage and go to start.html
-	-------------------------------------------------- */
-	restartBtn.addEventListener('click', () => {
-		sessionStorage.clear();
-		window.location.href = START_PAGE;
-	});
-
-	/* ---------- Pull and validate inputs ---------- */
-	const inputs = readInputs();
-	const validated = validateInputs(inputs);
-	if (!validated) return;
-
-	/* ---------- Main logic ---------- */
+function runRenderStep(diagnostics, step, render) {
+	const startedAt = diagnostics.elapsedMs();
+	diagnostics.info('render_step_started', { step });
 	try {
-		overlay.hidden = false; // Show loading screen during compute/render
-		// Let the browser paint the overlay before the CPU-heavy four-option stem
-		// search begins, especially for amplicons near the 1000-base limit.
-		await waitForInitialPaint();
+		render();
+		diagnostics.info('render_step_succeeded', {
+			step,
+			durationMs: diagnosticDuration(diagnostics, startedAt),
+		});
+	} catch (error) {
+		diagnostics.error('render_step_failed', {
+			step,
+			durationMs: diagnosticDuration(diagnostics, startedAt),
+			error: diagnostics.describeError(error),
+		});
+		throw error;
+	}
+}
+
+function diagnosticDuration(diagnostics, startedAt) {
+	return Math.round(Math.max(0, diagnostics.elapsedMs() - startedAt) * 10) / 10;
+}
+
+function exposeDiagnosticReport(diagnostics) {
+	try {
+		globalThis.uSnapbackDiagnostics = Object.freeze({
+			releaseId: diagnostics.releaseId,
+			runId: diagnostics.runId,
+			getReport: diagnostics.getReport,
+		});
+	} catch {
+		// The console still receives every record if the global cannot be exposed.
+	}
+}
+
+export async function initResultsPage({
+	diagnostics = createResultsDiagnostics(),
+} = {}) {
+	let stage = 'initialization';
+	let overlay = null;
+	let resultBox = null;
+	const pageStartedAt = diagnostics.elapsedMs();
+	diagnostics.installGlobalHandlers?.();
+	exposeDiagnosticReport(diagnostics);
+	diagnostics.info('init_started', {
+		browser: detectBrowserSummary(globalThis.navigator?.userAgent),
+		documentReadyState: document.readyState,
+		visibilityState: document.visibilityState,
+		online: globalThis.navigator?.onLine ?? null,
+		secureContext: globalThis.isSecureContext ?? null,
+		features: {
+			worker: typeof globalThis.Worker === 'function',
+			requestAnimationFrame:
+				typeof globalThis.requestAnimationFrame === 'function',
+		},
+	});
+
+	try {
+		stage = 'dom_setup';
+		const elements = {
+			prevBtn: document.getElementById('prevBtn'),
+			restartBtn: document.getElementById('restartBtn'),
+			resultBox: document.getElementById('resultBox'),
+			overlay: document.getElementById('loadingOverlay'),
+			copySnapBtn: document.getElementById('copySnapSeqBtn'),
+			copyLimitBtn: document.getElementById('copyLimitSeqBtn'),
+			copySnapStatus: document.getElementById('copySnapStatus'),
+			copyLimitStatus: document.getElementById('copyLimitStatus'),
+			snapSeq: document.getElementById('snapSeq'),
+			limitSeq: document.getElementById('limitSeq'),
+		};
+		const missingElementIds = Object.entries(elements)
+			.filter(([, element]) => !element)
+			.map(([id]) => id);
+		if (missingElementIds.length > 0) {
+			diagnostics.error('dom_check_failed', { missingElementIds });
+			throw new Error(
+				`Results page is missing required elements: ${missingElementIds.join(', ')}`,
+			);
+		}
+		({ overlay, resultBox } = elements);
+
+		wireCopyButton(elements.copySnapBtn, elements.snapSeq, {
+			statusEl: elements.copySnapStatus,
+		});
+		wireCopyButton(elements.copyLimitBtn, elements.limitSeq, {
+			statusEl: elements.copyLimitStatus,
+		});
+
+		elements.prevBtn.addEventListener('click', () => {
+			window.location.href = PREV_PAGE;
+		});
+		elements.restartBtn.addEventListener('click', () => {
+			sessionStorage.clear();
+			window.location.href = START_PAGE;
+		});
+
+		stage = 'input_validation';
+		const inputs = readInputs();
+		diagnostics.info('inputs_read', {
+			ampliconLength: inputs.seq.length,
+			hasPrimerLengths:
+				Number.isInteger(inputs.fwdLen) &&
+				inputs.fwdLen > 0 &&
+				Number.isInteger(inputs.revLen) &&
+				inputs.revLen > 0,
+			hasSnvSelection:
+				Number.isInteger(inputs.snvIndex) &&
+				typeof inputs.snvBase === 'string',
+			hasDesiredTm: inputs.tmStr !== '',
+			hasTmConditions:
+				inputs.magnesiumStr !== '' && inputs.monovalentStr !== '',
+		});
+		const validated = validateInputs(inputs, diagnostics);
+		if (!validated) {
+			diagnostics.warn('init_stopped', { stage: 'input_validation' });
+			return;
+		}
+		diagnostics.info(
+			'validation_succeeded',
+			summarizeResultsInputs(inputs, validated),
+		);
+
+		overlay.hidden = false;
+		diagnostics.info('loading_overlay_shown');
+		stage = 'initial_paint';
+		await waitForInitialPaint({ diagnostics });
+
+		stage = 'calculation';
 		const calculationArgs = [
 			inputs.seq,
 			inputs.fwdLen,
@@ -176,45 +274,67 @@ async function initResultsPage() {
 		];
 		const result = await calculateSnapbackForResults(calculationArgs, {
 			directCalculate: createSnapback,
+			diagnostics,
 		});
 
-		// For debugging
-		console.log(result);
-
+		stage = 'rendering';
+		const renderingStartedAt = diagnostics.elapsedMs();
+		diagnostics.info('rendering_started');
 		const snvStemIndex =
 			result.descriptiveExtendedSnapback?.snvOnThreePrimeStem
 				?.indexInThreePrimeStem;
 
-		// two-row horizontal stem view with SNV toggle
-		renderStemDiagram(
-			result.descriptiveUnExtendedSnapbackPrimer,
-			result.descriptiveExtendedSnapback,
-			inputs.seq[inputs.snvIndex],
-			inputs.snvBase,
-			snvStemIndex,
-			result.matchesWild,
-		);
+		runRenderStep(diagnostics, 'stem_diagram', () => {
+			renderStemDiagram(
+				result.descriptiveUnExtendedSnapbackPrimer,
+				result.descriptiveExtendedSnapback,
+				inputs.seq[inputs.snvIndex],
+				inputs.snvBase,
+				snvStemIndex,
+				result.matchesWild,
+			);
+		});
+		runRenderStep(diagnostics, 'snapback_primer', () => {
+			renderSnapbackPrimer(result, inputs.fwdLen, inputs.revLen);
+		});
+		runRenderStep(diagnostics, 'limiting_primer', () => {
+			renderLimitingPrimer(result);
+		});
+		runRenderStep(diagnostics, 'tail_summary', () => {
+			renderTailSummary(result);
+		});
+		runRenderStep(diagnostics, 'tm_summary', () => {
+			renderTmSummary(result);
+		});
+		runRenderStep(diagnostics, 'stem_loop_sizes', () => {
+			renderStemAndLoopSizes(result);
+		});
+		runRenderStep(diagnostics, 'delta_tm_table', () => {
+			renderDeltaTmTable(
+				result,
+				inputs.seq[inputs.snvIndex],
+				inputs.snvBase,
+			);
+		});
 
-		renderSnapbackPrimer(result, inputs.fwdLen, inputs.revLen);
-		renderLimitingPrimer(result);
-
-		renderTailSummary(result);
-		renderTmSummary(result);
-		renderStemAndLoopSizes(result);
-		renderDeltaTmTable(
-			result,
-			inputs.seq[inputs.snvIndex],
-			inputs.snvBase,
-		);
-
-		/* Show results and hide loading screen */
 		resultBox.hidden = false;
 		overlay.hidden = true;
-	} catch (err) {
-		overlay.hidden = true; // Hide loading screen
-		console.error(err);
-		goBack(err.message || 'Snapback calculation failed.');
+		diagnostics.info('results_visible', {
+			renderDurationMs: diagnosticDuration(
+				diagnostics,
+				renderingStartedAt,
+			),
+			totalDurationMs: diagnosticDuration(diagnostics, pageStartedAt),
+		});
+	} catch (error) {
+		if (overlay) overlay.hidden = true;
+		diagnostics.error('page_failed', {
+			stage,
+			error:
+				typeof diagnostics.describeError === 'function'
+					? diagnostics.describeError(error)
+					: describeDiagnosticError(error),
+		});
+		goBack(error?.message || 'Snapback calculation failed.');
 	}
 }
-
-initResultsPage();

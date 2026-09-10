@@ -410,9 +410,21 @@ describe('2026 page copy', () => {
 		expect(copy).not.toMatch(/Carl\/Wittwer/i);
 		expect(page.getElementById('freeMagnesiumMm')).toBeNull();
 		expect(page.getElementById('totalMonovalentMm')).toBeNull();
+		const bootstrapScript = [...page.querySelectorAll('script[type="module"]')]
+			.find((script) => script.textContent.includes('bootstrap_started'));
+		expect(bootstrapScript).toBeDefined();
+		expect(bootstrapScript.hasAttribute('src')).toBe(false);
+		expect(bootstrapScript.textContent).toMatch(
+			/resultsDiagnostics\.js\?v=\$\{releaseId\}/,
+		);
+		expect(bootstrapScript.textContent).toMatch(
+			/results\.js\?v=\$\{releaseId\}/,
+		);
+		expect(bootstrapScript.textContent).toMatch(/module_import_failed/);
+		expect(bootstrapScript.textContent).toMatch(/initialization_failed/);
 		expect(
-			page.querySelector('script[type="module"]')?.getAttribute('src'),
-		).toMatch(/results\.js\?v=\d+$/);
+			page.querySelector('link[href*="styles/pages/results.css?v="]'),
+		).not.toBeNull();
 		expect(caption).toBe(
 			"Note this is now calculated entirely for each option including the logic, so stem lengths may vary. It won't be included in the final program.",
 		);

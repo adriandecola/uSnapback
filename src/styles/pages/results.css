@@ -178,6 +178,15 @@
 	font-weight: 400;
 	text-align: center;
 }
+.loading-overlay.loading-error {
+	background: rgba(255, 255, 255, 0.96);
+}
+.loading-overlay.loading-error > p:first-of-type {
+	color: #b91c1c;
+}
+.loading-overlay.loading-error .lds-ring {
+	display: none;
+}
 .lds-ring {
 	display: inline-block;
 	width: 80px;

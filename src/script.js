@@ -828,72 +828,6 @@ async function calculateMeltingTempDifferencesLegacy(
 			bestStemLocRevCompSnapPrimerRefPoint.end + 1,
 		);
 
-	console.group('Step 5 — Stem sequences at fixed bestStemLoc');
-	// Shared context for step 5
-	console.log('bestStemLoc, ', bestStemLoc);
-	console.log(
-		'bestStemLoc (same-primer frame): start=%d, end=%d, len=%d',
-		bestStemLoc.start,
-		bestStemLoc.end,
-		bestStemLoc.end - bestStemLoc.start + 1,
-	);
-	console.log(
-		'bestStemLoc (rev-comp frame): start=%d, end=%d, len=%d',
-		bestStemLocRevCompSnapPrimerRefPoint.start,
-		bestStemLocRevCompSnapPrimerRefPoint.end,
-		bestStemLocRevCompSnapPrimerRefPoint.end -
-			bestStemLocRevCompSnapPrimerRefPoint.start +
-			1,
-	);
-
-	// Same-primer frame (snapback reference orientation)
-	console.group('Same primer (snapback reference orientation)');
-	console.log('Stem (WILD) sequence: %s', stemSeqWildSamePrimer);
-	console.log(
-		'  length=%d | global SNV index=%d | SNV base (genomic)=%s | posInStem=%d',
-		stemSeqWildSamePrimer.length,
-		snvSiteSnapPrimerRefPoint.index,
-		targetStrandSeqSnapPrimerRefPoint[snvSiteSnapPrimerRefPoint.index],
-		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
-	);
-
-	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantSamePrimer);
-	console.log(
-		'  length=%d | global SNV index=%d | SNV base (variant)=%s | posInStem=%d',
-		stemSeqVariantSamePrimer.length,
-		snvSiteSnapPrimerRefPoint.index,
-		snvSiteSnapPrimerRefPoint.variantBase,
-		snvSiteSnapPrimerRefPoint.index - bestStemLoc.start,
-	);
-	console.groupEnd(); // Same primer
-
-	// Reverse-primer frame (reverse complement of snapback reference)
-	console.group('Reverse primer (reverse-complement orientation)');
-	console.log('Stem (WILD) sequence: %s', stemSeqWildRevPrimer);
-	console.log(
-		'  length=%d | global SNV index (rev)=%d | SNV base (rev genomic)=%s | posInStem=%d',
-		stemSeqWildRevPrimer.length,
-		snvSiteRevCompSnapPrimerRefPoint.index,
-		targetStrandSeqRevCompSnapPrimerRefPoint[
-			snvSiteRevCompSnapPrimerRefPoint.index
-		],
-		snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start,
-	);
-
-	console.log('Stem (VARIANT) sequence: %s', stemSeqVariantRevPrimer);
-	console.log(
-		'  length=%d | global SNV index (rev)=%d | SNV base (rev variant)=%s | posInStem=%d',
-		stemSeqVariantRevPrimer.length,
-		snvSiteRevCompSnapPrimerRefPoint.index,
-		snvSiteRevCompSnapPrimerRefPoint.variantBase,
-		snvSiteRevCompSnapPrimerRefPoint.index -
-			bestStemLocRevCompSnapPrimerRefPoint.start,
-	);
-	console.groupEnd(); // Reverse primer
-
-	console.groupEnd(); // Step 5
-
 	// 6) Calculating the loop lengths for each case.
 	//    They only depend on which primer the tail is attached to
 	const loopLenSamePrimer = getSnapbackLoopLength(
@@ -1341,9 +1275,6 @@ async function useForwardPrimerLegacy(targetSeqStrand, snvSite, tmConditions) {
 			tmConditions,
 		);
 
-	console.log('tailOnForwardPrimerScenario', tailOnForwardPrimerScenario);
-	console.log('tailOnReversePrimerScenario', tailOnReversePrimerScenario);
-
 	// 0) Compare which scenario yields the bigger Tm difference
 	if (
 		tailOnForwardPrimerScenario.bestTmDifference >
@@ -1654,96 +1585,7 @@ async function evaluateSnapbackTailMatchingOptionsLegacy(
 		variantMatchTm - variantMatchingSnapbackTailToWildTm,
 	);
 
-	/* ───────────── DEBUG LOG BLOCK (paste before the return) ───────────── */
-
-	console.group('evaluateSnapbackTailMatchingOptions — debug');
-
-	// Inputs & slices
-	console.log('initStem:', initStem, 'len=', initStem.length);
-	console.log('mismatchPos:', mismatchPos);
-	console.log('wildBase @mismatchPos:', initStem[mismatchPos]);
-	console.log('variantBase:', variantBase);
-	console.log('variantInitStem:', variantInitStem);
-
-	// Base complements (for sanity)
-	console.log('comp(wildBase):', NUCLEOTIDE_COMPLEMENT[wildBase]);
-	console.log('comp(variantBase):', NUCLEOTIDE_COMPLEMENT[variantBase]);
-
-	// Top-strand Tms (no mismatch)
-	console.log('wildMatchTm (initStem):', wildMatchTm);
-	console.log('variantMatchTm (variantInitStem):', variantMatchTm);
-
-	// Scenario A (tail matches WILD → mismatch vs VARIANT top)
-	console.log(
-		'Scenario A mismatch obj:',
-		wildMatchingSnapbackTailToVariantMismatchObj,
-	);
-	console.log(
-		'Scenario A Tm (variantInitStem + A_mismatch):',
-		wildMatchingSnapbackTailToVariantTm,
-	);
-	console.log(
-		'Scenario A ΔTm = |wildMatchTm - A_Tm|:',
-		Math.abs(wildMatchTm - wildMatchingSnapbackTailToVariantTm),
-		'→ stored as wildMatchingSnapbackTailTmDiff=',
-		wildMatchingSnapbackTailTmDiff,
-	);
-
-	// Scenario B (tail matches VARIANT → mismatch vs WILD top)
-	console.log(
-		'Scenario B mismatch obj:',
-		variantMatchingSnapbackTailToWildMismatchObj,
-	);
-	console.log(
-		'Scenario B Tm (initStem + B_mismatch):',
-		variantMatchingSnapbackTailToWildTm,
-	);
-	console.log(
-		'Scenario B ΔTm = |variantMatchTm - B_Tm|:',
-		Math.abs(variantMatchTm - variantMatchingSnapbackTailToWildTm),
-		'→ stored as variantMatchingSnapbackTailTmDiff=',
-		variantMatchingSnapbackTailTmDiff,
-	);
-
-	// Summary table
-	console.table([
-		{
-			Scenario: 'A: tail matches WILD',
-			topStrand: 'variantInitStem',
-			mismatchType: wildMatchingSnapbackTailToVariantMismatchObj.type,
-			BasePlacedInTail: NUCLEOTIDE_COMPLEMENT[wildBase],
-			NoMismatchTm: wildMatchTm,
-			ScenarioTm: wildMatchingSnapbackTailToVariantTm,
-			DeltaTm: wildMatchingSnapbackTailTmDiff,
-		},
-		{
-			Scenario: 'B: tail matches VARIANT',
-			topStrand: 'initStem',
-			mismatchType: variantMatchingSnapbackTailToWildMismatchObj.type,
-			BasePlacedInTail: NUCLEOTIDE_COMPLEMENT[variantBase],
-			NoMismatchTm: variantMatchTm,
-			ScenarioTm: variantMatchingSnapbackTailToWildTm,
-			DeltaTm: variantMatchingSnapbackTailTmDiff,
-		},
-	]);
-
-	// Decision preview (before actual return)
-	const _chooseA =
-		wildMatchingSnapbackTailTmDiff > variantMatchingSnapbackTailTmDiff;
-	console.log('Decision preview:', {
-		chooseA: _chooseA,
-		reason: _chooseA
-			? 'Scenario A ΔTm > Scenario B ΔTm'
-			: 'Scenario B ΔTm ≥ Scenario A ΔTm',
-		scenarioA_DeltaTm: wildMatchingSnapbackTailTmDiff,
-		scenarioB_DeltaTm: variantMatchingSnapbackTailTmDiff,
-		chosenTailBase: _chooseA
-			? NUCLEOTIDE_COMPLEMENT[wildBase]
-			: NUCLEOTIDE_COMPLEMENT[variantBase],
-		snapbackTailMatchesWildPreview: _chooseA,
-	});
-
-	// Tie/suspicious conditions
+	// Keep warnings high-level so browser diagnostics never expose assay bases.
 	if (wildMatchingSnapbackTailTmDiff === variantMatchingSnapbackTailTmDiff) {
 		console.warn('ΔTm tie detected: A == B. Check inputs/orientation.');
 	}
@@ -1752,9 +1594,6 @@ async function evaluateSnapbackTailMatchingOptionsLegacy(
 			'variantBase equals wildBase at mismatchPos (unexpected).',
 		);
 	}
-
-	console.groupEnd();
-	/* ───────────── END DEBUG LOG BLOCK ───────────── */
 
 	// 4) Pick whichever scenario yields the larger difference
 	if (wildMatchingSnapbackTailTmDiff > variantMatchingSnapbackTailTmDiff) {
@@ -3158,8 +2997,6 @@ function parseTmFromResponse(rawHtml, mismatch) {
 		const parser = new DOMParser();
 		const doc = parser.parseFromString(rawHtml, 'text/html');
 
-		console.log('TM PARSING HTML', rawHtml);
-
 		// 2. Getting the <tm> or <mmtm> element
 		var tmElement;
 		if (!mismatch) {
@@ -3179,9 +3016,9 @@ function parseTmFromResponse(rawHtml, mismatch) {
 
 		// 5. Return parsed Tm, or null if NaN
 		return isNaN(tmValue) ? null : tmValue;
-	} catch (err) {
+	} catch {
 		// 6. Fallback: return null on DOM parsing failure
-		console.error('parseTmFromResponse error:', err);
+		console.error('Unable to parse the Tm response.');
 		return null;
 	}
 }
@@ -3237,8 +3074,6 @@ function parseThermoParamsFromResponse(rawHtml) {
 		//    - unwrap JSON { contents: "<html>...</html>" }
 		//    - drop any preface before first '<'
 		//    - fix JSON-escaped closing tags: <\/tag> -> </tag>
-		console.log('PARSING THERMO PARAMS RESPONSE HTML', rawHtml);
-
 		let html = rawHtml;
 		const trimmed = html.trim();
 		if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -3298,7 +3133,7 @@ function parseThermoParamsFromResponse(rawHtml) {
 		return { dH: dH_kcal, dS: dS_cal_per_K, saltCorrection: saltCorr_C };
 	} catch (err) {
 		// Pass along error
-		console.error('parseThermoParamsFromResponse error:', err);
+		console.error('Unable to parse thermodynamic parameters from the response.');
 		throw err instanceof Error ? err : new Error(String(err));
 	}
 }
